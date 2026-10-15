@@ -74,6 +74,9 @@ class ModbusBackend:
                 parity=params.parity,
                 stopbits=params.stopbits,
                 timeout=params.timeout,
+                # Windows clamps strict's inter-byte timeout to 1 ms, which
+                # truncates RTU responses delivered in separate USB packets.
+                strict=False,
             )
             description = f"{params.port} ({params.baudrate}/{params.parity})"
         try:

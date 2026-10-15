@@ -102,6 +102,9 @@ src/modbus_connector/
                   # через ", " + hex в скобках; без установленных — «0x0000»;
                   # пустые names — все биты «bN»)
   backend.py      # без Qt: ModbusBackend — connect/disconnect/connected,
+                  # serial RTU: strict=False — без 1 ms inter-byte timeout
+                  # Windows/pyserial; USB-пакеты собираются до нужной длины
+                  # в пределах serial timeout, CRC проверяет RTU framer;
                   # read/write (write только coils/holding_registers),
                   # mask_write_register (функция 0x16),
                   # readwrite_registers (функция 0x17),
@@ -883,6 +886,8 @@ tests/
   test_models.py  # parse_values/format_values, bitmask-хелперы
                   # (set_bit_labels/bits_to_value/format_bitmask_value)
   test_backend.py # ModbusBackend против modbus_server: read/write/scan
+  test_backend_serial.py # RTU через реальный pymodbus и модель Windows serial:
+                         # USB-паузы, длинные ответы, неполный кадр, CRC, exception
   test_datalogger.py  # DataLogger: csv/jsonl, subset полей, append/overwrite
   test_cli.py       # cli.py без Qt: read всех областей/--text/--format, write с
                     # обратным чтением, exit codes (3 Modbus exception, 2

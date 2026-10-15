@@ -303,6 +303,11 @@ python -m modbus_connector
 3. Press **Connect**. Input fields are locked while connected; press
    **Disconnect** to change settings.
 
+Serial RTU clients wait for the requested response bytes within the configured
+serial timeout, without pymodbus's strict inter-byte timeout. This avoids
+premature short reads between USB adapter packets on Windows; RTU frame length
+and CRC checks remain enabled.
+
 The status label next to the button is live: green means the link is up,
 orange with an "(idle)" suffix means the connection is configured but the last
 transaction timed out — pymodbus reconnects transparently on the next request,
