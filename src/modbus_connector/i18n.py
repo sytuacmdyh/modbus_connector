@@ -1,13 +1,14 @@
-"""Мини-i18n без .ts/.qm: английский исходник — ключ, перевод — в RU.
+"""Мини-i18n без .ts/.qm: английский исходник — ключ, перевод — в RU/ZH.
 
 Только отображаемые строки: внутренние значения (RegisterKind, форматы,
 порядки байт, ключи настроек) никогда не переводятся — они persist'ятся в JSON.
 Переводы добавляются инкрементально; отсутствующий ключ → английский.
 """
 
-from PySide6.QtCore import QLocale, QObject, Signal
+from PySide6.QtCore import QCoreApplication, QLibraryInfo, QLocale, QObject, QTranslator, Signal
 
-LANGUAGES = ("en", "ru")
+LANGUAGES = ("en", "ru", "zh_CN")
+LANGUAGE_NAMES = {"en": "English", "ru": "Русский", "zh_CN": "简体中文"}
 
 RU: dict[str, str] = {
     # main window
@@ -537,6 +538,481 @@ RU: dict[str, str] = {
 }
 
 
+ZH_CN: dict[str, str] = {
+    # main window
+    "File": "文件",
+    "Save Settings to File…": "保存设置到文件…",
+    "Load Settings from File…": "从文件加载设置…",
+    "View": "视图",
+    "Theme": "主题",
+    "Language": "语言",
+    "System": "跟随系统",
+    "Light": "浅色",
+    "Dark": "深色",
+    "Save Settings": "保存设置",
+    "Load Settings": "加载设置",
+    "Templates": "模板",
+    "(empty)": "（空）",
+    "Tx: {total}  Err: {errors} ({percent:.1f}%)  Avg: {avg:.0f} ms":
+        "请求：{total}  错误：{errors} ({percent:.1f}%)  平均：{avg:.0f} 毫秒",
+    "  top: {kind}": "  最常见：{kind}",
+    "no errors yet": "暂无错误",
+    # session widget
+    "New connection": "新建连接",
+    "Scanner…": "扫描器…",
+    "Graph…": "曲线图…",
+    "Log": "日志",
+    "Modbus Scanner": "Modbus 扫描器",
+    # connection panel
+    "Host:": "主机：",
+    "Port:": "端口：",
+    "Baud:": "波特率：",
+    "Bits:": "数据位：",
+    "Parity:": "校验位：",
+    "Stop:": "停止位：",
+    "Unit:": "从站地址：",
+    "Timeout:": "超时：",
+    "Connect": "连接",
+    "Disconnect": "断开连接",
+    "Device ID…": "设备标识…",
+    "Diagnostics…": "诊断…",
+    "Refresh": "刷新",
+    "Serial-line diagnostics (0x08); some TCP devices answer it too":
+        "串行线路诊断（0x08）；部分 TCP 设备也支持",
+    "Disconnected": "未连接",
+    "(idle)": "（空闲）",
+    "Invalid settings": "设置无效",
+    "RTU over TCP": "RTU 透传 TCP",
+    "RTU over UDP": "RTU 透传 UDP",
+    "Device identification (0x2B/0x0E)": "设备标识（0x2B/0x0E）",
+    "Reading…": "正在读取…",
+    "(device reported no objects)": "（设备未返回任何对象）",
+    "Diagnostics (function 0x08)": "诊断（功能码 0x08）",
+    "Loopback": "回环测试",
+    "Clear counters": "清除计数器",
+    "mismatch": "不匹配",
+    # registers panel
+    "Name": "名称",
+    "Type": "类型",
+    "Address": "地址",
+    "Count": "数量",
+    "Unit ID": "从站地址",
+    "Poll, ms": "轮询间隔（毫秒）",
+    "Format": "格式",
+    "Value": "当前值",
+    "New value": "新值",
+    "Trend": "趋势",
+    "Enter in 'New value' = write raw values (no scale/offset applied), "
+    "Ctrl/Cmd+R = read current row, Ctrl/Cmd+Shift+R = read all rows":
+        "在“新值”中按 Enter 写入原始值（不应用缩放/偏移），"
+        "Ctrl/Cmd+R 读取当前行，Ctrl/Cmd+Shift+R 读取所有行",
+    "Add register": "添加寄存器",
+    "Read all": "读取全部",
+    "Read every row once (Ctrl/Cmd+Shift+R)": "读取每行一次（Ctrl/Cmd+Shift+R）",
+    "Group reads": "合并读取",
+    "Merge adjacent addresses of the polling tick and Read all into "
+    "one request; falls back to per-row reads if a grouped read fails":
+        "轮询和“读取全部”时，将相邻地址合并为一个请求；合并读取失败后逐行重试",
+    "✗ grouped read {kind}@{address} ({count}): {error}"
+    " — retrying rows individually":
+        "✗ 合并读取 {kind}@{address}（{count}）：{error} — 正在逐行重试",
+    "Sort by address": "按地址排序",
+    "Mask write (0x16)…": "掩码写入（0x16）…",
+    "Set or clear individual bits of a holding register without touching "
+    "others: result = (value AND and-mask) OR (or-mask AND NOT and-mask). "
+    "Typical use: bit fields in PLC configuration registers.":
+        "设置或清除保持寄存器中的指定位，其他位不变："
+        "result = (value AND and-mask) OR (or-mask AND NOT and-mask)。"
+        "常用于 PLC 配置寄存器的位字段。",
+    "Read/Write (0x17)…": "读写寄存器（0x17）…",
+    "Atomic transaction: write holding registers and read others in a "
+    "single Modbus exchange (function 0x17). Used when a device requires "
+    "read-modify-write without a race window.":
+        "原子事务：在一次 Modbus 交互中写入保持寄存器并读取其他寄存器（功能码 0x17）。"
+        "用于需要避免读改写竞争的设备。",
+    "Filter…": "筛选…",
+    "Display…": "显示设置…",
+    "Per-row Scale/Offset/Unit and byte order settings": "每行的缩放、偏移、单位和字节序设置",
+    "Import/export the register table as CSV": "以 CSV 格式导入/导出寄存器表",
+    "Import table…": "导入表格…",
+    "Export…": "导出…",
+    "Log to file": "记录到文件",
+    "Logging settings…": "记录设置…",
+    "Log read values to a file (CSV or JSON Lines)": "将读取值记录到文件（CSV 或 JSON Lines）",
+    "Logging to {path} — click to stop": "正在记录到 {path} — 点击停止",
+    "Order:": "字节序：",
+    "Default byte order for 32/64-bit formats "
+    "(rows without an explicit order inherit it)":
+        "32/64 位格式的默认字节序（未单独指定的行继承此设置）",
+    "Interval:": "间隔：",
+    "Poll all rows with the Interval period; the dropdown chooses whether "
+    "value history is recorded for sparklines and the graph window "
+    "(bounded buffer, ~10k samples per row)":
+        "按指定间隔轮询所有行；下拉菜单选择是否为趋势和曲线图记录历史值"
+        "（缓冲区有限，每行约 1 万个采样点）",
+    "Start polling": "开始轮询",
+    "Start polling and record": "开始轮询并记录",
+    "Stop polling": "停止轮询",
+    "Modbus unit 1..247, empty = unit from the connection panel":
+        "Modbus 从站地址 1..247，留空则使用连接面板的从站地址",
+    "Per-row poll interval in ms, empty = global interval; "
+    "a row with its own interval is polled by a dedicated timer":
+        "每行轮询间隔（毫秒），留空则使用全局间隔；单独设置间隔的行使用独立定时器",
+    "Display format (registers only; coils/discrete show 0/1)":
+        "显示格式（仅用于寄存器；线圈/离散输入显示为 0/1）",
+    "Delete row": "删除行",
+    "Poll this row": "轮询此行",
+    # expressions block
+    "Expressions": "表达式",
+    "Computed rows over register values ([name] references), "
+    "with their own sparklines and graph series":
+        "基于寄存器值的计算行（通过 [名称] 引用），具有独立的趋势和曲线",
+    "Add expression": "添加表达式",
+    "Add a computed row; [name] references a register row's "
+    "scaled value, e.g. ([temp] + [flow]) / 2":
+        "添加计算行；[名称] 引用寄存器行缩放后的值，例如 ([temp] + [flow]) / 2",
+    "Expression": "表达式",
+    "Delete expression": "删除表达式",
+    "Expressions compute over scaled row values: [name] is a row "
+    "reference, functions abs/sqrt/sin/… and pi/e are available":
+        "表达式使用缩放后的行值计算：[名称] 引用行，可使用 abs/sqrt/sin/… 函数和 pi/e 常量",
+    "Move up": "上移",
+    "Move down": "下移",
+    "Copy value": "复制值",
+    "Write 0": "写入 0",
+    "Write 1": "写入 1",
+    "Increment": "加一",
+    "Decrement": "减一",
+    "Toggle": "翻转",
+    "Clear history": "清除历史",
+    # registers panel: dialogs and log lines
+    "Per-row display settings": "各行显示设置",
+    "Value names": "值名称",
+    "Value names…": "值名称…",
+    "Value names (selected row):": "值名称（选中行）：",
+    "One 'value=name' per line, e.g. 0=Stopped; a matching integer value "
+    "shows as 'name (N)' and the row's New value cell becomes a combo.":
+        "每行填写“值=名称”，例如 0=停止；匹配的整数显示为“名称 (N)”，"
+        "该行的“新值”单元格变为下拉框。",
+    "One 'value=name' per line, e.g. 0=Stopped; a matching integer value "
+    "shows as 'name (N)' and the Value cell of a manual row becomes a combo.":
+        "每行填写“值=名称”，例如 0=停止；匹配的整数显示为“名称 (N)”，"
+        "手动行的“当前值”单元格变为下拉框。",
+    "Name integer values of the current row (enum), e.g. 0=Off, 1=On":
+        "为当前行的整数值命名（枚举），例如 0=关闭，1=开启",
+    "Bitmask (16 named bits)": "位掩码（16 个命名位）",
+    "Edit bits": "编辑位",
+    "Edit bits…": "编辑位…",
+    "Treat the u16 value as 16 named bits: value names label bits 0..15, "
+    "the Value cell lists the set bits and New value becomes a button "
+    "opening a bit checkbox dialog.":
+        "将 u16 值视为 16 个命名位：值名称对应位 0..15，“当前值”列出置位项，"
+        "“新值”变为按钮，可打开位选择对话框。",
+    "Treat the u16 value as 16 named bits: value names label bits 0..15, "
+    "the Value cell lists the set bits and a manual row's cell becomes "
+    "a button opening a bit checkbox dialog.":
+        "将 u16 值视为 16 个命名位：值名称对应位 0..15，“当前值”列出置位项，"
+        "手动行的单元格变为按钮，可打开位选择对话框。",
+    "Scale": "缩放系数",
+    "Offset": "偏移量",
+    "Unit": "单位",
+    "default": "默认",
+    "Rows added or deleted while this dialog is open appear after reopening it.":
+        "此对话框打开期间新增或删除的行，将在重新打开后更新。",
+    "Mask write (function 0x16)": "掩码写入（功能码 0x16）",
+    "empty = global unit": "留空则使用全局从站地址",
+    "Set/clear bits of one holding register:\n"
+    "result = (value AND and-mask) OR (or-mask AND NOT and-mask).\n"
+    "Masks accept decimal or hex (e.g. 0xFF0F).":
+        "设置/清除单个保持寄存器的位：\n"
+        "result = (value AND and-mask) OR (or-mask AND NOT and-mask)。\n"
+        "掩码支持十进制或十六进制（例如 0xFF0F）。",
+    "AND mask:": "AND 掩码：",
+    "OR mask:": "OR 掩码：",
+    "Read/Write multiple registers (function 0x17)": "读写多个寄存器（功能码 0x17）",
+    "comma/space separated, hex ok": "逗号/空格分隔，支持十六进制",
+    "One atomic exchange: write Values at Write address, then read\n"
+    "Read count registers from Read address; read values go to the log.\n"
+    "Addresses accept decimal or hex (e.g. 0x10).":
+        "一次原子交互：从写入地址写入指定值，再从读取地址\n"
+        "读取指定数量的寄存器；读取结果输出到日志。\n"
+        "地址支持十进制或十六进制（例如 0x10）。",
+    "Write address:": "写入地址：",
+    "Values:": "写入值：",
+    "Read address:": "读取地址：",
+    "Read count:": "读取数量：",
+    "Import registers from CSV": "从 CSV 导入寄存器",
+    "Export registers to CSV": "将寄存器导出为 CSV",
+    "✗ failed to read {path}: {exc}": "✗ 读取 {path} 失败：{exc}",
+    "✗ failed to import {path}: {exc}": "✗ 导入 {path} 失败：{exc}",
+    "✗ failed to write {path}: {exc}": "✗ 写入 {path} 失败：{exc}",
+    "✗ failed to load template {name}: {exc}": "✗ 加载模板 {name} 失败：{exc}",
+    "← imported {count} rows from {path}": "← 已从 {path} 导入 {count} 行",
+    "→ exported {count} rows to {path}": "→ 已将 {count} 行导出到 {path}",
+    "✗ export: no columns selected": "✗ 导出失败：未选择任何列",
+    "✗ mask write: invalid address/mask (dec or 0x… hex)":
+        "✗ 掩码写入：地址/掩码无效（使用十进制或 0x… 十六进制）",
+    "✗ mask write: address/mask out of range 0..0xFFFF":
+        "✗ 掩码写入：地址/掩码超出 0..0xFFFF 范围",
+    "✗ read/write: invalid address (dec or 0x… hex)":
+        "✗ 读写寄存器：地址无效（使用十进制或 0x… 十六进制）",
+    "✗ read/write: address out of range 0..0xFFFF": "✗ 读写寄存器：地址超出 0..0xFFFF 范围",
+    "✗ parse error: {exc}": "✗ 解析错误：{exc}",
+    "← read/write read values: {values}": "← 读写寄存器的读取结果：{values}",
+    "✗ row {row}: invalid address/count": "✗ 第 {row} 行：地址/数量无效",
+    "✗ row {row}: {kind} is a read-only area": "✗ 第 {row} 行：{kind} 为只读区域",
+    "✗ row {row}: read the row before +/-": "✗ 第 {row} 行：加减操作前请先读取该行",
+    "✗ row {row}: read the row before toggling": "✗ 第 {row} 行：翻转前请先读取该行",
+    "← scanner: added {added} rows to the table": "← 扫描器：已向表格添加 {added} 行",
+    ", skipped {skipped} duplicates": "，已跳过 {skipped} 个重复项",
+    "✗ logging: cannot open {path}: {exc}": "✗ 记录失败：无法打开 {path}：{exc}",
+    "→ logging values to {path} ({format})": "→ 正在将数值记录到 {path}（{format}）",
+    "← logging stopped: {rows} rows written to {path}":
+        "← 记录已停止：已向 {path} 写入 {rows} 行",
+    # alarms dialog and log lines
+    "Alarms…": "报警…",
+    "Per-row alarm rules: highlight, log and beep when the scaled "
+    "value matches a condition": "每行报警规则：缩放后的值满足条件时高亮、记录日志并发出提示音",
+    "Alarm rules": "报警规则",
+    "Condition": "条件",
+    "Value 2": "值 2",
+    "Color": "颜色",
+    "Sound": "声音",
+    "in range": "在范围内",
+    "outside range": "在范围外",
+    "red": "红色",
+    "yellow": "黄色",
+    "Add": "添加",
+    "Remove": "移除",
+    "Up": "上移",
+    "Down": "下移",
+    "The first matching rule wins; Value 2 is used by the range conditions":
+        "使用第一个匹配的规则；“值 2”用于范围条件",
+    "Rule value must be a number": "规则值必须为数字",
+    "ALARM {label}: {value} {condition}": "报警 {label}：{value} {condition}",
+    "ALARM cleared {label}": "报警已解除：{label}",
+    # snapshot diff
+    "Snapshot": "快照",
+    "Remember current values of all rows for later comparison": "保存所有行的当前值，以便后续比较",
+    "Diff…": "比较…",
+    "Compare the snapshot with the current values": "将快照与当前值比较",
+    "Snapshot taken: {count} rows": "已创建快照：{count} 行",
+    "Snapshot diff": "快照比较",
+    "Snapshot taken at {time}": "快照时间：{time}",
+    "Only differences": "仅显示差异",
+    "Take new snapshot": "创建新快照",
+    "Current": "当前",
+    "(removed)": "（已删除）",
+    # CSV dialogs
+    "Export CSV": "导出 CSV",
+    "Choose columns to export and their order": "选择导出的列及其顺序",
+    "Select all": "全选",
+    "Select none": "全不选",
+    "Import CSV": "导入 CSV",
+    "Match file columns to register fields": "将文件列映射到寄存器字段",
+    "File column": "文件列",
+    "Maps to": "映射到",
+    "— skip —": "— 跳过 —",
+    "Map the essential fields: {fields}": "请映射必填字段：{fields}",
+    # logging settings dialog
+    "Logging settings": "记录设置",
+    "Log file path": "记录文件路径",
+    "Browse…": "浏览…",
+    "Timestamp": "时间戳",
+    "Row name": "行名称",
+    "Register type": "寄存器类型",
+    "Append to the file if it exists": "文件已存在时追加内容",
+    "Rows to log": "要记录的行",
+    "File:": "文件：",
+    "Format:": "格式：",
+    "Fields:": "字段：",
+    "Log values to file": "将数值记录到文件",
+    "Choose a log file": "选择记录文件",
+    # log panel
+    "Clear": "清除",
+    "Raw": "原始帧",
+    "Save…": "保存…",
+    "Save Log": "保存日志",
+    "✗ failed to save log to {path}: {exc}": "✗ 保存日志到 {path} 失败：{exc}",
+    "→ log saved to {path}": "→ 日志已保存到 {path}",
+    # worker log lines
+    "Connected ({desc})": "已连接（{desc}）",
+    "→ connect {desc}": "→ 连接 {desc}",
+    "✗ connect failed: {exc}": "✗ 连接失败：{exc}",
+    "← connected": "← 已连接",
+    "✗ disconnect failed: {exc}": "✗ 断开连接失败：{exc}",
+    "→ disconnect": "→ 断开连接",
+    "→ read {kind} unit={unit} addr={address} count={count}":
+        "→ 读取 {kind} 从站={unit} 地址={address} 数量={count}",
+    "✗ read failed: {exc}": "✗ 读取失败：{exc}",
+    "→ write {kind} unit={unit} addr={address} values={values}":
+        "→ 写入 {kind} 从站={unit} 地址={address} 值={values}",
+    "✗ write failed: {exc}": "✗ 写入失败：{exc}",
+    "← ok": "← 成功",
+    "→ mask write unit={unit} addr={address} and=0x{and_mask:04x} "
+    "or=0x{or_mask:04x}":
+        "→ 掩码写入 从站={unit} 地址={address} and=0x{and_mask:04x} or=0x{or_mask:04x}",
+    "✗ mask write failed: {exc}": "✗ 掩码写入失败：{exc}",
+    "→ read/write unit={unit} read@{read_address} x{read_count} "
+    "write@{write_address} values={values}":
+        "→ 读写 从站={unit} 读取@{read_address} x{read_count} "
+        "写入@{write_address} 值={values}",
+    "✗ read/write failed: {exc}": "✗ 读写失败：{exc}",
+    "→ read device id unit={unit}": "→ 读取设备标识 从站={unit}",
+    "✗ read device id failed: {exc}": "✗ 读取设备标识失败：{exc}",
+    "← device id: {count} objects": "← 设备标识：{count} 个对象",
+    "→ diag loopback unit={unit}": "→ 回环诊断 从站={unit}",
+    "✗ diag loopback failed: {exc}": "✗ 回环诊断失败：{exc}",
+    "← loopback ok": "← 回环测试成功",
+    "← loopback mismatch": "← 回环数据不匹配",
+    "→ diag counters unit={unit}": "→ 读取诊断计数器 从站={unit}",
+    "✗ diag counters failed: {exc}": "✗ 读取诊断计数器失败：{exc}",
+    "← diag counters: {counters}": "← 诊断计数器：{counters}",
+    "→ diag clear counters unit={unit}": "→ 清除诊断计数器 从站={unit}",
+    "✗ diag clear counters failed: {exc}": "✗ 清除诊断计数器失败：{exc}",
+    "← counters cleared": "← 计数器已清除",
+    "→ scan units {start}..{end} ({count} probes)":
+        "→ 扫描从站 {start}..{end}（{count} 个探测项）",
+    "← scan hit unit={unit} probes={indices}": "← 发现从站={unit} 探测项={indices}",
+    "✗ scan failed: {exc}": "✗ 扫描失败：{exc}",
+    "← scan stopped": "← 扫描已停止",
+    "← scan finished": "← 扫描已完成",
+    "→ scan addresses {kind} unit={unit} {start}..{end}":
+        "→ 扫描地址 {kind} 从站={unit} {start}..{end}",
+    "← addr scan hit {kind}@{address} = {values}": "← 发现地址 {kind}@{address} = {values}",
+    "✗ address scan failed: {exc}": "✗ 地址扫描失败：{exc}",
+    "← address scan stopped": "← 地址扫描已停止",
+    "← address scan finished": "← 地址扫描已完成",
+    # main window file dialogs and log lines
+    "✗ failed to save settings to {path}: {exc}": "✗ 保存设置到 {path} 失败：{exc}",
+    "→ settings saved to {path}": "→ 设置已保存到 {path}",
+    "✗ failed to load settings from {path}: {exc}": "✗ 从 {path} 加载设置失败：{exc}",
+    "✗ failed to load settings from {path}: not an object":
+        "✗ 从 {path} 加载设置失败：内容不是 JSON 对象",
+    "← settings loaded from {path}": "← 已从 {path} 加载设置",
+    "→ unit {unit} selected in connection panel": "→ 已在连接面板选择从站 {unit}",
+    # slave mode / sim panel
+    "Mode:": "模式：",
+    "Master": "主站",
+    "Slave": "从站",
+    "Simulator": "模拟器",
+    "Start server": "启动服务器",
+    "Stop server": "停止服务器",
+    "Stopped": "已停止",
+    "any": "任意",
+    "Add row": "添加行",
+    "Add a row to the register map": "向寄存器映射表添加一行",
+    "Template…": "模板…",
+    "Add rows from a device template": "从设备模板添加行",
+    "clients: {count}": "客户端：{count}",
+    "← template: added {added} rows to the map": "← 模板：已向映射表添加 {added} 行",
+    "Rule": "规则",
+    "Rule text": "规则表达式",
+    "Tick, ms": "更新周期（毫秒）",
+    # sim worker log lines
+    "→ start simulator {desc}": "→ 启动模拟器 {desc}",
+    "✗ simulator start failed: {exc}": "✗ 启动模拟器失败：{exc}",
+    "← simulator running ({desc})": "← 模拟器运行中（{desc}）",
+    "Simulator running ({desc})": "模拟器运行中（{desc}）",
+    "✗ simulator stop failed: {exc}": "✗ 停止模拟器失败：{exc}",
+    "→ simulator stopped": "→ 模拟器已停止",
+    "✗ simulator set values failed: {exc}": "✗ 设置模拟器值失败：{exc}",
+    "✗ simulator get values failed: {exc}": "✗ 读取模拟器值失败：{exc}",
+    "← client connected {address}": "← 客户端已连接 {address}",
+    "→ client disconnected {address}": "→ 客户端已断开 {address}",
+    # sniffer mode / sniffer panel
+    "Sniffer": "嗅探器",
+    "Start sniffing": "开始嗅探",
+    "Stop sniffing": "停止嗅探",
+    "unit {unit}": "从站 {unit}",
+    "Listening ({desc})": "监听中（{desc}）",
+    "Export CSV…": "导出 CSV…",
+    "Live graph of this unit's rows": "此从站各行的实时曲线图",
+    "Export rows to CSV in the master table format": "按主站表格格式将各行导出为 CSV",
+    # sniffer worker log lines
+    "→ start sniffer {desc}": "→ 启动嗅探器 {desc}",
+    "✗ sniffer start failed: {exc}": "✗ 启动嗅探器失败：{exc}",
+    "← sniffer listening ({desc})": "← 嗅探器监听中（{desc}）",
+    "→ sniffer stopped": "→ 嗅探器已停止",
+    "✗ sniffer stop failed: {exc}": "✗ 停止嗅探器失败：{exc}",
+    "✗ sniffer: {message}": "✗ 嗅探器：{message}",
+    # gateway mode / gateway panel
+    "Gateway": "网关",
+    "Listen:": "监听端：",
+    "Target:": "目标端：",
+    "Units:": "从站地址：",
+    "Units to serve: empty = all 1..247; comma-separated ids and ranges, "
+    "e.g. 1, 5, 10-20; other units get no answer (master times out)":
+        "服务的从站地址：留空表示全部 1..247；用逗号分隔地址和范围，"
+        "例如 1, 5, 10-20；其他从站地址无应答（主站超时）",
+    "Start gateway": "启动网关",
+    "Stop gateway": "停止网关",
+    "Gateway running ({desc})": "网关运行中（{desc}）",
+    "← gateway client connected": "← 网关客户端已连接",
+    "→ gateway client disconnected": "→ 网关客户端已断开",
+    # gateway worker log lines
+    "→ start gateway {desc}": "→ 启动网关 {desc}",
+    "✗ gateway start failed: {exc}": "✗ 启动网关失败：{exc}",
+    "← gateway running ({desc})": "← 网关运行中（{desc}）",
+    "✗ gateway stop failed: {exc}": "✗ 停止网关失败：{exc}",
+    "→ gateway stopped": "→ 网关已停止",
+    "✗ gateway: {message}": "✗ 网关：{message}",
+    # scanner panel
+    "Add probe": "添加探测项",
+    "Start scan": "开始扫描",
+    "Stop": "停止",
+    "Delete": "删除",
+    "Start": "开始",
+    "All": "全选",
+    "None": "全不选",
+    "Add selected to table": "将选中项添加到表格",
+    "Add one row per checked address to the registers table":
+        "将每个选中地址作为一行添加到寄存器表",
+    "Double-click a unit to select it for the connection": "双击从站，将其选为连接目标",
+    "Read the selected unit's identification (function 0x2B/0x0E)":
+        "读取选中从站的设备标识（功能码 0x2B/0x0E）",
+    "Unit range:": "从站范围：",
+    "Type:": "类型：",
+    "Addresses:": "地址范围：",
+    "Address:": "地址：",
+    "Results:": "结果：",
+    "Registers scan:": "寄存器扫描：",
+    "Unit {unit} — device identification (0x2B/0x0E)": "从站 {unit} — 设备标识（0x2B/0x0E）",
+    "Unit {unit}: {labels}": "从站 {unit}：{labels}",
+    "Bool": "布尔值",
+    # graph window
+    "Graph": "曲线图",
+    "Refresh rows": "刷新行列表",
+    "Follow": "跟随",
+    "Full": "全部",
+    "Manual": "手动",
+    "Zoom rect": "框选缩放",
+    "Markers": "标记线",
+    "Reset view": "重置视图",
+    "Clear recorded history and restart the time axis": "清除历史记录并重置时间轴",
+    "Poll the register table and record value history for this graph":
+        "轮询寄存器表，并为此曲线图记录历史值",
+    "X scale:": "X 轴范围：",
+    "Series:": "曲线：",
+    "Series": "曲线",
+    "Min": "最小值",
+    "Max": "最大值",
+    "Avg": "平均值",
+    "time, s (relative)": "相对时间（秒）",
+    "Δt = {dt:.4g} s": "Δt = {dt:.4g} 秒",
+    # help dialog
+    "Help": "帮助",
+    "New connection tab": "新建连接标签页",
+    "Registers — Help": "寄存器表 — 帮助",
+    "Graph — Help": "曲线图 — 帮助",
+    "Scanner — Help": "扫描器 — 帮助",
+    "Expressions — Help": "表达式 — 帮助",
+    "Simulator — Help": "模拟器 — 帮助",
+    "Sniffer — Help": "嗅探器 — 帮助",
+    "Gateway — Help": "网关 — 帮助",
+}
+
+
 class _LanguageNotifier(QObject):
     changed = Signal(str)
 
@@ -545,10 +1021,12 @@ _notifier = _LanguageNotifier()
 languageChanged = _notifier.changed  # подключается к retranslate() виджетов
 
 _current: str | None = None
+_qt_translator = QTranslator()
 
 
 def _detect() -> str:
-    return "ru" if QLocale.system().name().lower().startswith("ru") else "en"
+    language = QLocale.system().name().lower().split("_")[0]
+    return {"ru": "ru", "zh": "zh_CN"}.get(language, "en")
 
 
 def current_language() -> str:
@@ -567,12 +1045,19 @@ def set_language(name: str | None) -> None:
         new = name if name in LANGUAGES else "en"
     changed = new != current_language()
     _current = new
+    app = QCoreApplication.instance()
+    if app is not None:
+        app.removeTranslator(_qt_translator)
+        if new == "zh_CN" and _qt_translator.load(
+            "qtbase_zh_CN", QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)
+        ):
+            app.installTranslator(_qt_translator)
     if changed:
         _notifier.changed.emit(new)
 
 
 def tr(text: str, **fmt: object) -> str:
     """Перевести строку на текущий язык; без перевода остаётся английской."""
-    if current_language() == "ru":
-        text = RU.get(text, text)
+    translations = {"ru": RU, "zh_CN": ZH_CN}.get(current_language(), {})
+    text = translations.get(text, text)
     return text.format(**fmt) if fmt else text

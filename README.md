@@ -127,7 +127,7 @@ all Modbus logic runs in a separate thread (QThread), so the GUI never freezes.
 - A help button (a "?" icon with a tooltip) in each window (table toolbar,
   graph, scanner) opens a short help sheet with that window's controls and
   hotkeys; window toolbars use compact icon buttons with tooltips.
-- Bilingual UI: English and Русский, switched live in View → Language
+- Multilingual UI: English, Русский and 简体中文, switched live in View → Language
   (default follows the system locale; the choice persists).
 
 ## Screenshots

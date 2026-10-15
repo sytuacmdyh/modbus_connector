@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 
 from modbus_connector import icons
 from modbus_connector.i18n import (
+    LANGUAGE_NAMES,
     LANGUAGES,
     current_language,
     languageChanged,
@@ -69,7 +70,7 @@ class MainWindow(QMainWindow):
         theme_group = QActionGroup(self)
         labels = {"system": "System", "light": "Light", "dark": "Dark"}
         for key in THEMES:
-            action = self._theme_menu.addAction(labels[key])
+            action = self._theme_menu.addAction(tr(labels[key]))
             action.setCheckable(True)
             theme_group.addAction(action)
             action.triggered.connect(lambda checked=False, name=key: self._on_theme_selected(name))
@@ -80,9 +81,7 @@ class MainWindow(QMainWindow):
         self._language_actions = {}
         language_group = QActionGroup(self)
         for key in LANGUAGES:  # language names stay native on purpose
-            action = self._language_menu.addAction(
-                "Русский" if key == "ru" else "English"
-            )
+            action = self._language_menu.addAction(LANGUAGE_NAMES[key])
             action.setCheckable(True)
             language_group.addAction(action)
             action.triggered.connect(
@@ -226,6 +225,7 @@ class MainWindow(QMainWindow):
         self._sync_language_menu()
 
     def _retranslate(self) -> None:
+        self._tabs.cornerWidget().setToolTip(tr("New connection tab"))
         self._file_menu.setTitle(tr("File"))
         self._save_action.setText(tr("Save Settings to File…"))
         self._load_action.setText(tr("Load Settings from File…"))

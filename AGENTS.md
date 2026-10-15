@@ -764,7 +764,7 @@ src/modbus_connector/
                   # через set_state (заголовок вкладки — имя шаблона до
                   # подключения; пустой каталог → disabled "(empty)"),
                   # меню View — радио-переключатели
-                  # темы (System/Light/Dark) и языка (English/Русский,
+                  # темы (System/Light/Dark) и языка (English/Русский/简体中文,
                   # QActionGroup'ы), languageChanged → _retranslate окна и
                   # сессий, смена темы → icons.refresh_icons() (цвет иконок
                   # запечён при рендере), статус-бар следует
@@ -805,9 +805,11 @@ src/modbus_connector/
                   # MainWindow._on_theme_selected); цвет контура: тёмная
                   # тема — #E0E0E0, светлая — QPalette.ButtonText
                   # (pyqtdarktheme красит stylesheet'ом, палитру не меняет)
-  i18n.py         # мини-i18n (en/ru) без .ts/.qm: tr(text, **fmt) — английский
-                  # текст является ключом, RU dict — перевод (нет ключа →
+  i18n.py         # мини-i18n (en/ru/zh_CN) без .ts/.qm: tr(text, **fmt) — английский
+                  # текст является ключом, RU/ZH_CN dict — перевод (нет ключа →
                   # английский); set_language(None → по QLocale, мусор → "en"),
+                  # zh-локали → zh_CN; LANGUAGE_NAMES — native названия;
+                  # Qt standard dialogs — qtbase_zh_CN через QTranslator;
                   # current_language(), сигнал languageChanged(str);
                   # переводятся ТОЛЬКО display-строки — RegisterKind/форматы/
                   # порядки/значения настроек не переводятся никогда;
@@ -961,7 +963,8 @@ tests/
                            # тип подключения в state всегда английский,
                            # заголовки/кнопки таблицы, диалоги CSV, шаблоны
                            # лога worker'а, сканер, окно графика (режимы в
-                           # itemData), справка на двух языках
+                           # itemData), справка на трёх языках, zh-локали,
+                           # китайский каталог и placeholders
   test_graph_window.py     # чек-лист рядов, маркеры stats, Follow, zoom→Manual
   test_icons.py            # рендер всех иконок (непустые пиксели, HiDPI,
                            # масштаб), make_button (text/tooltip/accessibleName),

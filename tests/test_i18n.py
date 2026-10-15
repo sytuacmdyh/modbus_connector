@@ -1,5 +1,9 @@
 import os
 from collections.abc import Iterator
+from functools import partial
+from pathlib import Path
+from string import Formatter
+from types import SimpleNamespace
 
 import pytest
 
@@ -30,7 +34,22 @@ def _english() -> None:
 
 
 @pytest.fixture(autouse=True)
-def _destroy_windows(qapp: QApplication) -> Iterator[None]:
+def _isolated_settings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from modbus_connector import main_window, settings_store
+
+    path = tmp_path / "settings.json"
+    monkeypatch.setattr(
+        main_window, "load_settings", partial(settings_store.load_settings, path=path),
+    )
+    monkeypatch.setattr(
+        main_window, "save_settings", partial(settings_store.save_settings, path=path),
+    )
+    # Language tests do not need qdarktheme's OS listener threads.
+    monkeypatch.setattr(main_window, "apply_theme", lambda name: None)
+
+
+@pytest.fixture(autouse=True)
+def _destroy_windows(qapp: QApplication, _isolated_settings: None) -> Iterator[None]:
     yield
     from modbus_connector.registers_panel import RegistersPanel
 
@@ -279,4 +298,126 @@ def test_gateway_strings_and_help(qapp: QApplication) -> None:
     english.close()
     panel.close()
     panel.deleteLater()
+    qapp.processEvents()
+
+
+@pytest.mark.parametrize(
+    ("locale", "expected"),
+    [("zh_CN", "zh_CN"), ("zh_TW", "zh_CN"), ("zh_HK", "zh_CN"),
+     ("ru_RU", "ru"), ("en_US", "en"), ("de_DE", "en")],
+)
+def test_system_language_detection(
+    qapp: QApplication, monkeypatch: pytest.MonkeyPatch, locale: str, expected: str,
+) -> None:
+    monkeypatch.setattr(
+        i18n, "QLocale", SimpleNamespace(system=lambda: SimpleNamespace(name=lambda: locale)),
+    )
+    i18n.set_language(None)
+    assert i18n.current_language() == expected
+
+
+def test_chinese_catalog_preserves_format_fields(qapp: QApplication) -> None:
+    assert i18n.ZH_CN.keys() == i18n.RU.keys()
+    formatter = Formatter()
+    for source, translated in i18n.ZH_CN.items():
+        assert translated
+        original_fields = sorted(
+            (field, spec, conversion)
+            for _, field, spec, conversion in formatter.parse(source) if field is not None
+        )
+        translated_fields = sorted(
+            (field, spec, conversion)
+            for _, field, spec, conversion in formatter.parse(translated) if field is not None
+        )
+        assert original_fields == translated_fields, source
+    i18n.set_language("zh_CN")
+    assert i18n.tr("No such string anywhere") == "No such string anywhere"
+    assert i18n.tr(
+        "→ read {kind} unit={unit} addr={address} count={count}",
+        kind="holding_registers", unit=1, address=0, count=2,
+    ) == "→ 读取 holding_registers 从站=1 地址=0 数量=2"
+    assert i18n.tr(
+        "→ mask write unit={unit} addr={address} and=0x{and_mask:04x} or=0x{or_mask:04x}",
+        unit=1, address=0, and_mask=65295, or_mask=16,
+    ) == "→ 掩码写入 从站=1 地址=0 and=0xff0f or=0x0010"
+
+
+def test_chinese_switch_updates_all_modes_and_preserves_state(qapp: QApplication) -> None:
+    window = _fresh_window()
+    session = window._tabs.widget(0)
+    panel = session.connection_panel
+    panel.set_state({"type": "RTU over UDP", "tcp_host": "192.0.2.5", "tcp_port": 1502})
+    original = panel.state()
+
+    window._language_actions["zh_CN"].trigger()
+    assert window._language_actions["zh_CN"].text() == "简体中文"
+    assert window._language_actions["zh_CN"].isChecked()
+    assert not window._language_actions["en"].isChecked()
+    assert window._file_menu.title() == "文件"
+    assert window._language_menu.title() == "语言"
+    assert window._theme_actions["system"].text() == "跟随系统"
+    assert window._tabs.cornerWidget().toolTip() == "新建连接标签页"
+    assert window._tabs.tabText(0) == "新建连接"
+    assert panel._button.text() == "连接"
+    assert panel._type_combo.currentText() == "RTU 透传 UDP"
+    assert panel.state() == original
+    assert isinstance(panel._build_params(), RtuOverUdpParams)
+    assert session.sim_panel._button.text() == "启动服务器"
+    assert session.sniffer_panel._button.text() == "开始嗅探"
+    assert session.gateway_panel._button.text() == "启动网关"
+    assert session.scanner_panel._start_button.text() == "开始扫描"
+    assert session.registers_panel._table.horizontalHeaderItem(1).text() == "名称"
+    session.registers_panel.start_polling(True)
+    assert session.registers_panel._poll_button.text() == "停止轮询"
+    session.registers_panel.stop_polling()
+
+    window._language_actions["ru"].trigger()
+    assert panel._button.text() == "Подключиться"
+    window._language_actions["en"].trigger()
+    assert panel._button.text() == "Connect"
+    assert session.sim_panel._button.text() == "Start server"
+    assert panel.state() == original
+
+
+def test_chinese_language_restored_on_startup(qapp: QApplication) -> None:
+    from modbus_connector.main_window import load_settings, save_settings
+
+    window = _fresh_window()
+    window._language_actions["zh_CN"].trigger()
+    save_settings(window._collect_state())
+    assert load_settings()["language"] == "zh_CN"
+    i18n.set_language("en")
+    restored = MainWindow()
+    assert i18n.current_language() == "zh_CN"
+    assert restored._language_actions["zh_CN"].isChecked()
+    assert restored._file_menu.title() == "文件"
+    assert restored._tabs.widget(0).connection_panel._button.text() == "连接"
+    # app.main selects the language before constructing the main window.
+    already_chinese = MainWindow()
+    assert already_chinese._theme_actions["light"].text() == "浅色"
+
+
+def test_chinese_help_sheets_and_standard_buttons(qapp: QApplication) -> None:
+    from PySide6.QtWidgets import QDialogButtonBox, QTextBrowser, QWidget
+
+    from modbus_connector.help_dialog import HELP_ZH_CN, _sheet, show_help
+
+    i18n.set_language("zh_CN")
+    parent = QWidget()
+    for source, translated in HELP_ZH_CN.items():
+        assert _sheet(source) == translated
+        assert any("\u4e00" <= char <= "\u9fff" for char in translated)
+    assert _sheet("custom help") == "custom help"
+    dialog = show_help(parent, "Registers — Help", next(iter(HELP_ZH_CN)))
+    assert dialog.windowTitle() == "寄存器表 — 帮助"
+    text = dialog.findChild(QTextBrowser).toPlainText()
+    assert "快捷操作" in text
+    assert "Ctrl+Shift+R" in text
+    close_button = dialog.findChild(QDialogButtonBox).button(QDialogButtonBox.StandardButton.Close)
+    assert "关闭" in close_button.text()
+    i18n.set_language("en")
+    qapp.processEvents()
+    assert close_button.text() == "Close"
+    dialog.close()
+    parent.deleteLater()
     qapp.processEvents()
