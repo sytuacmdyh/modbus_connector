@@ -24,6 +24,16 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
 - Qt-слой тонкий: `worker.py` (QObject в отдельном QThread, сигналы/слоты над
   backend) + виджеты (panels, main_window, app). Никакой Modbus-логики в виджетах.
 - Async pymodbus не используется.
+- Master disconnect: SessionWidget immediately stops polling/logging and gates bus
+  controls; ModbusWorker.request_disconnect sets a thread-safe cancellation event
+  from the GUI thread. Queued bus slots skip I/O until connect_to clears it.
+  Actual disconnect stays in the worker thread after the active transaction returns;
+  shutdown uses the same cancellation path before BlockingQueuedConnection.
+- Stop polling also cancels older read request IDs in the worker and suppresses
+  their late results/error logs. New manual reads and restarted polling use newer
+  IDs and work on the existing connection. BackendError carries English message
+  keys/parameters without Qt; i18n.format_error renders them and common pymodbus
+  timeout details in the current GUI language.
 
 ## Стек
 

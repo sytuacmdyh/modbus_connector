@@ -1,10 +1,11 @@
 import time
+from threading import Event
 
 from pymodbus.exceptions import ConnectionException, ModbusIOException
 from PySide6.QtCore import QObject, Signal, Slot
 
 from modbus_connector.backend import ModbusBackend, ModbusExceptionError
-from modbus_connector.i18n import tr
+from modbus_connector.i18n import format_error, tr
 from modbus_connector.models import (
     ConnectionParams,
     RegisterKind,
@@ -51,6 +52,8 @@ class ModbusWorker(QObject):
         self._backend = ModbusBackend()
         self._backend.traffic_hook = self._on_traffic
         self._scan_stop = False
+        self._disconnect_requested = Event()
+        self._read_cancel_before = 0
         self._stats = Stats()
 
     def _on_traffic(self, direction: str, data: bytes) -> None:
@@ -65,25 +68,38 @@ class ModbusWorker(QObject):
 
     @Slot(object)
     def connect_to(self, params: ConnectionParams) -> None:
+        self._disconnect_requested.clear()
         self.logLine.emit(tr("→ connect {desc}", desc=describe_connection(params)))
         try:
             self._backend.connect(params)
         except Exception as exc:
-            self.logLine.emit(tr("✗ connect failed: {exc}", exc=exc))
-            self.connectionChanged.emit(False, str(exc))
+            self.logLine.emit(tr("✗ connect failed: {exc}", exc=format_error(exc)))
+            self.connectionChanged.emit(False, format_error(exc))
             return
         self.logLine.emit(tr("← connected"))
         self.connectionChanged.emit(
             True, tr("Connected ({desc})", desc=describe_connection(params))
         )
 
+    def request_disconnect(self) -> None:
+        # Called from the GUI thread: only signal cancellation, never touch I/O.
+        self._disconnect_requested.set()
+        self._scan_stop = True
+
+    def cancel_reads_before(self, request_id: int) -> None:
+        # GUI-thread cutoff: newer manual reads/polls remain usable without reconnecting.
+        self._read_cancel_before = request_id
+
+    def _read_cancelled(self, request_id: int) -> bool:
+        return self._disconnect_requested.is_set() or request_id < self._read_cancel_before
+
     @Slot()
     def disconnect(self) -> None:
-        self._scan_stop = True
+        self.request_disconnect()
         try:
             self._backend.disconnect()
         except Exception as exc:
-            self.logLine.emit(tr("✗ disconnect failed: {exc}", exc=exc))
+            self.logLine.emit(tr("✗ disconnect failed: {exc}", exc=format_error(exc)))
         self.logLine.emit(tr("→ disconnect"))
         # English key: the panel translates it at render time
         self.connectionChanged.emit(False, "Disconnected")
@@ -95,6 +111,8 @@ class ModbusWorker(QObject):
 
     @Slot(int, int, object)
     def read(self, request_id: int, unit: int, row: RegisterRow) -> None:
+        if self._read_cancelled(request_id):
+            return
         self.logLine.emit(
             tr(
                 "→ read {kind} unit={unit} addr={address} count={count}",
@@ -105,9 +123,13 @@ class ModbusWorker(QObject):
         try:
             values = self._backend.read(unit, row.kind, row.address, row.count)
         except Exception as exc:
+            if self._read_cancelled(request_id):
+                return
             self._record_stats(False, started, exc)
-            self.logLine.emit(tr("✗ read failed: {exc}", exc=exc))
-            self.readFinished.emit(request_id, False, [], str(exc))
+            self.logLine.emit(tr("✗ read failed: {exc}", exc=format_error(exc)))
+            self.readFinished.emit(request_id, False, [], format_error(exc))
+            return
+        if self._read_cancelled(request_id):
             return
         self._record_stats(True, started)
         self.logLine.emit(f"← {format_values(values)}")
@@ -115,6 +137,8 @@ class ModbusWorker(QObject):
 
     @Slot(int, int, object, list)
     def write(self, request_id: int, unit: int, row: RegisterRow, values: list) -> None:
+        if self._disconnect_requested.is_set():
+            return
         self.logLine.emit(
             tr(
                 "→ write {kind} unit={unit} addr={address} values={values}",
@@ -127,8 +151,8 @@ class ModbusWorker(QObject):
             self._backend.write(unit, row.kind, row.address, values)
         except Exception as exc:
             self._record_stats(False, started, exc)
-            self.logLine.emit(tr("✗ write failed: {exc}", exc=exc))
-            self.writeFinished.emit(request_id, False, str(exc))
+            self.logLine.emit(tr("✗ write failed: {exc}", exc=format_error(exc)))
+            self.writeFinished.emit(request_id, False, format_error(exc))
             return
         self._record_stats(True, started)
         self.logLine.emit(tr("← ok"))
@@ -138,6 +162,8 @@ class ModbusWorker(QObject):
     def mask_write(
         self, request_id: int, unit: int, address: int, and_mask: int, or_mask: int
     ) -> None:
+        if self._disconnect_requested.is_set():
+            return
         self.logLine.emit(
             tr(
                 "→ mask write unit={unit} addr={address} and=0x{and_mask:04x} "
@@ -150,8 +176,8 @@ class ModbusWorker(QObject):
             self._backend.mask_write_register(unit, address, and_mask, or_mask)
         except Exception as exc:
             self._record_stats(False, started, exc)
-            self.logLine.emit(tr("✗ mask write failed: {exc}", exc=exc))
-            self.writeFinished.emit(request_id, False, str(exc))
+            self.logLine.emit(tr("✗ mask write failed: {exc}", exc=format_error(exc)))
+            self.writeFinished.emit(request_id, False, format_error(exc))
             return
         self._record_stats(True, started)
         self.logLine.emit(tr("← ok"))
@@ -167,6 +193,8 @@ class ModbusWorker(QObject):
         write_address: int,
         values: list,
     ) -> None:
+        if self._disconnect_requested.is_set():
+            return
         self.logLine.emit(
             tr(
                 "→ read/write unit={unit} read@{read_address} x{read_count} "
@@ -182,8 +210,8 @@ class ModbusWorker(QObject):
             )
         except Exception as exc:
             self._record_stats(False, started, exc)
-            self.logLine.emit(tr("✗ read/write failed: {exc}", exc=exc))
-            self.readwriteFinished.emit(request_id, False, [], str(exc))
+            self.logLine.emit(tr("✗ read/write failed: {exc}", exc=format_error(exc)))
+            self.readwriteFinished.emit(request_id, False, [], format_error(exc))
             return
         self._record_stats(True, started)
         self.logLine.emit(f"← {format_values(result)}")
@@ -191,14 +219,16 @@ class ModbusWorker(QObject):
 
     @Slot(int, int)
     def read_device_id(self, request_id: int, unit: int) -> None:
+        if self._disconnect_requested.is_set():
+            return
         self.logLine.emit(tr("→ read device id unit={unit}", unit=unit))
         started = time.monotonic()
         try:
             info = self._backend.read_device_identification(unit)
         except Exception as exc:
             self._record_stats(False, started, exc)
-            self.logLine.emit(tr("✗ read device id failed: {exc}", exc=exc))
-            self.deviceIdFinished.emit(request_id, False, {}, str(exc))
+            self.logLine.emit(tr("✗ read device id failed: {exc}", exc=format_error(exc)))
+            self.deviceIdFinished.emit(request_id, False, {}, format_error(exc))
             return
         self._record_stats(True, started)
         self.logLine.emit(tr("← device id: {count} objects", count=len(info)))
@@ -206,14 +236,16 @@ class ModbusWorker(QObject):
 
     @Slot(int, int)
     def diag_loopback(self, request_id: int, unit: int) -> None:
+        if self._disconnect_requested.is_set():
+            return
         self.logLine.emit(tr("→ diag loopback unit={unit}", unit=unit))
         started = time.monotonic()
         try:
             echo_ok = self._backend.diag_loopback(unit)
         except Exception as exc:
             self._record_stats(False, started, exc)
-            self.logLine.emit(tr("✗ diag loopback failed: {exc}", exc=exc))
-            self.diagLoopbackFinished.emit(request_id, False, str(exc))
+            self.logLine.emit(tr("✗ diag loopback failed: {exc}", exc=format_error(exc)))
+            self.diagLoopbackFinished.emit(request_id, False, format_error(exc))
             return
         self._record_stats(True, started)
         self.logLine.emit(
@@ -223,14 +255,16 @@ class ModbusWorker(QObject):
 
     @Slot(int, int)
     def diag_read_counters(self, request_id: int, unit: int) -> None:
+        if self._disconnect_requested.is_set():
+            return
         self.logLine.emit(tr("→ diag counters unit={unit}", unit=unit))
         started = time.monotonic()
         try:
             counters = self._backend.diag_counters(unit)
         except Exception as exc:
             self._record_stats(False, started, exc)
-            self.logLine.emit(tr("✗ diag counters failed: {exc}", exc=exc))
-            self.diagCountersFinished.emit(request_id, False, {}, str(exc))
+            self.logLine.emit(tr("✗ diag counters failed: {exc}", exc=format_error(exc)))
+            self.diagCountersFinished.emit(request_id, False, {}, format_error(exc))
             return
         self._record_stats(True, started)
         self.logLine.emit(tr("← diag counters: {counters}", counters=counters))
@@ -238,6 +272,8 @@ class ModbusWorker(QObject):
 
     @Slot(int, int)
     def diag_clear_counters(self, request_id: int, unit: int) -> None:
+        if self._disconnect_requested.is_set():
+            return
         self.logLine.emit(tr("→ diag clear counters unit={unit}", unit=unit))
         started = time.monotonic()
         try:
@@ -245,8 +281,8 @@ class ModbusWorker(QObject):
             counters = self._backend.diag_counters(unit)  # show the cleared state
         except Exception as exc:
             self._record_stats(False, started, exc)
-            self.logLine.emit(tr("✗ diag clear counters failed: {exc}", exc=exc))
-            self.diagCountersFinished.emit(request_id, False, {}, str(exc))
+            self.logLine.emit(tr("✗ diag clear counters failed: {exc}", exc=format_error(exc)))
+            self.diagCountersFinished.emit(request_id, False, {}, format_error(exc))
             return
         self._record_stats(True, started)
         self.logLine.emit(tr("← counters cleared"))
@@ -254,6 +290,9 @@ class ModbusWorker(QObject):
 
     @Slot(list, int, int)
     def start_scan(self, probes: list[ScanProbe], start: int, end: int) -> None:
+        if self._disconnect_requested.is_set():
+            self.scanFinished.emit()
+            return
         self._scan_stop = False
         total = max(0, end - start + 1)
         self.logLine.emit(
@@ -261,7 +300,10 @@ class ModbusWorker(QObject):
                start=start, end=end, count=len(probes))
         )
         try:
-            for unit, indices in self._backend.scan(probes, start, end, lambda: self._scan_stop):
+            for unit, indices in self._backend.scan(
+                probes, start, end,
+                lambda: self._scan_stop or self._disconnect_requested.is_set(),
+            ):
                 self.scanProgress.emit(unit - start + 1, total)
                 if indices:
                     self.scanHit.emit(unit, list(indices))
@@ -270,7 +312,7 @@ class ModbusWorker(QObject):
                            unit=unit, indices=list(indices))
                     )
         except Exception as exc:
-            self.logLine.emit(tr("✗ scan failed: {exc}", exc=exc))
+            self.logLine.emit(tr("✗ scan failed: {exc}", exc=format_error(exc)))
         self.scanProgress.emit(total, total)
         self.scanFinished.emit()
         self.logLine.emit(
@@ -283,6 +325,9 @@ class ModbusWorker(QObject):
 
     @Slot(int, object, int, int)
     def start_addr_scan(self, unit: int, kind: RegisterKind, start: int, end: int) -> None:
+        if self._disconnect_requested.is_set():
+            self.addrScanFinished.emit()
+            return
         # single _scan_stop flag for both scans: only one scan runs at a time,
         # stop_scan stops whichever is active
         self._scan_stop = False
@@ -293,7 +338,8 @@ class ModbusWorker(QObject):
         )
         try:
             for address, values in self._backend.scan_addresses(
-                unit, kind, start, end, lambda: self._scan_stop
+                unit, kind, start, end,
+                lambda: self._scan_stop or self._disconnect_requested.is_set(),
             ):
                 self.addrScanHit.emit(address, list(values))
                 self.logLine.emit(
@@ -302,7 +348,7 @@ class ModbusWorker(QObject):
                 )
                 self.addrScanProgress.emit(address - start + 1, total)
         except Exception as exc:
-            self.logLine.emit(tr("✗ address scan failed: {exc}", exc=exc))
+            self.logLine.emit(tr("✗ address scan failed: {exc}", exc=format_error(exc)))
         self.addrScanProgress.emit(total, total)
         self.addrScanFinished.emit()
         self.logLine.emit(

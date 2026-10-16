@@ -1,5 +1,8 @@
 import os
+import threading
+import time
 from collections.abc import Iterator
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -18,6 +21,133 @@ from modbus_connector.session_widget import SessionWidget  # noqa: E402
 @pytest.fixture(scope="module")
 def qapp() -> QApplication:
     return QApplication.instance() or QApplication([])
+
+
+@pytest.mark.parametrize("failed", [False, True])
+def test_stop_polling_cancels_reads_and_late_logs(qapp: QApplication, failed: bool) -> None:
+    session = SessionWidget()
+    started, release = threading.Event(), threading.Event()
+    reads = []
+
+    def delayed_read(*args):
+        reads.append(args)
+        started.set()
+        assert release.wait(2)
+        if failed:
+            raise TimeoutError("no response")
+        return [42]
+
+    session._worker._backend.read = delayed_read
+    session.connection_panel.set_connected(True, "Connected")
+    session._on_connection_changed(True, "Connected")
+    panel = session.registers_panel
+    panel.set_state([{"address": i * 2, "count": 1} for i in range(10)])
+    panel.start_polling(False)
+    panel.read_all()
+    assert started.wait(1)
+    # Deliver the first read's start log before clicking Stop.
+    qapp.processEvents()
+    panel._poll_button.click()
+    stopped_log = session.log_panel._edit.toPlainText()
+    release.set()
+    try:
+        deadline = time.monotonic() + 0.2
+        while time.monotonic() < deadline:
+            qapp.processEvents()
+            time.sleep(0.001)
+        assert len(reads) == 1
+        assert session.log_panel._edit.toPlainText() == stopped_log
+        assert session.connection_panel._connected
+        assert panel._read_all_button.isEnabled()
+        # A new manual read after Stop must still work without reconnecting.
+        session._worker._backend.read = lambda *args: [123]
+        panel._read_table_row(0)
+        deadline = time.monotonic() + 1
+        while panel._pending_reads and time.monotonic() < deadline:
+            qapp.processEvents()
+            time.sleep(0.001)
+        assert panel._last_values[panel.row_tokens()[0]] == [123]
+    finally:
+        release.set()
+        session.shutdown()
+
+
+@pytest.mark.parametrize("language, expected", [
+    ("zh_CN", "设备未响应"), ("en", "No response"), ("ru", "Устройство не ответило"),
+])
+@pytest.mark.parametrize("detail", [
+    "No Response received from the remote slave/Unable to decode response",
+    "Modbus Error: [Input/Output] Modbus Error: [Invalid Message] "
+    "No response received, expected at least 4 bytes (0 received)",
+])
+def test_read_error_uses_current_language(qapp, language, expected, detail) -> None:
+    from pymodbus.exceptions import ModbusIOException
+
+    from modbus_connector.i18n import set_language
+    from modbus_connector.models import RegisterRow
+    from modbus_connector.worker import ModbusWorker
+
+    set_language(language)
+    worker = ModbusWorker()
+    client = MagicMock()
+    client.read_holding_registers.return_value = ModbusIOException(detail)
+    worker._backend._client = client
+    logs, results = [], []
+    worker.logLine.connect(logs.append)
+    worker.readFinished.connect(lambda *args: results.append(args))
+    worker.read(1, 1, RegisterRow("", "holding_registers", 0, 13))
+    assert expected in logs[-1]
+    assert expected in results[-1][-1]
+    assert "Modbus Error:" not in logs[-1]
+    if "4 bytes" in detail:
+        assert "4" in results[-1][-1] and "0" in results[-1][-1]
+    if language != "ru":
+        assert not any("\u0400" <= char <= "\u04ff" for char in logs[-1])
+
+
+@pytest.mark.parametrize("closing", [False, True])
+def test_disconnect_skips_queued_reads(qapp: QApplication, closing: bool) -> None:
+    session = SessionWidget()
+    started = threading.Event()
+    release = threading.Event()
+    reads = []
+
+    def slow_read(*args):
+        reads.append(args)
+        started.set()
+        release.wait(2)
+        time.sleep(0.04)
+        raise TimeoutError("wrong port: no response")
+
+    session._worker._backend.read = slow_read
+    session.connection_panel.set_connected(True, "Connected")
+    session._on_connection_changed(True, "Connected")
+    session.registers_panel.set_state([
+        {"address": i * 2, "count": 1} for i in range(20)
+    ])
+    session.registers_panel.start_polling(False)
+    session.registers_panel.read_all()
+    assert started.wait(1)
+    before = time.monotonic()
+    try:
+        if closing:
+            release.set()
+            session.shutdown()
+        else:
+            session.connection_panel._button.click()
+            release.set()
+            deadline = before + 0.3
+            while session.connection_panel._connected and time.monotonic() < deadline:
+                qapp.processEvents()
+                time.sleep(0.001)
+            assert not session.connection_panel._connected
+        assert time.monotonic() - before < 0.3
+        assert len(reads) == 1
+        assert not session.registers_panel.is_polling()
+        assert not session.registers_panel._pending_reads
+    finally:
+        release.set()
+        session.shutdown()
 
 
 @pytest.fixture(autouse=True)

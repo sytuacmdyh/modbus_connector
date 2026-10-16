@@ -23,23 +23,51 @@ TrafficHook = Callable[[str, bytes], None]  # (direction "tx"/"rx", raw frame by
 AnyClient = ModbusTcpClient | ModbusSerialClient | ModbusUdpClient
 
 
-class ModbusExceptionError(ModbusIOException):
+class BackendError:
+    """English exception text plus structured fields for the GUI translator."""
+
+    def __init__(
+        self, message_key: str, *, detail: object = None, **params: object
+    ) -> None:
+        self.message_key = message_key
+        self.message_params = params
+        self.detail = detail
+        message = message_key.format(**params)
+        if detail is not None:
+            message = f"{message}: {detail}"
+        super().__init__(message)
+
+
+class BackendConnectionError(BackendError, ConnectionError):
+    pass
+
+
+class BackendValueError(BackendError, ValueError):
+    pass
+
+
+class ModbusOperationError(BackendError, ModbusIOException):
+    pass
+
+
+class ModbusExceptionError(ModbusOperationError):
     """Операция отклонена устройством: Modbus exception response с кодом."""
 
-    def __init__(self, message: str, exception_code: int) -> None:
-        super().__init__(message)
+    def __init__(self, message: str, exception_code: int, **params: object) -> None:
+        super().__init__(message, detail=describe_exception(exception_code), **params)
         self.exception_code = exception_code
 
 
-def _raise_if_error(result: ModbusResponse, prefix: str) -> None:
+def _raise_if_error(result: ModbusResponse, prefix: str, **params: object) -> None:
     if not result.isError():
         return
     if isinstance(result, ExceptionResponse):
         raise ModbusExceptionError(
-            f"{prefix}: {describe_exception(result.exception_code)}",
+            prefix,
             result.exception_code,
+            **params,
         )
-    raise ModbusIOException(f"{prefix}: {result}")
+    raise ModbusOperationError(prefix, detail=str(result), **params)
 
 
 class ModbusBackend:
@@ -83,10 +111,14 @@ class ModbusBackend:
             ok = client.connect()
         except Exception as exc:
             self._close_client(client)
-            raise ConnectionError(f"Не удалось подключиться к {description}: {exc}") from exc
+            raise BackendConnectionError(
+                "Could not connect to {description}", description=description, detail=exc
+            ) from exc
         if not ok:
             self._close_client(client)
-            raise ConnectionError(f"Не удалось подключиться к {description}")
+            raise BackendConnectionError(
+                "Could not connect to {description}", description=description
+            )
         self._client = client
         self._wrap_traffic(client)
         logger.info("Подключено к %s", description)
@@ -151,7 +183,7 @@ class ModbusBackend:
             "input_registers": client.read_input_registers,
         }[kind]
         result = read(address, count=count, slave=unit)
-        _raise_if_error(result, f"Ошибка чтения {kind}@{address}")
+        _raise_if_error(result, "Read {kind}@{address} failed", kind=kind, address=address)
         if kind in ("coils", "discrete_inputs"):
             return list(result.bits[:count])
         return list(result.registers)
@@ -159,7 +191,7 @@ class ModbusBackend:
     def write(self, unit: int, kind: RegisterKind, address: int, values: list[int | bool]) -> None:
         client = self._require_client()
         if not values:
-            raise ValueError("Нет значений для записи")
+            raise BackendValueError("No values to write")
         if kind == "coils":
             if len(values) == 1:
                 result = client.write_coil(address, bool(values[0]), slave=unit)
@@ -171,18 +203,22 @@ class ModbusBackend:
             else:
                 result = client.write_registers(address, [int(v) for v in values], slave=unit)
         else:
-            raise ValueError(f"Запись в {kind} не поддерживается (только coils/holding_registers)")
-        _raise_if_error(result, f"Ошибка записи {kind}@{address}")
+            raise BackendValueError(
+                "Writing {kind} is unsupported (only coils/holding_registers)", kind=kind
+            )
+        _raise_if_error(result, "Write {kind}@{address} failed", kind=kind, address=address)
 
     def mask_write_register(self, unit: int, address: int, and_mask: int, or_mask: int) -> None:
         client = self._require_client()
         for name, mask in (("and_mask", and_mask), ("or_mask", or_mask)):
             if not 0 <= mask <= 0xFFFF:
-                raise ValueError(f"{name} вне диапазона 0..65535: {mask}")
+                raise BackendValueError(
+                    "{name} out of range 0..65535: {value}", name=name, value=mask
+                )
         result = client.mask_write_register(
             address, and_mask=and_mask, or_mask=or_mask, slave=unit
         )
-        _raise_if_error(result, f"Ошибка mask write @{address}")
+        _raise_if_error(result, "Mask write @{address} failed", address=address)
 
     def readwrite_registers(
         self,
@@ -194,12 +230,14 @@ class ModbusBackend:
     ) -> list[int]:
         client = self._require_client()
         if not values:
-            raise ValueError("Нет значений для записи")
+            raise BackendValueError("No values to write")
         if not 1 <= read_count <= 125:
-            raise ValueError(f"read_count вне диапазона 1..125: {read_count}")
+            raise BackendValueError("Read count out of range 1..125: {count}", count=read_count)
         for value in values:
             if not 0 <= value <= 0xFFFF:
-                raise ValueError(f"Значение регистра вне диапазона 0..65535: {value}")
+                raise BackendValueError(
+                    "Register value out of range 0..65535: {value}", value=value
+                )
         result = client.readwrite_registers(
             read_address=read_address,
             read_count=read_count,
@@ -207,13 +245,13 @@ class ModbusBackend:
             values=values,
             slave=unit,
         )
-        _raise_if_error(result, f"Ошибка read/write @{read_address}")
+        _raise_if_error(result, "Read/write @{address} failed", address=read_address)
         return list(result.registers)
 
     def read_device_identification(self, unit: int) -> dict[int, str]:
         client = self._require_client()
         result = client.read_device_information(read_code=1, object_id=0, slave=unit)
-        _raise_if_error(result, f"Ошибка чтения device id unit={unit}")
+        _raise_if_error(result, "Read device ID unit={unit} failed", unit=unit)
         return {
             int(object_id): (
                 value.decode("utf-8", errors="replace")
@@ -237,7 +275,7 @@ class ModbusBackend:
         client = self._require_client()
         payload = data.to_bytes(2, "big")
         result = client.diag_query_data(payload, slave=unit)
-        _raise_if_error(result, "Ошибка diag loopback")
+        _raise_if_error(result, "Diagnostic loopback failed")
         return bool(result.message == payload)
 
     def diag_counters(self, unit: int) -> dict[str, int]:
@@ -258,7 +296,7 @@ class ModbusBackend:
     def diag_clear_counters(self, unit: int) -> None:
         client = self._require_client()
         result = client.diag_clear_counters(slave=unit)
-        _raise_if_error(result, "Ошибка diag clear counters")
+        _raise_if_error(result, "Clear diagnostic counters failed")
 
     def scan(
         self,
@@ -283,8 +321,8 @@ class ModbusBackend:
                 try:
                     self.read(unit, probe.kind, probe.address, probe.count)
                 except (ConnectionException, OSError) as exc:
-                    raise ConnectionError(
-                        f"Соединение потеряно при сканировании unit={unit}"
+                    raise BackendConnectionError(
+                        "Connection lost while scanning unit={unit}", unit=unit
                     ) from exc
                 except Exception:
                     continue
@@ -315,8 +353,8 @@ class ModbusBackend:
             try:
                 values = self._read_scan_address(unit, kind, address, count)
             except (ConnectionException, OSError) as exc:
-                raise ConnectionError(
-                    f"Соединение потеряно при сканировании адресов unit={unit}"
+                raise BackendConnectionError(
+                    "Connection lost while scanning addresses unit={unit}", unit=unit
                 ) from exc
             if values is None:
                 continue
@@ -344,5 +382,5 @@ class ModbusBackend:
         # pymodbus закрывает сокет после таймаута, но execute() сам переподключится;
         # «нет подключения» — только когда disconnect() уже вызван.
         if self._client is None:
-            raise ConnectionError("Нет подключения к Modbus-устройству")
+            raise BackendConnectionError("Not connected to a Modbus device")
         return self._client

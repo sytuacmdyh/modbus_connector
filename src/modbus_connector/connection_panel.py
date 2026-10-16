@@ -310,8 +310,16 @@ class ConnectionPanel(QWidget):
         if index >= 0:
             self._rtu_port.setCurrentIndex(index)
 
+    def set_disconnecting(self) -> None:
+        self._button.setEnabled(False)
+        self._device_id_button.setEnabled(False)
+        self._diag_button.setEnabled(False)
+        self._status_message = "Disconnecting…"
+        self._render_status()
+
     @Slot(bool, str)
     def set_connected(self, ok: bool, message: str) -> None:
+        self._button.setEnabled(True)
         self._connected = ok
         self._alive = ok  # assume alive right after connect; reset on disconnect
         self._status_message = message

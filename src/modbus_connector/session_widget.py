@@ -105,6 +105,7 @@ class SessionWidget(QWidget):
 
         self.connection_panel.connectRequested.connect(self._on_connect_requested)
         self.connection_panel.connectRequested.connect(self._worker.connect_to)
+        self.connection_panel.disconnectRequested.connect(self._on_disconnect_requested)
         self.connection_panel.disconnectRequested.connect(self._worker.disconnect)
         self.connection_panel.deviceIdRequested.connect(self._worker.read_device_id)
         self._worker.deviceIdFinished.connect(self.connection_panel.handle_device_id_finished)
@@ -121,6 +122,7 @@ class SessionWidget(QWidget):
         self._worker.connectionChanged.connect(self._on_connection_changed)
 
         self.registers_panel.readRequested.connect(self._worker.read)
+        self.registers_panel.pollStateChanged.connect(self._on_poll_state_changed)
         self.registers_panel.writeRequested.connect(self._worker.write)
         self.registers_panel.maskWriteRequested.connect(self._worker.mask_write)
         self.registers_panel.readwriteRequested.connect(self._worker.readwrite)
@@ -340,6 +342,22 @@ class SessionWidget(QWidget):
         self._params = params
         self.registers_panel.set_unit_id(unit_id)
 
+    @Slot(bool, bool)
+    def _on_poll_state_changed(self, polling: bool, recording: bool) -> None:
+        if not polling:
+            self._worker.cancel_reads_before(next(self._request_ids))
+
+    @Slot()
+    def _on_disconnect_requested(self) -> None:
+        self._worker.request_disconnect()
+        self.registers_panel.stop_logging()
+        self.registers_panel.stop_polling()
+        self.registers_panel.set_bus_enabled(False)
+        self.scanner_panel.set_bus_enabled(False)
+        if self._graph_window is not None:
+            self._graph_window.set_bus_enabled(False)
+        self.connection_panel.set_disconnecting()
+
     @Slot(bool, str)
     def _on_connection_changed(self, ok: bool, message: str) -> None:
         self._title = (
@@ -409,7 +427,7 @@ class SessionWidget(QWidget):
         if self._thread.isRunning():
             self.registers_panel.stop_logging()  # the logger must not outlive the session
             self.registers_panel.stop_polling()
-            self._worker.stop_scan()
+            self._worker.request_disconnect()
             QMetaObject.invokeMethod(
                 self._worker, "disconnect", Qt.ConnectionType.BlockingQueuedConnection
             )

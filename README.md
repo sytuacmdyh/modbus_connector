@@ -406,6 +406,14 @@ shown in the log panel (toggled with the "Log" button). Bus-reading controls
 (Read all, polling, logging, the 0x16/0x17 dialogs and the scanner's Start
 buttons) are enabled only while a connection is up — dropping the connection
 stops polling and logging.
+Clicking **Disconnect** immediately stops polling and cancels queued bus requests.
+The current transaction finishes or times out before the connection closes; the
+status shows **Disconnecting…** while it waits. Closing the session also cancels
+queued requests instead of waiting for every register to time out.
+**Stop polling** also cancels queued reads and discards late results and error
+logs from the stopped batch. The active transaction may still finish or time out
+internally; the connection stays open for manual reads or restarting polling.
+Backend error messages and common timeout details follow the selected UI language.
 
 Only the current table row creates its Type/Format dropdowns, enum or bitmask
 editor, and delete button. Other rows display stored text; selecting a row does

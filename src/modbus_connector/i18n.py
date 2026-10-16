@@ -5,12 +5,54 @@
 Переводы добавляются инкрементально; отсутствующий ключ → английский.
 """
 
+import re
+
 from PySide6.QtCore import QCoreApplication, QLibraryInfo, QLocale, QObject, QTranslator, Signal
+
+from modbus_connector.backend import BackendError, ModbusExceptionError
+from modbus_connector.models import EXCEPTION_CODES
 
 LANGUAGES = ("en", "ru", "zh_CN")
 LANGUAGE_NAMES = {"en": "English", "ru": "Русский", "zh_CN": "简体中文"}
 
 RU: dict[str, str] = {
+    # backend errors (rendered in the current UI language)
+    "Could not connect to {description}": "Не удалось подключиться к {description}",
+    "Read {kind}@{address} failed": "Ошибка чтения {kind}@{address}",
+    "Write {kind}@{address} failed": "Ошибка записи {kind}@{address}",
+    "No values to write": "Нет значений для записи",
+    "Writing {kind} is unsupported (only coils/holding_registers)":
+        "Запись в {kind} не поддерживается (только coils/holding_registers)",
+    "{name} out of range 0..65535: {value}": "{name} вне диапазона 0..65535: {value}",
+    "Mask write @{address} failed": "Ошибка mask write @{address}",
+    "Read count out of range 1..125: {count}": "Количество чтения вне диапазона 1..125: {count}",
+    "Register value out of range 0..65535: {value}":
+        "Значение регистра вне диапазона 0..65535: {value}",
+    "Read/write @{address} failed": "Ошибка чтения/записи @{address}",
+    "Read device ID unit={unit} failed": "Ошибка чтения идентификатора unit={unit}",
+    "Diagnostic loopback failed": "Ошибка диагностического эха",
+    "Clear diagnostic counters failed": "Ошибка сброса диагностических счётчиков",
+    "Connection lost while scanning unit={unit}":
+        "Соединение потеряно при сканировании unit={unit}",
+    "Connection lost while scanning addresses unit={unit}":
+        "Соединение потеряно при сканировании адресов unit={unit}",
+    "Not connected to a Modbus device": "Нет подключения к Modbus-устройству",
+    "No response or incomplete frame: expected at least {expected} bytes, received {received}":
+        "Устройство не ответило или кадр неполный: ожидалось не менее {expected} байт, "
+        "получено {received}",
+    "No response from the device (timeout or invalid response)":
+        "Устройство не ответило (таймаут или неверный ответ)",
+    "Unable to decode the device response": "Не удалось декодировать ответ устройства",
+    "Illegal Function": "Недопустимая функция",
+    "Illegal Data Address": "Недопустимый адрес данных",
+    "Illegal Data Value": "Недопустимое значение данных",
+    "Slave Device Failure": "Ошибка устройства",
+    "Acknowledge": "Подтверждение",
+    "Slave Device Busy": "Устройство занято",
+    "Memory Parity Error": "Ошибка чётности памяти",
+    "Gateway Path Unavailable": "Путь шлюза недоступен",
+    "Gateway Target Device Failed to Respond": "Целевое устройство шлюза не отвечает",
+    "Exception": "Исключение",
     # main window
     "File": "Файл",
     "Save Settings to File…": "Сохранить настройки в файл…",
@@ -53,6 +95,7 @@ RU: dict[str, str] = {
         "Диагностика последовательной линии (0x08); "
         "некоторые TCP-устройства тоже отвечают",
     "Disconnected": "Отключено",
+    "Disconnecting…": "Отключение…",
     "(idle)": "(простой)",
     "Invalid settings": "Неверные настройки",
     "RTU over TCP": "RTU через TCP",
@@ -542,6 +585,38 @@ RU: dict[str, str] = {
 
 
 ZH_CN: dict[str, str] = {
+    # backend errors (rendered in the current UI language)
+    "Could not connect to {description}": "无法连接到 {description}",
+    "Read {kind}@{address} failed": "读取 {kind}@{address} 失败",
+    "Write {kind}@{address} failed": "写入 {kind}@{address} 失败",
+    "No values to write": "没有要写入的值",
+    "Writing {kind} is unsupported (only coils/holding_registers)":
+        "不支持写入 {kind}（仅支持 coils/holding_registers）",
+    "{name} out of range 0..65535: {value}": "{name} 超出范围 0..65535：{value}",
+    "Mask write @{address} failed": "掩码写入 @{address} 失败",
+    "Read count out of range 1..125: {count}": "读取数量超出范围 1..125：{count}",
+    "Register value out of range 0..65535: {value}": "寄存器值超出范围 0..65535：{value}",
+    "Read/write @{address} failed": "读写 @{address} 失败",
+    "Read device ID unit={unit} failed": "读取从站 {unit} 的设备标识失败",
+    "Diagnostic loopback failed": "诊断回环失败",
+    "Clear diagnostic counters failed": "清除诊断计数器失败",
+    "Connection lost while scanning unit={unit}": "扫描从站 {unit} 时连接丢失",
+    "Connection lost while scanning addresses unit={unit}": "扫描从站 {unit} 的地址时连接丢失",
+    "Not connected to a Modbus device": "尚未连接 Modbus 设备",
+    "No response or incomplete frame: expected at least {expected} bytes, received {received}":
+        "设备未响应或响应帧不完整：至少需要 {expected} 字节，实际收到 {received} 字节",
+    "No response from the device (timeout or invalid response)": "设备未响应（超时或响应无效）",
+    "Unable to decode the device response": "无法解析设备响应",
+    "Illegal Function": "不支持的功能码",
+    "Illegal Data Address": "非法数据地址",
+    "Illegal Data Value": "非法数据值",
+    "Slave Device Failure": "从站设备故障",
+    "Acknowledge": "已确认",
+    "Slave Device Busy": "从站设备忙",
+    "Memory Parity Error": "存储器奇偶校验错误",
+    "Gateway Path Unavailable": "网关路径不可用",
+    "Gateway Target Device Failed to Respond": "网关目标设备未响应",
+    "Exception": "异常",
     # main window
     "File": "文件",
     "Save Settings to File…": "保存设置到文件…",
@@ -583,6 +658,7 @@ ZH_CN: dict[str, str] = {
     "Serial-line diagnostics (0x08); some TCP devices answer it too":
         "串行线路诊断（0x08）；部分 TCP 设备也支持",
     "Disconnected": "未连接",
+    "Disconnecting…": "正在断开…",
     "(idle)": "（空闲）",
     "Invalid settings": "设置无效",
     "RTU over TCP": "RTU 透传 TCP",
@@ -1067,3 +1143,30 @@ def tr(text: str, **fmt: object) -> str:
     translations = {"ru": RU, "zh_CN": ZH_CN}.get(current_language(), {})
     text = translations.get(text, text)
     return text.format(**fmt) if fmt else text
+
+
+def format_error(error: object) -> str:
+    """Translate structured backend errors and common pymodbus response failures."""
+    if isinstance(error, BackendError):
+        text = tr(error.message_key, **error.message_params)
+        if isinstance(error, ModbusExceptionError):
+            code = error.exception_code
+            detail = f"{tr(EXCEPTION_CODES.get(code, 'Exception'))} (0x{code:02X})"
+        elif error.detail is not None:
+            detail = format_error(error.detail)
+        else:
+            return text
+        return f"{text}: {detail}"
+    text = re.sub(r"Modbus Error: \[[^]]*\]\s*", "", str(error))
+    short_response = re.search(r"expected at least (\d+) bytes \((\d+) received\)", text)
+    if short_response:
+        return tr(
+            "No response or incomplete frame: expected at least {expected} bytes, "
+            "received {received}",
+            expected=short_response[1], received=short_response[2],
+        )
+    if "no response" in text.lower():
+        return tr("No response from the device (timeout or invalid response)")
+    if "unable to decode response" in text.lower():
+        return tr("Unable to decode the device response")
+    return tr(text)
