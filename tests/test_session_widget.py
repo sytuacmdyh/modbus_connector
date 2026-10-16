@@ -73,6 +73,23 @@ def test_registers_options_roundtrip(qapp: QApplication) -> None:
     session.shutdown()
 
 
+def test_trend_defaults_apply_before_creating_rows(qapp: QApplication) -> None:
+    session = SessionWidget()
+    session.set_state({
+        "registers_options": {"trend_enabled": False},
+        "registers": [
+            {"address": 0, "count": 1},
+            {"address": 1, "count": 1, "trend_enabled": True},
+        ],
+    })
+    panel = session.registers_panel
+    first, second = panel.row_tokens()
+    assert panel.series(first) is None
+    assert panel.series(second) is not None
+    assert panel.state()[1]["trend_enabled"] is True
+    session.shutdown()
+
+
 def test_column_widths_roundtrip(qapp: QApplication) -> None:
     session = SessionWidget()
     session.registers_panel._table.setColumnWidth(0, 222)

@@ -245,12 +245,12 @@ class SessionWidget(QWidget):
         # backward compatibility: the old format stored connection keys at the top level
         connection = state.get("connection") if isinstance(state.get("connection"), dict) else state
         self.connection_panel.set_state(connection)
-        registers = state.get("registers")
-        if isinstance(registers, list):
-            self.registers_panel.set_state(registers)
         options = state.get("registers_options")
         if isinstance(options, dict):
             self.registers_panel.set_options(options)
+        registers = state.get("registers")
+        if isinstance(registers, list):
+            self.registers_panel.set_state(registers)
         expressions = state.get("expressions")
         if isinstance(expressions, list):
             self.registers_panel.set_expressions_state(expressions)

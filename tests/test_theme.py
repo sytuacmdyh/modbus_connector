@@ -112,5 +112,5 @@ def test_sparkline_paints_in_both_themes(qapp: QApplication) -> None:
         series.append(float(i), float(i % 5))
     for name in ("dark", "light"):
         theme.apply_theme(name)
-        panel._sparklines[token].refresh()
-        panel._sparklines[token].grab()  # theme.sparkline_color(): must not crash
+        panel._table.viewport().update()
+        panel._table.viewport().grab()  # delegate uses theme.sparkline_color()

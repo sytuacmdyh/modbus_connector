@@ -270,7 +270,7 @@ def test_value_names_removed_returns_text_cell(qapp: QApplication) -> None:
     panel._row_display[token].value_names = {}
     panel._sync_value_names_combo(token)
     combo = panel._table.cellWidget(0, COL_NEW_VALUE)
-    assert combo is not None and combo.isHidden()  # комбо скрыто, ячейка текстовая
+    assert combo is None  # editor was released; the text cell remains
     assert panel._table.item(0, COL_VALUE).text() == "1"  # отображение без имени
     writes: list[tuple] = []
     panel.writeRequested.connect(lambda *args: writes.append(args))
@@ -308,7 +308,7 @@ def test_value_names_display_dialog_editor(qapp: QApplication) -> None:
     assert panel._table.cellWidget(0, COL_NEW_VALUE) is not None  # комбо появилось
     edit.setPlainText("")
     assert panel._row_display[token].value_names == {}
-    assert panel._table.cellWidget(0, COL_NEW_VALUE).isHidden()  # и скрылось
+    assert panel._table.cellWidget(0, COL_NEW_VALUE) is None
     dialog.close()
 
 
@@ -391,7 +391,7 @@ def test_bitmask_dialog_checkbox_live_toggle(qapp: QApplication) -> None:
     assert dialog is not None
     edit = dialog.findChild(QPlainTextEdit)
     edit.setPlainText("0=Running")
-    box = dialog.findChild(QCheckBox)
+    box = dialog.findChild(QCheckBox, "bitmask")
     assert box is not None and not box.isChecked()
     box.setChecked(True)  # live-применение к выбранной строке
     token = panel._token_at(0)
@@ -420,13 +420,13 @@ def test_bitmask_coils_unaffected(qapp: QApplication) -> None:
 
 
 
-def test_group_reads_off_by_default(qapp: QApplication) -> None:
+def test_group_reads_on_by_default(qapp: QApplication) -> None:
     panel = _grouped_panel()
-    assert not panel._group_reads_button.isChecked()
+    assert panel._group_reads_button.isChecked()
     reads: list[tuple] = []
     panel.readRequested.connect(lambda *args: reads.append(args))
     panel._poll_global_rows()
-    assert len(reads) == 3  # прежнее поведение: по запросу на строку
+    assert len(reads) == 2  # contiguous rows merge by default
 
 
 def test_grouped_poll_tick_merges_adjacent_rows(qapp: QApplication) -> None:
@@ -485,7 +485,7 @@ def test_grouped_read_error_falls_back_to_per_row(qapp: QApplication) -> None:
 
 def test_group_reads_state_roundtrip(qapp: QApplication) -> None:
     panel = _grouped_panel()
-    assert panel.options_state()["group_reads"] is False
+    assert panel.options_state()["group_reads"] is True
     panel._group_reads_button.setChecked(True)
     options = panel.options_state()
     assert options["group_reads"] is True

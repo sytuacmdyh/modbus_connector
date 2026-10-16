@@ -393,16 +393,24 @@ the table is fully navigable with the keyboard. The ✕ button deletes a row.
   recording mode on the fly, and the last choice becomes the main action.
   The optional **Poll, ms** column overrides the interval per row (empty =
   global interval; finer values are effectively clamped to the global tick).
-- **Group reads** — a toggle button: rows of the same unit and area type with
-  adjacent addresses (gap ≤ 8 registers) are merged into a single Modbus
+- **Group reads** — enabled by default: rows of the same effective unit and area type with
+  contiguous or overlapping addresses (no gaps) are merged into a single Modbus
   request and the response is split back across the rows; if a grouped read
-  fails, the affected rows fall back to individual reads.
+  fails, the affected rows fall back to individual reads. The failed block stays
+  on individual reads until polling stops or the connection/unit changes. Saved
+  `group_reads: false` settings continue to disable merging. Requests are capped
+  at 125 registers or 2000 bits; devices may impose smaller limits.
 
 Read values appear in the **Value** column; every request and response is also
 shown in the log panel (toggled with the "Log" button). Bus-reading controls
 (Read all, polling, logging, the 0x16/0x17 dialogs and the scanner's Start
 buttons) are enabled only while a connection is up — dropping the connection
 stops polling and logging.
+
+Only the current table row creates its Type/Format dropdowns, enum or bitmask
+editor, and delete button. Other rows display stored text; selecting a row does
+not change its polling checkbox or trend setting. Trend lines are painted directly
+in visible cells without a widget per row.
 
 ### Display formats, scaling and units
 
@@ -490,12 +498,37 @@ settings along with everything else.
 
 ### Graphs
 
-Every register row captures its value history while polling runs in the
+Rows with **Trend** enabled capture their value history while polling runs in the
 poll-and-record mode (scaled engineering value; hex/ascii rows are skipped)
-and shows it as a small trend sparkline in the **Trend** column. The buffer
+and show it as a small trend sparkline in the **Trend** column. The buffer
 is bounded to ~10k samples per row; when recording is off, sparklines and
 graph curves freeze on the last recorded data. **Graph…** (connection panel)
-opens the full plot window:
+opens the full plot window.
+
+Use **Display… → Trend** to enable history per row, or right-click selected rows
+and choose **Enable trend / Disable trend** for a batch change. **Enable trends
+by default** controls rows without an explicit override. Disabling a trend stops
+history collection and hides that row from the graph while reads, values, alarms,
+expressions and file logging continue. Existing history is retained until cleared.
+Older settings without a trend option keep trends enabled.
+
+JSON templates and saved sessions support a default and per-row overrides:
+
+```json
+{
+  "registers_options": {"group_reads": true, "trend_enabled": false},
+  "registers": [
+    {"name": "Supply temperature", "kind": "holding_registers", "address": 100,
+     "count": 1, "trend_enabled": true}
+  ]
+}
+```
+
+The EMS template enables contiguous reads and disables trends by default; enable
+the operating values you want to record. Import/export preserves these settings
+in JSON; CSV keeps its existing column format.
+
+The graph window provides these controls:
 
 - the **Series** checklist on the left picks which table rows are plotted
   (new rows join checked by default);

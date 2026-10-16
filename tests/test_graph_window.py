@@ -68,6 +68,20 @@ def test_checklist_lists_rows_and_tracks_tokens(qapp: QApplication) -> None:
     assert window._rows_list.count() == 4
 
 
+def test_trend_disabled_rows_only_join_graph_when_enabled(qapp: QApplication) -> None:
+    panel = _panel()
+    panel.set_options({"trend_enabled": False})
+    window = GraphWindow(panel)
+    assert window._rows_list.count() == 0
+    token = panel._token_at(0)
+    panel._set_row_trend(token, True)
+    assert window._rows_list.count() == 1
+    assert token in window._curves
+    panel._set_row_trend(token, False)
+    assert window._rows_list.count() == 0
+    assert token not in window._curves
+
+
 def test_poll_disabled_rows_are_hidden_live(qapp: QApplication) -> None:
     panel = _panel()
     window = GraphWindow(panel)

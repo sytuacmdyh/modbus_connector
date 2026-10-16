@@ -410,7 +410,7 @@ def test_ctrl_shift_r_reads_all(qapp: QApplication) -> None:
 
     modifiers = Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier
     QTest.keyClick(panel._table, Qt.Key.Key_R, modifiers)
-    assert len(reads) == 3  # Ctrl+Shift+R: every row once
+    assert len(reads) == 2  # Ctrl+Shift+R: one grouped request for both rows
     panel.hide()
 
 

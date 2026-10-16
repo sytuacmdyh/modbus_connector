@@ -84,6 +84,7 @@ class RowDisplaySettings:
     unit: str = ""
     order: ByteOrder | None = None  # None = inherit the panel's global order
     log: bool = True  # include the row when logging values to a file
+    trend_enabled: bool = True
     # имена значений (enum): int -> подпись; совпавшее значение показывается
     # как «имя (N)», а поле ввода превращается в комбо
     value_names: dict[int, str] = field(default_factory=dict)
@@ -366,7 +367,7 @@ _PLAN_LIMITS: dict[str, int] = {
 }
 
 
-def plan_grouped_reads(rows: Iterable[ReadSpec], *, max_gap: int = 8) -> list[ReadPlan]:
+def plan_grouped_reads(rows: Iterable[ReadSpec], *, max_gap: int = 0) -> list[ReadPlan]:
     """Объединить чтения соседних адресов в один запрос.
 
     Строки группируются по (unit, kind), внутри группы сортируются по адресу;

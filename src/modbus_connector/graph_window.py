@@ -202,7 +202,11 @@ class GraphWindow(QWidget):
     def _rebuild_rows(self) -> None:
         row_tokens = self._panel.row_tokens()
         # rows opted out of polling are hidden from the graph entirely
-        tokens = [t for t in row_tokens if self._panel.row_poll_enabled(t)]
+        trend_enabled = getattr(self._panel, "row_trend_enabled", lambda _t: True)
+        tokens = [
+            t for t in row_tokens
+            if self._panel.row_poll_enabled(t) and trend_enabled(t)
+        ]
         # expressions are always listed: they have no poll checkbox
         # (у вкладок сниффера выражений нет — expr_tokens отсутствует)
         expr_fn = getattr(self._panel, "expr_tokens", None)
@@ -213,7 +217,7 @@ class GraphWindow(QWidget):
         for token in listed:
             if token not in self._seen:  # first sight: plot new rows by default
                 self._checked.add(token)
-        self._seen.update(all_tokens)
+        self._seen.update(listed)
         self._checked &= set(all_tokens)  # forget deleted rows, keep hidden ones
         self._rows_list.blockSignals(True)
         self._rows_list.clear()

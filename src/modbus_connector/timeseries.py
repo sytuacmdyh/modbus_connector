@@ -2,6 +2,7 @@
 
 from collections import deque
 from collections.abc import Iterator
+from itertools import islice
 
 MAX_SAMPLES = 10000  # ~2.7 h at 1 Hz polling, ~17 min at 100 ms
 
@@ -29,6 +30,10 @@ class TimeSeries:
 
     def points(self) -> tuple[list[float], list[float]]:
         return list(self._times), list(self._values)
+
+    def recent_values(self, count: int) -> list[float]:
+        """Read the visible tail without copying the entire history."""
+        return list(islice(reversed(self._values), max(0, count)))[::-1]
 
     def stats(self, t0: float, t1: float) -> tuple[float, float, float] | None:
         """(min, max, avg) по отсчётам в [t0, t1]; None, если отсчётов нет."""

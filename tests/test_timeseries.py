@@ -38,3 +38,13 @@ def test_clear() -> None:
     series.clear()
     assert len(series) == 0
     assert series.points() == ([], [])
+
+
+def test_recent_values_respects_order_limit_and_eviction() -> None:
+    series = TimeSeries(maxlen=4)
+    for i in range(10):
+        series.append(float(i), float(i))
+    assert series.recent_values(2) == [8.0, 9.0]
+    assert series.recent_values(10) == [6.0, 7.0, 8.0, 9.0]
+    assert series.recent_values(0) == []
+    assert series.recent_values(-1) == []

@@ -176,7 +176,8 @@ def test_removed_row_is_marked(qapp: QApplication) -> None:
     _read_row(panel, 0, [10])
     _read_row(panel, 1, [20])
     panel.take_snapshot()
-    actions = panel._table.cellWidget(1, COL_ACTIONS)  # delete the second row
+    panel._table.setCurrentCell(1, COL_NAME)
+    actions = panel._table.cellWidget(1, COL_ACTIONS)  # delete the current row
     delete_button = actions.findChild(QToolButton)
     assert delete_button is not None
     delete_button.click()

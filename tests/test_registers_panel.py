@@ -17,7 +17,6 @@ try:
     from PySide6.QtCore import QEvent, QItemSelection, QItemSelectionModel, Qt  # noqa: E402
     from PySide6.QtWidgets import (  # noqa: E402
         QApplication,
-        QSizePolicy,
         QTableWidget,
     )
 except ImportError as exc:
@@ -193,8 +192,8 @@ def test_reads_append_to_row_series(qapp: QApplication) -> None:
         ]
     )
     token_a, token_h = panel._token_at(0), panel._token_at(1)
-    assert panel._table.cellWidget(0, COL_TREND) is panel._sparklines[token_a]
-    assert panel._table.cellWidget(1, COL_TREND) is panel._sparklines[token_h]
+    assert panel._table.cellWidget(0, COL_TREND) is None  # delegate paints the trend
+    assert panel._table.cellWidget(1, COL_TREND) is None
 
     panel.start_polling(True)  # history capture follows the poll+record mode
     panel.handle_read_finished(_read_row(panel, 0), True, [3], "")
@@ -276,27 +275,24 @@ def test_clear_series_empties_history(qapp: QApplication) -> None:
     panel.clear_series()
     assert len(panel._series[token]) == 0
     # an empty sparkline repaints without crashing
-    panel._sparklines[token].grab()
+    panel._table.viewport().grab()
     panel._series[token].append(1.0, 2.0)  # a single point paints fine too
-    panel._sparklines[token].grab()
+    panel._table.viewport().grab()
 
 
 def test_sparkline_stretches_with_column(qapp: QApplication) -> None:
     panel = RegistersPanel(itertools.count(1).__next__)
     panel.show()
     token = panel._token_at(0)
-    sparkline = panel._sparklines[token]
-    policy = sparkline.sizePolicy()
-    assert policy.horizontalPolicy() == QSizePolicy.Policy.Expanding
-    assert policy.verticalPolicy() == QSizePolicy.Policy.Expanding
+    assert panel._table.cellWidget(0, COL_TREND) is None
 
     panel._table.setColumnWidth(COL_TREND, 400)
     qapp.processEvents()
-    assert sparkline.width() > 300  # follows the column, not a fixed size
+    assert panel._table.visualItemRect(panel._table.item(0, COL_TREND)).width() > 300
 
     panel._series[token].append(1.0, 2.0)  # paints at the wide geometry
     panel._series[token].append(2.0, 5.0)
-    sparkline.grab()
+    panel._table.viewport().grab()
     panel.close()
 
 
@@ -486,6 +482,7 @@ def test_display_dialog_edits_update_the_store(qapp: QApplication) -> None:
     unit_item = table.item(0, 4)
     assert unit_item is not None
     unit_item.setText("V")
+    table.openPersistentEditor(table.item(0, 5))
     order_combo = table.cellWidget(0, 5)
     order_combo.setCurrentText("DCBA")
     settings = panel._row_display[panel._token_at(0)]

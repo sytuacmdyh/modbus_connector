@@ -67,7 +67,7 @@ class TestPlanGroupedReads:
         ]
 
     def test_gap_within_max_merges(self) -> None:
-        plans = plan_grouped_reads([_spec(1, 0), _spec(2, 9)])  # gap 8 ≤ 8
+        plans = plan_grouped_reads([_spec(1, 0), _spec(2, 9)], max_gap=8)  # gap 8 ≤ 8
         assert len(plans) == 1
         assert plans[0].address == 0
         assert plans[0].count == 10
@@ -127,7 +127,7 @@ class TestPlanGroupedReads:
         assert [plan.count for plan in plans] == [1500, 1000]
 
     def test_unsorted_input_sorted_inside_group(self) -> None:
-        plans = plan_grouped_reads([_spec(7, 5), _spec(3, 0), _spec(9, 1)])
+        plans = plan_grouped_reads([_spec(7, 5), _spec(3, 0), _spec(9, 1)], max_gap=8)
         assert len(plans) == 1
         assert [member.token for member in plans[0].members] == [3, 9, 7]
         assert [member.offset for member in plans[0].members] == [0, 1, 5]

@@ -84,6 +84,9 @@ RU: dict[str, str] = {
     "Read every row once (Ctrl/Cmd+Shift+R)":
         "Прочитать каждую строку один раз (Ctrl/Cmd+Shift+R)",
     "Group reads": "Объединять чтения",
+    "Enable trends by default": "Тренды по умолчанию",
+    "Enable trend": "Включить тренд",
+    "Disable trend": "Выключить тренд",
     "Merge adjacent addresses of the polling tick and Read all into "
     "one request; falls back to per-row reads if a grouped read fails":
         "Объединять соседние адреса тика опроса и «Прочитать все» в один "
@@ -610,6 +613,9 @@ ZH_CN: dict[str, str] = {
     "Read all": "读取全部",
     "Read every row once (Ctrl/Cmd+Shift+R)": "读取每行一次（Ctrl/Cmd+Shift+R）",
     "Group reads": "合并读取",
+    "Enable trends by default": "默认启用趋势",
+    "Enable trend": "启用趋势",
+    "Disable trend": "关闭趋势",
     "Merge adjacent addresses of the polling tick and Read all into "
     "one request; falls back to per-row reads if a grouped read fails":
         "轮询和“读取全部”时，将相邻地址合并为一个请求；合并读取失败后逐行重试",

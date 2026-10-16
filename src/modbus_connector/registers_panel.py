@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import get_args
 
 from PySide6.QtCore import (
+    QAbstractItemModel,
     QItemSelection,
     QItemSelectionModel,
     QModelIndex,
@@ -194,7 +195,7 @@ class SparklineWidget(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
     def refresh(self) -> None:
-        values = self._series.points()[1][-self.MAX_POINTS :]
+        values = self._series.recent_values(self.MAX_POINTS)
         self.setToolTip(
             f"min {min(values):g}  max {max(values):g}  last {values[-1]:g}"
             if values
@@ -210,7 +211,7 @@ class SparklineWidget(QWidget):
 
     def paintEvent(self, event: QPaintEvent) -> None:
         del event
-        values = self._series.points()[1][-self.MAX_POINTS :]
+        values = self._series.recent_values(self.MAX_POINTS)
         if len(values) < 2:
             return
         lo, hi = min(values), max(values)
@@ -369,6 +370,149 @@ def _describe_rule(rule: AlarmRule) -> str:
     return f"{verb} {rule.value:g}..{rule.value2:g}"
 
 
+class OrderDelegate(QStyledItemDelegate):
+    def createEditor(
+        self, parent: QWidget, option: QStyleOptionViewItem, index: QModelIndex
+    ) -> QWidget:
+        combo = theme.FitComboBox(parent)
+        combo.addItems([tr("default"), *ORDERS])
+        combo.currentTextChanged.connect(self._commit_choice)
+        return combo
+
+    @Slot(str)
+    def _commit_choice(self, _text: str) -> None:
+        editor = self.sender()
+        if isinstance(editor, QComboBox):
+            self.commitData.emit(editor)
+
+    def setEditorData(self, editor: QComboBox, index: QModelIndex) -> None:
+        editor.blockSignals(True)
+        editor.setCurrentText(str(index.data()))
+        editor.blockSignals(False)
+
+    def setModelData(
+        self, editor: QComboBox, model: QAbstractItemModel, index: QModelIndex
+    ) -> None:
+        model.setData(index, editor.currentText())
+
+
+class RegisterDelegate(QStyledItemDelegate):
+    """Paint stored values and create editors only for the current row."""
+
+    def __init__(self, panel: "RegistersPanel") -> None:
+        super().__init__(panel._table)
+        self._panel = panel
+
+    def createEditor(
+        self, parent: QWidget, option: QStyleOptionViewItem, index: QModelIndex
+    ) -> QWidget | None:
+        panel = self._panel
+        token = panel._token_at(index.row())
+        col = index.column()
+        if col in (COL_TYPE, COL_FORMAT):
+            combo = theme.FitComboBox(parent)
+            combo.addItems(KINDS if col == COL_TYPE else FORMATS)
+            combo.setProperty("row_token", token)
+            combo.setProperty("column", col)
+            combo.currentTextChanged.connect(self._choice_changed)
+            return combo
+        if col == COL_ACTIONS:
+            holder = QWidget(parent)
+            layout = QHBoxLayout(holder)
+            layout.setContentsMargins(2, 2, 2, 2)
+            button = QToolButton(holder)
+            button.setIcon(icons.icon("close_tab"))
+            button.setToolTip(tr("Delete row"))
+            button.setProperty("row_token", token)
+            button.clicked.connect(panel._on_delete_clicked)
+            layout.addWidget(button)
+            return holder
+        if col == COL_NEW_VALUE:
+            settings = panel._row_display[token]
+            if panel._bitmask_active(index.row()):
+                button = QToolButton(parent)
+                button.setProperty("row_token", token)
+                button.setText(panel._bitmask_summary(token, settings))
+                button.setToolTip(tr("Edit bits…"))
+                button.clicked.connect(self._edit_bits)
+                return button
+            if settings.value_names:
+                combo = theme.FitComboBox(parent)
+                combo.setProperty("row_token", token)
+                for value, name in sorted(settings.value_names.items()):
+                    combo.addItem(f"{value} = {name}", value)
+                combo.setCurrentIndex(-1)
+                combo.activated.connect(self._activate_value)
+                return combo
+        return super().createEditor(parent, option, index)
+
+    @Slot(str)
+    def _choice_changed(self, text: str) -> None:
+        editor = self.sender()
+        if isinstance(editor, QComboBox):
+            self._panel._set_choice(editor.property("row_token"), editor.property("column"), text)
+
+    @Slot()
+    def _edit_bits(self) -> None:
+        editor = self.sender()
+        if isinstance(editor, QToolButton):
+            self._panel._on_bitmask_clicked(editor)
+
+    @Slot(int)
+    def _activate_value(self, index: int) -> None:
+        editor = self.sender()
+        if isinstance(editor, QComboBox):
+            self._panel._on_value_names_activated(editor, index)
+
+    def setEditorData(self, editor: QWidget, index: QModelIndex) -> None:
+        if index.column() in (COL_TYPE, COL_FORMAT) and isinstance(editor, QComboBox):
+            editor.blockSignals(True)
+            editor.setCurrentText(str(index.data()))
+            editor.blockSignals(False)
+        elif index.column() == COL_NEW_VALUE and isinstance(editor, QComboBox | QToolButton):
+            return
+        elif index.column() != COL_ACTIONS:
+            super().setEditorData(editor, index)
+
+    def setModelData(
+        self, editor: QWidget, model: QAbstractItemModel, index: QModelIndex
+    ) -> None:
+        if index.column() in (COL_TYPE, COL_FORMAT) and isinstance(editor, QComboBox):
+            model.setData(index, editor.currentText())
+        elif index.column() == COL_NEW_VALUE and isinstance(editor, QComboBox | QToolButton):
+            return
+        elif index.column() != COL_ACTIONS:
+            super().setModelData(editor, model, index)
+
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex) -> None:
+        super().paint(painter, option, index)
+        if index.column() != COL_TREND:
+            return
+        token = self._panel._token_at(index.row())
+        series = self._panel.series(token) if self._panel.row_trend_enabled(token) else None
+        if series is None:
+            return
+        values = series.recent_values(SparklineWidget.MAX_POINTS)
+        if len(values) < 2:
+            return
+        lo, hi = min(values), max(values)
+        rect = option.rect.adjusted(2, 2, -2, -2)
+        path = QPainterPath()
+        for i, value in enumerate(values):
+            x = rect.left() + i * rect.width() / (len(values) - 1)
+            y = rect.bottom() - (value - lo) * rect.height() / (hi - lo or 1.0)
+            if i:
+                path.lineTo(x, y)
+            else:
+                path.moveTo(x, y)
+        painter.save()
+        painter.setClipRect(option.rect)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QPen(theme.sparkline_color(), 1))
+        painter.drawPath(path)
+        painter.restore()
+
+
 class RegistersPanel(QWidget):
     readRequested = Signal(int, int, object)
     writeRequested = Signal(int, int, object, list)
@@ -396,7 +540,14 @@ class RegistersPanel(QWidget):
         self._row_display: dict[int, RowDisplaySettings] = {}  # token -> display settings
         self._display_dialog: QDialog | None = None
         self._series: dict[int, TimeSeries] = {}  # token -> value history (runtime only)
-        self._sparklines: dict[int, SparklineWidget] = {}
+        self._row_indexes: dict[int, int] = {}
+        self._flash_timers: dict[int, QTimer] = {}
+        self._pending_tokens: set[int] = set()
+        self._failed_groups: set[tuple[int | None, str, int, int]] = set()
+        self._trend_default = True
+        self._trend_overrides: dict[int, bool] = {}
+        self._editing_row = -1
+        self._loading_rows = False
         self._last_values: dict[int, list] = {}  # token -> last raw read values
         self._active_alarms: dict[int, AlarmRule] = {}  # token -> rule currently firing
         self._alarm_sound = AlarmSound()  # звук фронта аларма (monkeypatch в тестах)
@@ -432,6 +583,9 @@ class RegistersPanel(QWidget):
             self._table.setColumnWidth(col, width)
         self._table.verticalHeader().setVisible(False)
         self._table.setToolTip(tr(TABLE_TOOLTIP))
+        self._register_delegate = RegisterDelegate(self)
+        self._table.setItemDelegate(self._register_delegate)
+        self._table.currentCellChanged.connect(self._on_current_row_changed)
         self._table.itemChanged.connect(self._on_item_changed)
         self._table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._table.customContextMenuRequested.connect(self._on_table_context_menu)
@@ -475,6 +629,7 @@ class RegistersPanel(QWidget):
         self._group_reads_button = icons.make_button(
             tr("Group reads"), "merge", checkable=True
         )
+        self._group_reads_button.setChecked(True)
         self._track(
             self._group_reads_button,
             "Group reads",
@@ -709,6 +864,8 @@ class RegistersPanel(QWidget):
     def set_bus_enabled(self, ok: bool) -> None:
         """Включить/выключить контролы, ходящие на шину (по connectionChanged)."""
         self._bus_enabled = ok
+        if not ok:
+            self._failed_groups.clear()
         for button in (
             self._read_all_button,
             self._mask_write_button,
@@ -767,6 +924,58 @@ class RegistersPanel(QWidget):
 
     def set_unit_id(self, unit: int) -> None:
         self._unit_id = unit
+        self._failed_groups.clear()
+
+    def _set_choice(self, token: int, col: int, text: str) -> None:
+        index = self._find_row_by_token(token)
+        if index is not None:
+            self._table.item(index, col).setText(text)
+
+    def _close_row_editors(self) -> None:
+        row = self._editing_row
+        self._editing_row = -1
+        if 0 <= row < self._table.rowCount():
+            for col in (COL_TYPE, COL_FORMAT, COL_NEW_VALUE, COL_ACTIONS):
+                self._table.closePersistentEditor(self._table.item(row, col))
+
+    def _on_current_row_changed(
+        self, row: int, _col: int, _previous_row: int, _previous_col: int
+    ) -> None:
+        if self._loading_rows or row == self._editing_row:
+            return
+        self._close_row_editors()
+        if row < 0:
+            return
+        self._editing_row = row
+        for col in (COL_TYPE, COL_FORMAT, COL_ACTIONS):
+            self._table.openPersistentEditor(self._table.item(row, col))
+        self._sync_value_names_combo(self._token_at(row))
+
+    def row_trend_enabled(self, token: int) -> bool:
+        settings = self._row_display.get(token)
+        return settings is not None and settings.trend_enabled
+
+    def _set_row_trend(self, token: int, enabled: bool, *, notify: bool = True) -> None:
+        settings = self._row_display.get(token)
+        if settings is None:
+            return
+        self._trend_overrides[token] = enabled
+        self._apply_row_trend(token, enabled)
+        if notify:
+            self.rowsChanged.emit()
+
+    def _apply_row_trend(self, token: int, enabled: bool) -> None:
+        self._row_display[token].trend_enabled = enabled
+        if enabled and token not in self._series:
+            self._series[token] = TimeSeries()
+        self._table.viewport().update()
+
+    def _set_trend_default(self, enabled: bool) -> None:
+        self._trend_default = enabled
+        for token in self._row_display:
+            if token not in self._trend_overrides:
+                self._apply_row_trend(token, enabled)
+        self.rowsChanged.emit()
 
     def state(self) -> list[dict]:
         rows = []
@@ -774,8 +983,6 @@ class RegistersPanel(QWidget):
             name_item = self._table.item(index, COL_NAME)
             address_item = self._table.item(index, COL_ADDRESS)
             count_item = self._table.item(index, COL_COUNT)
-            type_combo = self._table.cellWidget(index, COL_TYPE)
-            format_combo = self._table.cellWidget(index, COL_FORMAT)
             settings = self._row_display.get(self._token_at(index), RowDisplaySettings())
             try:
                 address = int(address_item.text().strip(), 0)
@@ -785,13 +992,13 @@ class RegistersPanel(QWidget):
             rows.append(
                 {
                     "name": name_item.text() if name_item else "",
-                    "kind": type_combo.currentText(),
+                    "kind": self._text_at(index, COL_TYPE),
                     "address": address,
                     "count": count,
                     "unit_id": self._text_at(index, COL_UNIT_ID),
                     "poll_ms": self._text_at(index, COL_POLL),
                     "poll_enabled": self._poll_enabled_at(index),
-                    "format": format_combo.currentText(),
+                    "format": self._text_at(index, COL_FORMAT),
                     "order": settings.order or "",  # "" = inherit the global order
                     "scale": settings.scale,
                     "offset": settings.offset,
@@ -799,6 +1006,8 @@ class RegistersPanel(QWidget):
                     "log": settings.log,
                     "value_names": value_names_to_json(settings.value_names),
                     "bitmask": settings.bitmask,
+                    **({"trend_enabled": self._trend_overrides[self._token_at(index)]}
+                       if self._token_at(index) in self._trend_overrides else {}),
                     "alarms": [alarm_rule_to_json(rule) for rule in settings.alarms],
                 }
             )
@@ -823,6 +1032,7 @@ class RegistersPanel(QWidget):
             ],
             "expressions_visible": self._expr_button.isChecked(),
             "group_reads": self._group_reads_button.isChecked(),
+            "trend_enabled": self._trend_default,
         }
 
     def set_options(self, options: dict) -> None:
@@ -836,6 +1046,9 @@ class RegistersPanel(QWidget):
         group_reads = options.get("group_reads")
         if isinstance(group_reads, bool):
             self._group_reads_button.setChecked(group_reads)
+        trend = options.get("trend_enabled")
+        if isinstance(trend, bool):
+            self._set_trend_default(trend)
         header = self._table.horizontalHeader()
         order = options.get("column_order")
         if isinstance(order, list):
@@ -890,8 +1103,25 @@ class RegistersPanel(QWidget):
             settings.append = state["append"]
 
     def set_state(self, rows: list) -> None:
-        while self._table.rowCount():
-            self._table.removeRow(0)
+        self._close_row_editors()
+        self._loading_rows = True
+        self._table.setUpdatesEnabled(False)
+        for timer in (*self._row_timers.values(), *self._flash_timers.values()):
+            timer.stop()
+            timer.deleteLater()
+        self._row_timers.clear()
+        self._flash_timers.clear()
+        self._flash_generations.clear()
+        self._pending_reads.clear()
+        self._pending_tokens.clear()
+        self._failed_groups.clear()
+        self._row_indexes.clear()
+        self._row_display.clear()
+        self._trend_overrides.clear()
+        self._series.clear()
+        self._last_values.clear()
+        self._active_alarms.clear()
+        self._table.setRowCount(0)
         for entry in rows or []:
             try:
                 row = RegisterRow(
@@ -928,7 +1158,14 @@ class RegistersPanel(QWidget):
             self._row_display[self._row_token_counter].bitmask = bool(
                 entry.get("bitmask", False)
             )
-            self._sync_value_names_combo(self._row_token_counter)
+            trend = entry.get("trend_enabled")
+            if isinstance(trend, bool):
+                self._trend_overrides[self._row_token_counter] = trend
+                self._row_display[self._row_token_counter].trend_enabled = trend
+            if self._row_display[self._row_token_counter].trend_enabled:
+                self._series.setdefault(self._row_token_counter, TimeSeries())
+            else:
+                self._series.pop(self._row_token_counter, None)
             # missing key (older settings files) defaults to polling enabled
             if not bool(entry.get("poll_enabled", True)):
                 item = self._table.item(self._table.rowCount() - 1, COL_POLL_ENABLED)
@@ -936,6 +1173,11 @@ class RegistersPanel(QWidget):
                     item.setCheckState(Qt.CheckState.Unchecked)
         if self._table.rowCount() == 0:
             self._add_row()
+        self._loading_rows = False
+        self._table.setUpdatesEnabled(True)
+        self._table.setCurrentCell(0, COL_NAME)
+        self._on_current_row_changed(0, COL_NAME, -1, -1)
+        self.rowsChanged.emit()
 
     def add_rows(self, rows: list) -> None:
         """Добавить строки из сканера адресов (сигнал rowsAddRequested).
@@ -949,7 +1191,7 @@ class RegistersPanel(QWidget):
             except ValueError:
                 continue
             existing.add(
-                (self._table.cellWidget(index, COL_TYPE).currentText(), address)
+                (self._text_at(index, COL_TYPE), address)
             )
         added = skipped = 0
         for entry in rows:
@@ -1008,12 +1250,7 @@ class RegistersPanel(QWidget):
         poll_enabled_item.setToolTip(tr(POLL_ENABLED_TIP))
         self._table.setItem(index, COL_POLL_ENABLED, poll_enabled_item)
 
-        type_combo = theme.FitComboBox()
-        type_combo.addItems(KINDS)
-        type_combo.setCurrentText(row.kind)
-        type_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
-        self._table.setCellWidget(index, COL_TYPE, type_combo)
-
+        self._table.setItem(index, COL_TYPE, QTableWidgetItem(row.kind))
         self._table.setItem(index, COL_ADDRESS, QTableWidgetItem(str(row.address)))
         self._table.setItem(index, COL_COUNT, QTableWidgetItem(str(row.count)))
 
@@ -1032,17 +1269,10 @@ class RegistersPanel(QWidget):
         )
         self._table.setItem(index, COL_POLL, poll_item)
 
-        format_combo = theme.FitComboBox()
-        format_combo.addItems(FORMATS)
-        format_combo.setCurrentText(row.format)
-        format_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
-        format_combo.setToolTip(
-            tr("Display format (registers only; coils/discrete show 0/1)")
-        )
-        self._table.setCellWidget(index, COL_FORMAT, format_combo)
-
+        self._table.setItem(index, COL_FORMAT, QTableWidgetItem(row.format))
         self._row_display[self._row_token_counter] = RowDisplaySettings(
-            scale=row.scale, offset=row.offset, unit=row.unit, order=row.order
+            scale=row.scale, offset=row.offset, unit=row.unit, order=row.order,
+            trend_enabled=self._trend_default,
         )
 
         value_item = QTableWidgetItem("")
@@ -1050,29 +1280,21 @@ class RegistersPanel(QWidget):
         self._table.setItem(index, COL_VALUE, value_item)
         self._table.setItem(index, COL_NEW_VALUE, QTableWidgetItem(""))
 
-        series = TimeSeries()
-        sparkline = SparklineWidget(series)
-        self._series[self._row_token_counter] = series
-        self._sparklines[self._row_token_counter] = sparkline
-        self._table.setCellWidget(index, COL_TREND, sparkline)
-
-        delete_button = QToolButton()
-        delete_button.setIcon(icons.icon("close_tab"))
-        delete_button.setIconSize(QSize(icons.ICON_SIZE, icons.ICON_SIZE))
-        icons.register(delete_button, "close_tab")
-        delete_button.setFixedSize(26, 26)
-        delete_button.setToolTip(tr("Delete row"))
-        delete_button.clicked.connect(self._on_delete_clicked)
-        actions = QWidget()
-        actions_layout = QHBoxLayout(actions)
-        actions_layout.setContentsMargins(2, 2, 2, 2)
-        actions_layout.addWidget(delete_button)
-        self._table.setCellWidget(index, COL_ACTIONS, actions)
+        if self._trend_default:
+            self._series[self._row_token_counter] = TimeSeries()
+        for col in (COL_TREND, COL_ACTIONS):
+            item = QTableWidgetItem("")
+            item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self._table.setItem(index, col, item)
+        self._row_indexes[self._row_token_counter] = index
         self._table.blockSignals(False)
 
         self._apply_filter_to_row(index)
         self._sync_row_timer(index)  # no-op unless polling is active
-        self.rowsChanged.emit()
+        if not self._loading_rows:
+            if self._table.currentRow() < 0:
+                self._table.setCurrentCell(index, COL_NAME)
+            self.rowsChanged.emit()
 
     @Slot()
     def _apply_filter(self) -> None:
@@ -1086,7 +1308,7 @@ class RegistersPanel(QWidget):
             haystack = " ".join(
                 (
                     self._text_at(index, COL_NAME),
-                    self._table.cellWidget(index, COL_TYPE).currentText(),
+                    self._text_at(index, COL_TYPE),
                     self._text_at(index, COL_ADDRESS),
                     self._text_at(index, COL_UNIT_ID),
                     self._text_at(index, COL_POLL),
@@ -1111,36 +1333,20 @@ class RegistersPanel(QWidget):
         self._apply_filter()
 
     def _swap_rows(self, a: int, b: int) -> None:
-        """Поменять строки местами. Виджеты (комбо/спарклайн/кнопка) НЕ
-        отсоединяются от ячеек: removeCellWidget при перестройке строк
-        оставляет в представлении битые ссылки, и следующая смена stylesheet
-        падает в QTableView.updateEditorGeometries — поэтому пункты таблицы
-        клонируются, а виджеты меняются только состоянием."""
+        """Swap stored row data; only the current row owns editors."""
+        self._close_row_editors()
         table = self._table
         table.blockSignals(True)
         for col in range(table.columnCount()):
-            item_a = table.item(a, col)
-            item_b = table.item(b, col)
-            if item_a is None or item_b is None:
-                continue  # widget-only columns are identical on every row
-            # clone BEFORE setItem: setItem deletes the item it replaces
-            clone_a, clone_b = item_a.clone(), item_b.clone()
-            table.setItem(a, col, clone_b)
-            table.setItem(b, col, clone_a)
-        for col in (COL_TYPE, COL_FORMAT):
-            combo_a = table.cellWidget(a, col)
-            combo_b = table.cellWidget(b, col)
-            text_a, text_b = combo_a.currentText(), combo_b.currentText()
-            combo_a.setCurrentText(text_b)
-            combo_b.setCurrentText(text_a)
-        sparkline_a = table.cellWidget(a, COL_TREND)
-        sparkline_b = table.cellWidget(b, COL_TREND)
-        sparkline_a.swap_series(sparkline_b)
-        # the ✕ button finds its row dynamically — nothing to swap
+            item_a, item_b = table.item(a, col), table.item(b, col)
+            if item_a is not None and item_b is not None:
+                clone_a, clone_b = item_a.clone(), item_b.clone()
+                table.setItem(a, col, clone_b)
+                table.setItem(b, col, clone_a)
+        self._row_indexes[self._token_at(a)] = a
+        self._row_indexes[self._token_at(b)] = b
         table.blockSignals(False)
-        # комбо New value прибиты к индексам строк — пересинхронить под токены
-        self._sync_value_names_combo(self._token_at(a))
-        self._sync_value_names_combo(self._token_at(b))
+        self._on_current_row_changed(table.currentRow(), 0, -1, -1)
 
     def _defer_move(self, delta: int) -> None:
         # the hotkey fires mid key-event; rebuilding rows synchronously inside
@@ -1292,9 +1498,10 @@ class RegistersPanel(QWidget):
             return
         dialog = QDialog(self)
         dialog.setWindowTitle(tr("Per-row display settings"))
-        table = QTableWidget(0, 6)
+        table = QTableWidget(0, 7)
+        table.setItemDelegateForColumn(5, OrderDelegate(table))
         table.setHorizontalHeaderLabels(
-            [tr(h) for h in ("Name", "Address", "Scale", "Offset", "Unit", "Order")]
+            [tr(h) for h in ("Name", "Address", "Scale", "Offset", "Unit", "Order", "Trend")]
         )
         table.blockSignals(True)
         for index in range(self._table.rowCount()):
@@ -1312,17 +1519,16 @@ class RegistersPanel(QWidget):
             table.setItem(row_index, 2, QTableWidgetItem(f"{settings.scale:g}"))
             table.setItem(row_index, 3, QTableWidgetItem(f"{settings.offset:g}"))
             table.setItem(row_index, 4, QTableWidgetItem(settings.unit))
-            order_combo = theme.FitComboBox()
-            # anything outside ORDERS means "inherit" — display text is free
-            order_combo.addItem(tr("default"), "")
-            order_combo.addItems(ORDERS)
-            order_combo.setCurrentText(
-                settings.order if settings.order else tr("default")
+            table.setItem(row_index, 5, QTableWidgetItem(settings.order or tr("default")))
+            trend_item = QTableWidgetItem()
+            trend_item.setFlags(
+                (trend_item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                & ~Qt.ItemFlag.ItemIsEditable
             )
-            order_combo.currentTextChanged.connect(
-                lambda text, t=token: self._set_row_order(t, text)
+            trend_item.setCheckState(
+                Qt.CheckState.Checked if settings.trend_enabled else Qt.CheckState.Unchecked
             )
-            table.setCellWidget(row_index, 5, order_combo)
+            table.setItem(row_index, 6, trend_item)
         table.blockSignals(False)
         table.itemChanged.connect(
             lambda item: self._on_display_item_changed(table, item)
@@ -1333,6 +1539,22 @@ class RegistersPanel(QWidget):
         layout.addWidget(QLabel(tr("Rows added or deleted while this dialog is open"
                                    " appear after reopening it.")))
         layout.addWidget(table)
+        trend_default = QCheckBox(tr("Enable trends by default"))
+        trend_default.setChecked(self._trend_default)
+
+        def set_default(enabled: bool) -> None:
+            self._set_trend_default(enabled)
+            table.blockSignals(True)
+            for row_index in range(table.rowCount()):
+                token = int(table.item(row_index, 0).data(Qt.ItemDataRole.UserRole))
+                if token not in self._trend_overrides:
+                    table.item(row_index, 6).setCheckState(
+                        Qt.CheckState.Checked if enabled else Qt.CheckState.Unchecked
+                    )
+            table.blockSignals(False)
+
+        trend_default.toggled.connect(set_default)
+        layout.addWidget(trend_default)
         # редактор имён значений привязан к выбранной в таблице строке;
         # применяется на лету, как Scale/Offset (у диалога нет OK)
         names_holder: dict[str, int] = {}  # токен строки в редакторе
@@ -1343,6 +1565,7 @@ class RegistersPanel(QWidget):
         names_hint = QLabel(tr(VALUE_NAMES_HINT))
         names_hint.setWordWrap(True)
         bitmask_box = QCheckBox(tr("Bitmask (16 named bits)"))
+        bitmask_box.setObjectName("bitmask")
         bitmask_box.setToolTip(tr(BITMASK_HINT))
 
         def load_names() -> None:
@@ -1416,6 +1639,11 @@ class RegistersPanel(QWidget):
             settings.offset = _entry_float(text, 0.0)
         elif item.column() == 4:
             settings.unit = text
+        elif item.column() == 5:
+            self._set_row_order(int(name_item.data(Qt.ItemDataRole.UserRole)), text)
+        elif item.column() == 6:
+            token = int(name_item.data(Qt.ItemDataRole.UserRole))
+            self._set_row_trend(token, item.checkState() == Qt.CheckState.Checked)
 
     # --- alarms (conditional row highlight) -----------------------------------
 
@@ -1570,7 +1798,7 @@ class RegistersPanel(QWidget):
             values = self._last_values.get(token)
             self._snapshot[token] = _SnapshotEntry(
                 name=self._text_at(index, COL_NAME),
-                kind=self._table.cellWidget(index, COL_TYPE).currentText(),
+                kind=self._text_at(index, COL_TYPE),
                 address=self._text_at(index, COL_ADDRESS),
                 values=list(values) if values is not None else None,
             )
@@ -1597,7 +1825,7 @@ class RegistersPanel(QWidget):
             rows.append(
                 DiffRow(
                     name=self._text_at(index, COL_NAME),
-                    kind=self._table.cellWidget(index, COL_TYPE).currentText(),
+                    kind=self._text_at(index, COL_TYPE),
                     address=self._text_at(index, COL_ADDRESS),
                     snapshot_text=(
                         self._display_text(index, old) if old is not None else ""
@@ -1796,10 +2024,7 @@ class RegistersPanel(QWidget):
         return int(item.data(Qt.ItemDataRole.UserRole)) if item else -1
 
     def _find_row_by_token(self, token: int) -> int | None:
-        for index in range(self._table.rowCount()):
-            if self._token_at(index) == token:
-                return index
-        return None
+        return self._row_indexes.get(token)
 
     def row_tokens(self) -> list[int]:
         return [self._token_at(index) for index in range(self._table.rowCount())]
@@ -1811,7 +2036,7 @@ class RegistersPanel(QWidget):
         name = self._text_at(index, COL_NAME)
         if name:
             return name
-        kind = self._table.cellWidget(index, COL_TYPE).currentText()
+        kind = self._text_at(index, COL_TYPE)
         return f"{kind}@{self._text_at(index, COL_ADDRESS)}"
 
     def row_poll_enabled(self, token: int) -> bool:
@@ -1833,8 +2058,7 @@ class RegistersPanel(QWidget):
         """Сбросить историю только строк регистров (контекстное меню таблицы)."""
         for series in self._series.values():
             series.clear()
-        for sparkline in self._sparklines.values():
-            sparkline.refresh()
+        self._table.viewport().update()
 
     # --- expressions (вычисляемые строки над значениями регистров) ----------
 
@@ -2094,7 +2318,19 @@ class RegistersPanel(QWidget):
             menu.addSeparator()
             # история выражений сбрасывается только глобальным Clear графика
             menu.addAction(tr("Clear history"), self._clear_register_series)
+        menu.addSeparator()
+        for text, enabled in (("Enable trend", True), ("Disable trend", False)):
+            menu.addAction(
+                tr(text), lambda checked=False, value=enabled: self._set_selected_trends(value)
+            )
         menu.exec(self._table.viewport().mapToGlobal(pos))
+
+    def _set_selected_trends(self, enabled: bool) -> None:
+        indexes = {item.row() for item in self._table.selectedIndexes()}
+        for index in indexes:
+            self._set_row_trend(self._token_at(index), enabled, notify=False)
+        if indexes:
+            self.rowsChanged.emit()
 
     def _on_header_context_menu(self, pos: QPoint) -> None:
         header = self._table.horizontalHeader()
@@ -2128,7 +2364,6 @@ class RegistersPanel(QWidget):
         return item is None or item.checkState() == Qt.CheckState.Checked
 
     def _row_data(self, index: int) -> RegisterRow | None:
-        type_combo = self._table.cellWidget(index, COL_TYPE)
         name_item = self._table.item(index, COL_NAME)
         address_item = self._table.item(index, COL_ADDRESS)
         count_item = self._table.item(index, COL_COUNT)
@@ -2145,10 +2380,10 @@ class RegistersPanel(QWidget):
         settings = self._row_display.get(self._token_at(index), RowDisplaySettings())
         return RegisterRow(
             name=name_item.text() if name_item else "",
-            kind=type_combo.currentText(),
+            kind=self._text_at(index, COL_TYPE),
             address=address,
             count=count,
-            format=self._table.cellWidget(index, COL_FORMAT).currentText(),
+            format=self._text_at(index, COL_FORMAT),
             order=settings.order,
             scale=settings.scale,
             offset=settings.offset,
@@ -2157,33 +2392,31 @@ class RegistersPanel(QWidget):
             poll_ms=_parse_poll_ms(self._text_at(index, COL_POLL)),
         )
 
-    def _row_of_sender(self) -> int | None:
-        button = self.sender()
-        if button is None:
-            return None
-        actions = button.parentWidget()
-        for index in range(self._table.rowCount()):
-            if self._table.cellWidget(index, COL_ACTIONS) is actions:
-                return index
-        return None
-
     @Slot()
     def _on_delete_clicked(self) -> None:
-        index = self._row_of_sender()
-        if index is not None:
-            token = self._token_at(index)
-            self._flash_generations.pop(token, None)
-            self._active_alarms.pop(token, None)
-            self._row_display.pop(token, None)
-            self._series.pop(token, None)
-            self._last_values.pop(token, None)
-            self._sparklines.pop(token, None)
-            timer = self._row_timers.pop(token, None)
+        button = self.sender()
+        if button is not None:
+            index = self._find_row_by_token(button.property("row_token"))
+            if index is not None:
+                self._delete_row(index)
+
+    def _delete_row(self, index: int) -> None:
+        self._close_row_editors()
+        self._loading_rows = True
+        token = self._token_at(index)
+        for mapping in (self._flash_generations, self._active_alarms, self._row_display,
+                        self._series, self._last_values, self._trend_overrides):
+            mapping.pop(token, None)
+        for mapping in (self._row_timers, self._flash_timers):
+            timer = mapping.pop(token, None)
             if timer is not None:
                 timer.stop()
                 timer.deleteLater()
-            self._table.removeRow(index)
-            self.rowsChanged.emit()
+        self._table.removeRow(index)
+        self._row_indexes = {self._token_at(i): i for i in range(self._table.rowCount())}
+        self._loading_rows = False
+        self._on_current_row_changed(self._table.currentRow(), 0, -1, -1)
+        self.rowsChanged.emit()
 
     @Slot(QTableWidgetItem)
     def _on_item_changed(self, item: QTableWidgetItem) -> None:
@@ -2193,6 +2426,8 @@ class RegistersPanel(QWidget):
             self._sync_row_timer(item.row())
             if item.column() == COL_POLL_ENABLED:
                 self.rowsChanged.emit()  # the graph window hides/shows the row
+        if item.column() in (COL_TYPE, COL_FORMAT, COL_COUNT):
+            self._sync_value_names_combo(self._token_at(item.row()))
         if item.column() == COL_NAME:
             # имя — ключ ссылок [name]: dep мог появиться или исчезнуть
             self._recalc_expressions()
@@ -2205,13 +2440,7 @@ class RegistersPanel(QWidget):
 
     def _read_pending(self, token: int) -> bool:
         """У строки уже есть необработанный запрос (свой или в составе плана)."""
-        for pending in self._pending_reads.values():
-            if isinstance(pending, ReadPlan):
-                if any(member.token == token for member in pending.members):
-                    return True
-            elif pending == token:
-                return True
-        return False
+        return token in self._pending_tokens
 
     def _read_table_row(self, index: int) -> None:
         if not self._bus_enabled:
@@ -2224,6 +2453,7 @@ class RegistersPanel(QWidget):
             return  # previous read still unanswered, don't pile up the worker queue
         request_id = self._next_request_id()
         self._pending_reads[request_id] = token
+        self._pending_tokens.add(token)
         unit = row.unit_id if row.unit_id is not None else self._unit_id
         self.readRequested.emit(request_id, unit, row)
 
@@ -2238,8 +2468,7 @@ class RegistersPanel(QWidget):
         # ввод в формате отображения: числовые форматы (s16/u32/f32/...)
         # принимают десятичные числа; ascii/ascii1 — текст; dec/hex и
         # битовые — сырые значения
-        format_combo = self._table.cellWidget(index, COL_FORMAT)
-        fmt = format_combo.currentText() if format_combo is not None else ""
+        fmt = self._text_at(index, COL_FORMAT)
         try:
             if row.kind in REGISTER_KINDS and fmt and fmt not in (
                 "dec", "hex", "ascii", "ascii1",
@@ -2273,9 +2502,9 @@ class RegistersPanel(QWidget):
         settings = self._row_display.get(self._token_at(index), RowDisplaySettings())
         if not settings.bitmask:
             return False
-        if self._table.cellWidget(index, COL_TYPE).currentText() not in REGISTER_KINDS:
+        if self._text_at(index, COL_TYPE) not in REGISTER_KINDS:
             return False
-        fmt = self._table.cellWidget(index, COL_FORMAT).currentText()
+        fmt = self._text_at(index, COL_FORMAT)
         if fmt not in ("dec", "s16", "hex"):
             return False
         try:
@@ -2284,57 +2513,18 @@ class RegistersPanel(QWidget):
             return False
 
     def _sync_value_names_combo(self, token: int) -> None:
-        """Редактор New value по настройкам строки: кнопка битов / комбо / текст.
-
-        Скрытие вместо removeCellWidget: отрыв cell widget оставляет в
-        представлении битые ссылки (см. _swap_rows); скрытый комбо/кнопка
-        открывают доступ к обычной текстовой ячейке под ними. При смене типа
-        редактора старый виджет прячется, а замена ставится setCellWidget'ом
-        (Qt прячет вытесненный виджет сам, он не удаляется)."""
+        """Refresh the active row editor after a display setting changes."""
         index = self._find_row_by_token(token)
-        if index is None:
+        if index is None or self._loading_rows:
             return
-        settings = self._row_display.get(token, RowDisplaySettings())
-        widget = self._table.cellWidget(index, COL_NEW_VALUE)
-        if self._bitmask_active(index):
-            if isinstance(widget, QComboBox):
-                widget.hide()
-                widget = None
-            button = widget if isinstance(widget, QToolButton) else None
-            if button is None:
-                button = QToolButton()
-                button.setToolTip(tr("Edit bits…"))
-                button.clicked.connect(
-                    lambda _checked=False, b=button: self._on_bitmask_clicked(b)
-                )
-                self._table.setCellWidget(index, COL_NEW_VALUE, button)
-            button.setText(self._bitmask_summary(token, settings))
-            button.show()
-            self._refresh_value_cell(index, token)
-            return
-        if not settings.value_names:
-            if widget is not None:
-                widget.hide()
-            self._refresh_value_cell(index, token)
-            return
-        if isinstance(widget, QToolButton):
-            widget.hide()
-            widget = None
-        combo = widget
-        if combo is None:
-            combo = theme.FitComboBox()
-            combo.activated.connect(
-                lambda item_index, c=combo: self._on_value_names_activated(c, item_index)
-            )
-            self._table.setCellWidget(index, COL_NEW_VALUE, combo)
-        combo.blockSignals(True)
-        combo.clear()
-        for value, name in sorted(settings.value_names.items()):
-            combo.addItem(f"{value} = {name}", value)
-        combo.setCurrentIndex(-1)  # пусто: повторный выбор того же пункта пишет снова
-        combo.blockSignals(False)
-        combo.show()
         self._refresh_value_cell(index, token)
+        if index != self._editing_row:
+            return
+        item = self._table.item(index, COL_NEW_VALUE)
+        self._table.closePersistentEditor(item)
+        settings = self._row_display[token]
+        if settings.value_names or self._bitmask_active(index):
+            self._table.openPersistentEditor(item)
 
     def _bitmask_summary(self, token: int, settings: RowDisplaySettings) -> str:
         """Текст-сводка кнопки битов: метки установленных битов последнего чтения."""
@@ -2387,10 +2577,7 @@ class RegistersPanel(QWidget):
         self._emit_write(index, row, [bool(value)] if row.kind == "coils" else [value])
 
     def _row_of_cell_widget(self, widget: QWidget, col: int) -> int | None:
-        for index in range(self._table.rowCount()):
-            if self._table.cellWidget(index, col) is widget:
-                return index
-        return None
+        return self._find_row_by_token(widget.property("row_token"))
 
     # --- quick value actions (hotkeys + context menu) ----------------------
 
@@ -2506,15 +2693,22 @@ class RegistersPanel(QWidget):
             specs.append(
                 ReadSpec(
                     token=token,
-                    unit=row.unit_id,
+                    unit=row.unit_id if row.unit_id is not None else self._unit_id,
                     kind=row.kind,
                     address=row.address,
                     count=row.count,
                 )
             )
         for plan in plan_grouped_reads(specs):
+            if (plan.unit, plan.kind, plan.address, plan.count) in self._failed_groups:
+                for member in plan.members:
+                    index = self._find_row_by_token(member.token)
+                    if index is not None:
+                        self._read_table_row(index)
+                continue
             request_id = self._next_request_id()
             self._pending_reads[request_id] = plan
+            self._pending_tokens.update(member.token for member in plan.members)
             unit = plan.unit if plan.unit is not None else self._unit_id
             self.readRequested.emit(
                 request_id,
@@ -2560,7 +2754,7 @@ class RegistersPanel(QWidget):
             return None
         if kind not in REGISTER_KINDS:
             return format_named_value(settings.value_names, int(bool(values[0])))
-        fmt = self._table.cellWidget(index, COL_FORMAT).currentText()
+        fmt = self._text_at(index, COL_FORMAT)
         if fmt == "hex":
             return format_named_value(settings.value_names, int(values[0]))
         if fmt not in ("dec", "s16"):
@@ -2569,7 +2763,7 @@ class RegistersPanel(QWidget):
         return format_named_value(settings.value_names, int(decoded[0]))
 
     def _display_text(self, index: int, values: list) -> str:
-        kind = self._table.cellWidget(index, COL_TYPE).currentText()
+        kind = self._text_at(index, COL_TYPE)
         settings = self._row_display.get(self._token_at(index), RowDisplaySettings())
         if len(values) == 1 and self._bitmask_active(index):
             return format_bitmask_value(int(values[0]), settings.value_names)
@@ -2578,7 +2772,7 @@ class RegistersPanel(QWidget):
             return named
         if kind not in REGISTER_KINDS:
             return format_values(values)
-        fmt = self._table.cellWidget(index, COL_FORMAT).currentText()
+        fmt = self._text_at(index, COL_FORMAT)
         # hex and ascii show raw data — scaling them is meaningless
         if fmt in ("hex", "ascii", "ascii1"):
             return format_register_values(values, fmt)
@@ -2600,10 +2794,10 @@ class RegistersPanel(QWidget):
         """Первое декодированное число строки (со scale/offset) для графика."""
         if not values:
             return None
-        kind = self._table.cellWidget(index, COL_TYPE).currentText()
+        kind = self._text_at(index, COL_TYPE)
         if kind not in REGISTER_KINDS:
             return float(int(values[0]))  # coil/discrete bit as 0.0/1.0
-        fmt = self._table.cellWidget(index, COL_FORMAT).currentText()
+        fmt = self._text_at(index, COL_FORMAT)
         if fmt in ("hex", "ascii", "ascii1"):
             return None  # not numeric
         settings = self._row_display.get(self._token_at(index), RowDisplaySettings())
@@ -2616,10 +2810,10 @@ class RegistersPanel(QWidget):
     def _log_value(self, index: int, values: list) -> str:
         """Машиночитаемое значение строки для лога: числа со scale/offset, но
         без единиц измерения; несколько значений — через «;» в одной ячейке."""
-        kind = self._table.cellWidget(index, COL_TYPE).currentText()
+        kind = self._text_at(index, COL_TYPE)
         if kind not in REGISTER_KINDS:
             return ";".join("1" if value else "0" for value in values)  # bits
-        fmt = self._table.cellWidget(index, COL_FORMAT).currentText()
+        fmt = self._text_at(index, COL_FORMAT)
         if fmt in ("hex", "ascii", "ascii1"):
             return format_register_values(values, fmt)  # raw string as-is
         settings = self._row_display.get(self._token_at(index), RowDisplaySettings())
@@ -2642,7 +2836,7 @@ class RegistersPanel(QWidget):
                 timestamp=datetime.now().isoformat(timespec="milliseconds"),
                 name=self._text_at(index, COL_NAME),
                 address=address,
-                kind=self._table.cellWidget(index, COL_TYPE).currentText(),
+                kind=self._text_at(index, COL_TYPE),
                 value=self._log_value(index, values),
             )
         )
@@ -2653,8 +2847,10 @@ class RegistersPanel(QWidget):
         if pending is None:
             return
         if isinstance(pending, ReadPlan):
+            self._pending_tokens.difference_update(member.token for member in pending.members)
             self._handle_plan_finished(pending, ok, values, error)
             return
+        self._pending_tokens.discard(pending)
         self._apply_read_values(pending, ok, values, error)
 
     def _handle_plan_finished(self, plan: ReadPlan, ok: bool, values: list, error: str) -> None:
@@ -2673,6 +2869,7 @@ class RegistersPanel(QWidget):
                     "",
                 )
             return
+        self._failed_groups.add((plan.unit, plan.kind, plan.address, plan.count))
         self.logLine.emit(
             tr(
                 "✗ grouped read {kind}@{address} ({count}): {error}"
@@ -2698,11 +2895,16 @@ class RegistersPanel(QWidget):
             self._last_values[token] = list(values)  # raw, for +/-/toggle
         if ok and self._logger.is_open:
             self._log_read(index, values)
-        if ok and self._recording:
+        if ok and self._recording and self.row_trend_enabled(token):
             primary = self._primary_value(index, values)
             if primary is not None:
                 self._series[token].append(time.monotonic(), primary)
-                self._sparklines[token].refresh()
+                trend_item = self._table.item(index, COL_TREND)
+                recent = self._series[token].recent_values(SparklineWidget.MAX_POINTS)
+                trend_item.setToolTip(
+                    f"min {min(recent):g}  max {max(recent):g}  last {recent[-1]:g}"
+                )
+                self._table.viewport().update(self._table.visualItemRect(trend_item))
         item = self._table.item(index, COL_VALUE)
         if item is not None:
             text = self._display_text(index, values) if ok else f"✗ {error}"
@@ -2725,13 +2927,14 @@ class RegistersPanel(QWidget):
         item.setBackground(theme.flash_color())
         generation = self._flash_generations.get(token, 0) + 1
         self._flash_generations[token] = generation
-        # parented QTimer instead of QTimer.singleShot(lambda): the static
-        # singleShot-with-callable path crashes intermittently on Windows
-        # (access violation in shiboken wrapping); an owned timer also dies
-        # with the panel instead of firing on a deleted widget.
-        timer = QTimer(self)
-        timer.setSingleShot(True)
-        timer.timeout.connect(lambda: self._clear_flash(token, generation))
+        timer = self._flash_timers.get(token)
+        if timer is None:
+            timer = QTimer(self)
+            timer.setSingleShot(True)
+            timer.timeout.connect(lambda t=token: self._clear_flash(
+                t, self._flash_generations.get(t, 0)
+            ))
+            self._flash_timers[token] = timer
         timer.start(2000)
 
     def _clear_flash(self, token: int, generation: int) -> None:
@@ -2780,6 +2983,8 @@ class RegistersPanel(QWidget):
     def stop_polling(self) -> None:
         self._poll_timer.stop()
         self._pending_reads.clear()  # late responses from already-queued reads are ignored
+        self._pending_tokens.clear()
+        self._failed_groups.clear()
         for timer in self._row_timers.values():
             timer.stop()
             timer.deleteLater()
@@ -2877,7 +3082,7 @@ class RegistersPanel(QWidget):
         for index in range(self._table.rowCount()):
             token = self._token_at(index)
             name = self._text_at(index, COL_NAME)
-            kind = self._table.cellWidget(index, COL_TYPE).currentText()
+            kind = self._text_at(index, COL_TYPE)
             address = self._text_at(index, COL_ADDRESS)
             label = f"{name} @ {address}" if name else f"{kind}@{address}"
             unit = self._text_at(index, COL_UNIT_ID)

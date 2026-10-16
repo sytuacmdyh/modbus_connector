@@ -52,7 +52,7 @@ src/modbus_connector/
                   # describe_connection(params) — "tcp host:port" и т.п.,
                   # RegisterRow, ScanProbe, DEFAULT_SCAN_PROBES, DisplayFormat,
                   # ReadSpec/ReadMember/ReadPlan + plan_grouped_reads(rows,
-                  # max_gap=8) — объединение чтений соседних адресов в один
+                  # max_gap=0) — объединение только смежных/перекрывающихся адресов в один
                   # запрос: группировка по (unit, kind), сортировка по адресу,
                   # мердж при зазоре ≤ max_gap (перекрытия тоже; members
                   # помнят offset/count), кап длины плана 125 регистров /
@@ -356,7 +356,7 @@ src/modbus_connector/
                        # запись без перезапуска таймеров; во время поллинга
                        # основная кнопка — "Stop polling"),
                        # checkable-кнопка "Group reads" (иконка merge, по
-                       # умолчанию ВЫКЛ, registers_options "group_reads",
+                       # умолчанию ВКЛ, registers_options "group_reads",
                        # толерантный разбор) — объединение чтений соседних
                        # адресов в один запрос (models.plan_grouped_reads);
                        # применяется ТОЛЬКО в _poll_global_rows и read_all
@@ -369,8 +369,9 @@ src/modbus_connector/
                        # (flash/last_values/series/alarm/expressions/лог);
                        # ошибка плана — лог + фолбэк _handle_plan_finished:
                        # члены перечитываются поштучно (один проход, токены
-                       # в _pending_reads, без зацикливания); _read_pending —
-                       # проверка «у строки есть запрос» с учётом планов,
+                       # в _pending_reads, без зацикливания); неуспешный блок
+                       # до stop_polling/смены unit/соединения читается поштучно;
+                       # _pending_tokens — O(1) проверка запросов с учётом планов,
                        # start_polling(record)/stop_polling/is_polling/
                        # is_recording, сигнал pollStateChanged(polling,
                        # recording) — по нему синхронизируются кнопки панели
@@ -397,8 +398,8 @@ src/modbus_connector/
                        # выбор = немедленная запись через _emit_write ([ключ],
                        # coils — bool), после записи комбо сбрасывается в -1
                        # (повторный выбор пишет снова, как очистка текстового
-                       # New value), без шины — молча; скрытие комбо — hide(),
-                       # НЕ removeCellWidget (ломает view, см. _swap_rows);
+                       # New value), без шины — молча; редактор существует
+                       # только у текущей строки (open/closePersistentEditor);
                        # bitmask (чекбокс "Bitmask (16 named bits)" рядом с
                        # редактором value names, live-применение, state-ключ
                        # "bitmask"): строка регистра count==1 в dec/s16/hex
@@ -407,10 +408,9 @@ src/modbus_connector/
                        # текст), а New value — кнопка QToolButton со сводкой
                        # (обновляется при чтениях), открывающая BitsDialog
                        # (16 чекбоксов столбцом); OK → _emit_write([dialog.value()]),
-                       # без шины — молча; переключение режима прячет старый
-                       # виджет и ставит новый setCellWidget'ом (Qt прячет
-                       # вытесненный, не удаляя); _swap_rows пересинхронизирует
-                       # редактор обеих строк,
+                       # без шины — молча; переключение режима закрывает старый
+                       # persistent editor и открывает новый через делегат;
+                       # _swap_rows пересоздаёт редакторы только текущей строки,
                        # хранилище _row_display по токену (RowDisplaySettings,
                        # order None = глобальный Order-комбо над таблицей,
                        # сохраняется как registers_options в session state,
@@ -627,25 +627,31 @@ src/modbus_connector/
                     # читает панель (row_tokens/row_label/row_poll_enabled/series,
                     # rowsChanged)
                        # колонки таблицы ресайзятся (Interactive),
-                       # колонка Trend — SparklineWidget (QPainter) по ряду
+                       # RegisterDelegate: Type/Format/New value/actions —
+                       # persistent editors только текущей строки; остальные
+                       # строки хранят kind/format в QTableWidgetItem, не в widget;
+                       # _row_indexes token→index обновляется при add/delete/swap;
+                       # колонка Trend — paint делегата (без QWidget на строку) по ряду
                        # _series[token] (TimeSeries; пишется primary-значение
                        # при чтении, hex/ascii не захватываются),
                        # clear_series() — регистры + выражения (Clear графика),
                        # _clear_register_series() — только регистры,
-                       # спарклайн — sizePolicy Expanding/Expanding (min 60x20):
-                       # растягивается вслед за шириной колонки, paintEvent
-                       # рисует по фактическим width()/height(),
+                       # RowDisplaySettings.trend_enabled: эффективное значение,
+                       # registers_options.trend_enabled (default True),
+                       # row.trend_enabled — override; Display…/контекстное меню
+                       # меняют настройку, disabled не пишет history/не виден в Graph;
+                       # EMS: group_reads=True, trend_enabled=False по умолчанию;
+                       # TimeSeries.recent_values(300) не копирует полную историю;
                        # изменившееся при чтении значение подсвечивается
                        # зелёным на ~2 с (theme.flash_color(), по токену строки,
-                       # с генерацией),
+                       # с генерацией; parented QTimer переиспользуется по token),
                        # фильтр по имени/типу/адресу (QLineEdit) и кнопка
                        # "Sort by address" — физическая перестановка строк,
                        # токены и pending-запросы сохраняются,
                        # Ctrl+Up/Down — сдвиг выбранных строк блоком
-                       # (_swap_rows — клон пунктов + обмен состоянием
-                       # виджетов, БЕЗ removeCellWidget: его отрыв при
-                       # перестройке строк роняет позднее updateEditorGeometries
-                       # на смене темы; выделение следует за строками;
+                       # (_swap_rows — закрытие editors, клон пунктов,
+                       # обновление token→index, открытие editors текущей строки;
+                       # БЕЗ removeCellWidget; выделение следует за строками;
                        # правый клик по выделенной строке не схлопывает
                        # мультивыделение),
                        # "Mask write (0x16)…" — диалог mask write, после успеха
