@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from modbus_connector import icons
+from modbus_connector.cloud_dialog import CloudSyncDialog
 from modbus_connector.i18n import (
     LANGUAGE_NAMES,
     LANGUAGES,
@@ -59,6 +60,8 @@ class MainWindow(QMainWindow):
             tr("Load Settings from File…"), self._load_from_file
         )
         self._load_action.setShortcut(QKeySequence.StandardKey.Open)
+        file_menu.addSeparator()
+        self._cloud_action = file_menu.addAction(tr("Cloud sync…"), self._open_cloud_sync)
 
         self._templates_menu = self.menuBar().addMenu(tr("Templates"))
         self._populate_templates_menu()
@@ -95,8 +98,16 @@ class MainWindow(QMainWindow):
 
     def _add_session(self, state: dict[str, Any] | None = None) -> SessionWidget:
         session = SessionWidget()
-        if state:
-            session.set_state(state)
+        try:
+            if state:
+                session.set_state(state)
+        except Exception:
+            session.shutdown()
+            session.deleteLater()
+            raise
+        return self._insert_session(session)
+
+    def _insert_session(self, session: SessionWidget) -> SessionWidget:
         session.titleChanged.connect(
             lambda title, s=session: self._update_tab_title(s, title)
         )
@@ -107,7 +118,7 @@ class MainWindow(QMainWindow):
         return session
 
     def _populate_templates_menu(self) -> None:
-        # the catalog is static (bundled package data), built once at startup
+        self._templates_menu.clear()
         infos = list_templates()
         if not infos:
             action = self._templates_menu.addAction(tr("(empty)"))
@@ -229,6 +240,7 @@ class MainWindow(QMainWindow):
         self._file_menu.setTitle(tr("File"))
         self._save_action.setText(tr("Save Settings to File…"))
         self._load_action.setText(tr("Load Settings from File…"))
+        self._cloud_action.setText(tr("Cloud sync…"))
         self._templates_menu.setTitle(tr("Templates"))
         self._view_menu.setTitle(tr("View"))
         self._theme_menu.setTitle(tr("Theme"))
@@ -319,6 +331,35 @@ class MainWindow(QMainWindow):
         session = self._tabs.currentWidget()
         if session is not None:
             session.log_panel.append(line)
+
+    def _open_cloud_sync(self) -> None:
+        dialog = CloudSyncDialog(self._collect_state, self._restore_cloud_configuration, self)
+        dialog.templatesUpdated.connect(self._refresh_templates)
+        dialog.exec()
+        dialog.deleteLater()
+
+    def _refresh_templates(self) -> None:
+        self._populate_templates_menu()
+        for index in range(self._tabs.count()):
+            self._tabs.widget(index).sim_panel.refresh_templates()
+
+    def _restore_cloud_configuration(self, state: dict[str, Any]) -> None:
+        sessions: list[SessionWidget] = []
+        try:
+            for entry in state["tabs"]:
+                session = SessionWidget()
+                sessions.append(session)
+                session.set_state(entry)
+        except Exception:
+            for session in sessions:
+                session.shutdown()
+                session.deleteLater()
+            raise
+        self._clear_sessions()
+        for session in sessions:
+            self._insert_session(session)
+        self._apply_state({**state, "tabs": []})
+        save_settings(self._collect_state())
 
     def closeEvent(self, event: QCloseEvent) -> None:
         save_settings(self._collect_state())

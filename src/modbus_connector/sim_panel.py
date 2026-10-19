@@ -306,7 +306,6 @@ class SimPanel(QWidget):
         icons.register(self._button, icon_name)
 
     def _build_templates_menu(self) -> QMenu:
-        # каталог статичен (package data), меню строится один раз
         menu = QMenu(self._template_button)
         infos = list_templates()
         if not infos:
@@ -329,6 +328,12 @@ class SimPanel(QWidget):
                 lambda checked=False, i=info: self._apply_template(i)
             )
         return menu
+
+    def refresh_templates(self) -> None:
+        old_menu = self._template_button.menu()
+        self._template_button.setMenu(self._build_templates_menu())
+        if old_menu is not None:
+            old_menu.deleteLater()
 
     # --- строки карты ---
 

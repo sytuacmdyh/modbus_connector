@@ -19,6 +19,31 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
 
 ## Архитектура
 
+- WebDAV cloud sync: `cloud_sync.py` is Qt-free and uses stdlib HTTP Basic auth,
+  PROPFIND, GET, PUT and MKCOL. `cloud_dialog.py` snapshots UI state before
+  transfers on a QThread and confirms before restoring tabs. File → Cloud sync.
+  Connection settings and local `mode` (`consumer` default / `publisher`) live
+  separately in `~/.modbus_connector/cloud.json`; plaintext password saving is
+  opt-in on every platform. No Windows Credential Manager integration. Never
+  export/upload cloud settings or credentials in session configurations.
+  Consumer mode hides publish/upload/activate controls and backend writes fail
+  before network access. Real account permissions still belong to the server.
+  Publishing templates snapshots the visible local catalog (bundled + cache) to
+  `templates/.versions/<UTC-and-random-version>.json`, then PUTs `.catalog.json`.
+  Downloads validate the complete catalog before atomically replacing the local
+  `cloud_templates.json` cache. With no `.catalog.json`, legacy remote
+  `templates/<Manufacturer>/<Device>.json` remains supported. Histories for
+  configurations are `<configuration_path>.versions/<version>.json`; upload
+  archives first, then updates current. History downloads only alter local state;
+  publisher activation creates a new version, preserving previous snapshots.
+  No automatic publishing, pruning or server permission changes. Refresh main
+  and existing simulator template menus after download. Restore stages new
+  SessionWidgets before shutting down old ones; restored sessions disconnected.
+  Transfers manual; redirects rejected; TLS verification enabled. Tests use a
+  local HTTP/WebDAV fixture for publication, history, failure/cancellation,
+  read-only enforcement; GUI tests cover mode controls, confirmation, worker
+  threading, restore and menu refresh.
+
 - Вся Modbus-логика — в `backend.py` на **синхронных** клиентах pymodbus
   (`ModbusTcpClient`, `ModbusSerialClient`). backend.py и models.py не импортируют Qt.
 - Qt-слой тонкий: `worker.py` (QObject в отдельном QThread, сигналы/слоты над

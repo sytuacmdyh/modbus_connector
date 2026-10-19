@@ -362,6 +362,58 @@ columns. A row may also carry `value_names` (`{"0": "Stopped", "1": "Running"}`
 (names then label bits 0..15 of the register). See any bundled file (e.g.
 `templates/Eastron/SDM120.json`) for a full example.
 
+### WebDAV cloud sync
+
+Open **File → Cloud sync…** and enter your own WebDAV folder URL, account and
+relative paths (defaults: `templates` and `settings.json`). Choose a local mode:
+
+- **Consumer** (default): test the connection, update templates, restore a
+  configuration, browse history and download a selected historical version.
+  Publish/upload/rollback controls are hidden; the sync backend also rejects
+  write operations in this mode. Use a WebDAV account with read-only access.
+- **Publisher**: all consumer actions plus **Publish local templates**, **Upload
+  configuration**, and **Set as current version**. Use an account with write
+  access. Changing the mode never changes the server account's permissions.
+
+**Publish local templates** publishes every template in the current local
+catalog (bundled templates with downloaded overrides), after confirmation.
+Each publication archives a complete JSON catalog in
+`templates/.versions/<version>.json`, then updates `templates/.catalog.json`.
+Readers validate the complete catalog before updating their local cache. Failed
+snapshot uploads leave the current catalog unchanged, and archived versions
+remain available if updating the current file fails. Removing a local template from a subsequent
+publication removes it from the cloud catalog; bundled templates remain usable
+locally. Empty publications are rejected to prevent accidental catalog clearing.
+If no published catalog exists, legacy `templates/<Manufacturer>/<Device>.json`
+folders remain supported. Templates use the same JSON schema as bundled files.
+Updates refresh both the main and simulator template menus and remain available
+offline in `~/.modbus_connector/cloud_templates.json`.
+
+Configuration uploads archive `settings.json.versions/<version>.json` before
+replacing `settings.json`; nested paths are created automatically. Credentials
+and local cloud mode are excluded. Restoring asks for confirmation before closing
+active connections and replacing tabs; restored connections stay disconnected.
+
+Select **Templates** or **Configuration**, click **Load history**, select a
+version and choose **Download selected version** to use it locally. Publishers
+can also **Set as current version** for everyone, after confirmation. Rollback
+creates a new version and preserves the existing history. Versions use a UTC
+timestamp and random suffix. Concurrent publishers use last-completed-write wins.
+A snapshot whose current-file update failed can still appear in history.
+
+All transfers are manual and run in the background. Closing the dialog requests
+cancellation and waits for the current request to finish or time out. Failed or
+cancelled template downloads preserve the previous local cache. Limits: 1,000
+templates and 16 MiB per response or complete catalog. Redirects are rejected;
+TLS verification remains enabled.
+
+WebDAV settings live separately in `~/.modbus_connector/cloud.json`. Passwords
+are not saved by default. **Remember password on this computer (plain text)**
+explicitly opts into storing the password in this local JSON file. The application
+has no Windows Credential Manager integration. A connection previously saved only
+in Credential Manager requires entering the password again. File-menu exports and
+cloud configurations never include cloud credentials or mode.
+
 ### Adding registers
 
 Press **Add register** and fill in the row: an arbitrary **Name**, the area
@@ -706,6 +758,8 @@ src/modbus_connector/
   scanner_panel.py     # unit scanner + register address scan (separate window)
   log_panel.py         # log panel (hideable): Raw hex traffic toggle, Save…
   settings_store.py    # settings persistence in ~/.modbus_connector/settings.json
+  cloud_sync.py    # Qt-free WebDAV client, local cloud settings, atomic template cache
+  cloud_dialog.py  # cloud setup, background transfers, explicit upload/restore actions
   templates/      # bundled device templates: <Manufacturer>/<Device>.json
                   # register maps + default connection settings (package data,
                   # read via importlib.resources; loader in templates/__init__.py)
