@@ -393,8 +393,9 @@ class SimPanel(QWidget):
         self._table.setItem(index, COL_COUNT, QTableWidgetItem(str(count)))
 
         format_combo = theme.FitComboBox()
-        format_combo.addItems(FORMATS)
-        format_combo.setCurrentText(fmt)
+        for value in FORMATS:
+            format_combo.addItem("u16" if value == "dec" else value, value)
+        format_combo.setCurrentIndex(format_combo.findData(fmt))
         format_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         format_combo.setToolTip(
             tr("Display format (registers only; coils/discrete show 0/1)")
@@ -478,7 +479,7 @@ class SimPanel(QWidget):
             return False
         if len(self._values_at(index)) != 1:
             return False
-        fmt = self._table.cellWidget(index, COL_FORMAT).currentText()
+        fmt = self._table.cellWidget(index, COL_FORMAT).currentData()
         return fmt in ("dec", "s16", "hex")
 
     def _named_key(self, index: int) -> int | None:
@@ -489,7 +490,7 @@ class SimPanel(QWidget):
             return None
         if self._kind_at(index) not in REGISTER_KINDS:
             return int(bool(values[0]))
-        fmt = self._table.cellWidget(index, COL_FORMAT).currentText()
+        fmt = self._table.cellWidget(index, COL_FORMAT).currentData()
         if fmt not in ("dec", "s16", "hex"):
             return None
         raw = int(values[0])
@@ -541,7 +542,7 @@ class SimPanel(QWidget):
         if key is not None and (named := format_named_value(names, key)) is not None:
             text = named
         elif kind in REGISTER_KINDS:
-            fmt = self._table.cellWidget(index, COL_FORMAT).currentText()
+            fmt = self._table.cellWidget(index, COL_FORMAT).currentData()
             text = format_register_values([int(v) for v in values], fmt)
         else:
             text = format_values(values)
@@ -562,7 +563,7 @@ class SimPanel(QWidget):
         if not values:
             return
         if self._kind_at(index) in REGISTER_KINDS:
-            fmt = self._table.cellWidget(index, COL_FORMAT).currentText()
+            fmt = self._table.cellWidget(index, COL_FORMAT).currentData()
             try:
                 # hex не кодируется (строковый формат) — пишем число как сырое
                 encoded = [value] if fmt == "hex" else encode_register_values(value, fmt)
@@ -769,7 +770,7 @@ class SimPanel(QWidget):
             return None
         if self._kind_at(index) not in REGISTER_KINDS:
             return float(int(values[0]))
-        fmt = self._table.cellWidget(index, COL_FORMAT).currentText()
+        fmt = self._table.cellWidget(index, COL_FORMAT).currentData()
         if fmt in ("hex", "ascii", "ascii1"):
             return None  # нечисловые форматы в ссылках не участвуют
         decoded = decode_register_values([int(v) for v in values], fmt)
@@ -794,7 +795,7 @@ class SimPanel(QWidget):
         count = len(self._values_at(index)) or 1
         if self._kind_at(index) not in REGISTER_KINDS:
             return [bool(round(x))] * count
-        fmt = self._table.cellWidget(index, COL_FORMAT).currentText()
+        fmt = self._table.cellWidget(index, COL_FORMAT).currentData()
         if fmt in ("hex", "ascii", "ascii1"):
             fmt = "dec"  # строковые форматы отображения кодируем как dec
         try:
@@ -869,7 +870,7 @@ class SimPanel(QWidget):
         # ввод принимается в формате ОТОБРАЖЕНИЯ строки: для числовых форматов
         # (s16/u32/f32/...) — десятичные числа (models.parse_formatted_values);
         # ascii/ascii1 — текст; dec/hex и битовые области — сырые значения
-        fmt = self._table.cellWidget(index, COL_FORMAT).currentText()
+        fmt = self._table.cellWidget(index, COL_FORMAT).currentData()
         try:
             if kind in REGISTER_KINDS and fmt not in ("dec", "hex", "ascii", "ascii1"):
                 count = len(self._values_at(index)) or 1
@@ -911,7 +912,7 @@ class SimPanel(QWidget):
         """Минимально допустимый count строки: ширина значения её формата."""
         if self._kind_at(index) not in REGISTER_KINDS:
             return 1
-        return register_width(self._table.cellWidget(index, COL_FORMAT).currentText())
+        return register_width(self._table.cellWidget(index, COL_FORMAT).currentData())
 
     @Slot(object)
     def _on_kind_changed(self, combo: QComboBox) -> None:
@@ -1173,7 +1174,7 @@ class SimPanel(QWidget):
                     "kind": self._kind_at(index),
                     "address": address,
                     "count": len(self._values_at(index)),
-                    "format": self._table.cellWidget(index, COL_FORMAT).currentText(),
+                    "format": self._table.cellWidget(index, COL_FORMAT).currentData(),
                     "values": list(self._values_at(index)),
                     "rule": self._rule_at(index),
                     "rule_text": self._text_at(index, COL_RULE_TEXT),

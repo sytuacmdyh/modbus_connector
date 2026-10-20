@@ -21,7 +21,7 @@ inputs, holding or input registers), <b>Address</b> (dec or 0x-hex),
 display <b>Format</b>, the last read <b>Value</b> with a trend sparkline,
 and <b>New value</b> for writes: numbers are entered in the row's display
 format for s16/u32/s32/f32/u64/s64/f64 (e.g. 0.1 for f32), ascii takes
-plain text, dec/hex and bit areas take raw values; scale/offset is not
+plain text, u16/hex and bit areas take raw values; scale/offset is not
 applied.</p>
 <ul>
 <li>The <b>checkbox in the first column</b> includes the row in polling and
@@ -41,12 +41,12 @@ opens file/format/field/row settings.</li>
 <b>Read/Write (0x17)…</b> run the advanced functions.</li>
 <li><b>Value names</b> (the Display… dialog, bottom editor for the selected
 row): name integer values as an enum, one <code>value=name</code> per line
-(e.g. <code>0=Stopped</code>). A matching single-register dec/s16 or bit
+(e.g. <code>0=Stopped</code>). A matching single-register u16/s16 or bit
 value shows as "name (N)", and the row's New value cell turns into a combo
 that writes the picked value immediately (the combo resets after each
 write, so the same value can be picked again). The <b>Bitmask</b> checkbox
 switches the mode: value names label bits 0..15 of a single-register
-dec/s16/hex row, the Value cell lists the set bits ("Running, Alarm
+u16/s16/hex row, the Value cell lists the set bits ("Running, Alarm
 (0000 0000 1010 0101)") and New value becomes a button opening a bit
 checkbox dialog.</li>
 <li><b>Alarms…</b> — per-row alarm rules over the scaled value (hex/ascii
@@ -166,7 +166,7 @@ Add/remove probes above; <b>Stop</b> aborts the sweep.</li>
 <li><b>Double-click</b> a found unit to select it in the connection panel;
 <b>Device ID…</b> reads the selected unit's identification (0x2B/0x0E).</li>
 <li><b>Registers scan</b>: probes the address range of one unit and kind.
-Register areas are read in pairs, so found values show as dec/hex/s16/u32/s32/
+Register areas are read in pairs, so found values show as u16/hex/s16/u32/s32/
 f32/ascii columns (a single register at the map edge shows "—" for 32-bit);
 coils/discrete inputs show a Bool column. Found addresses arrive checked;
 uncheck rows you don't need (Space toggles,
@@ -277,11 +277,11 @@ strings).</li>
 type+address are skipped); <b>Add row</b> appends an empty row, ✕ deletes
 one.</li>
 <li><b>Value names…</b> names the current row's integer values (one
-<code>value=name</code> per line). A matching single-register dec/s16 or bit
+<code>value=name</code> per line). A matching single-register u16/s16 or bit
 value shows as "name (N)"; a manual row's Value cell becomes a combo that
 writes the pick to the datastore at once, an expression row only displays
 the name. The <b>Bitmask</b> checkbox switches the mode: value names label
-bits 0..15 of a single-register dec/s16/hex row, Value lists the set bits
+bits 0..15 of a single-register u16/s16/hex row, Value lists the set bits
 and a manual row's cell becomes a button opening a bit checkbox dialog.</li>
 </ul>
 <h4>Rules</h4>
@@ -308,7 +308,7 @@ value this tick: a referenced row is missing, the evaluation failed or the
 result does not fit the row's format; such ticks are skipped and the
 datastore keeps the old value.</li>
 <li>Results are encoded back into registers with the fixed <b>ABCD</b> byte
-order (hex/ascii rows encode as dec).</li>
+order (hex/ascii rows encode as u16).</li>
 </ul>
 """
 
@@ -353,7 +353,7 @@ inputs, holding или input registers), <b>адрес</b> (dec или 0x-hex),
 строку, <b>формат</b> отображения, последнее прочитанное <b>значение</b> со
 спарклайном и поле <b>Новое значение</b> для записи: для форматов
 s16/u32/s32/f32/u64/s64/f64 числа вводятся в формате отображения (например
-0.1 для f32), ascii принимает обычный текст, dec/hex и битовые области —
+0.1 для f32), ascii принимает обычный текст, u16/hex и битовые области —
 сырые значения; scale/offset не применяется.</p>
 <ul>
 <li><b>Галочка в первой колонке</b> включает строку в опрос и
@@ -375,11 +375,11 @@ s16/u32/s32/f32/u64/s64/f64 числа вводятся в формате ото
 <li><b>Имена значений</b> (диалог «Отображение…», редактор внизу для
 выбранной строки): имена целых значений как enum, по строке
 <code>значение=имя</code> (например <code>0=Остановлен</code>). Совпавшее
-значение одиночного регистра dec/s16 или бита показывается как «имя (N)»,
+значение одиночного регистра u16/s16 или бита показывается как «имя (N)»,
 а поле «Новое значение» строки превращается в комбо, записывающее выбранное
 значение сразу (после записи комбо сбрасывается — то же значение можно
 выбрать повторно). Галочка <b>Битовая маска</b> переключает режим: имена
-значений подписывают биты 0..15 строки одиночного регистра dec/s16/hex,
+значений подписывают биты 0..15 строки одиночного регистра u16/s16/hex,
 ячейка значения перечисляет установленные биты («Работает, Авария
 (0000 0000 1010 0101)»), а «Новое значение» становится кнопкой, открывающей
 диалог с галочками битов.</li>
@@ -505,7 +505,7 @@ SCANNER_HELP_RU = """
 (0x2B/0x0E).</li>
 <li><b>Скан регистров</b>: проверяет диапазон адресов одного unit и типа.
 Регистровые области читаются парами, поэтому найденные значения показаны
-колонками dec/hex/s16/u32/s32/f32/ascii (одиночный регистр на границе карты
+колонками u16/hex/s16/u32/s32/f32/ascii (одиночный регистр на границе карты
 даёт «—» для 32-битных); coils/discrete inputs — колонка Bool.
 Найденные адреса отмечены; лишние можно снять (Space переключает, All/None —
 для длинных списков), а <b>Add selected to table</b> создаёт строки таблицы
@@ -617,11 +617,11 @@ discrete inputs, holding или input registers), <b>адрес</b> (0..9999, de
 ✕ удаляет строку.</li>
 <li><b>Имена значений…</b> задаёт имена целых значений текущей строки (по
 строке <code>значение=имя</code>). Совпавшее значение одиночного регистра
-dec/s16 или бита показывается как «имя (N)»; ячейка Value ручной строки
+u16/s16 или бита показывается как «имя (N)»; ячейка Value ручной строки
 становится комбо, записывающим выбор в datastore сразу, а строка-выражение
 только показывает имя. Галочка <b>Битовая маска</b> переключает режим:
 имена значений подписывают биты 0..15 строки одиночного регистра
-dec/s16/hex, Value перечисляет установленные биты, а ячейка ручной строки
+u16/s16/hex, Value перечисляет установленные биты, а ячейка ручной строки
 становится кнопкой, открывающей диалог с галочками битов.</li>
 </ul>
 <h4>Правила</h4>
@@ -648,7 +648,7 @@ clamp, …), плюс дополнения симулятора:</p>
 результат не помещается в формат строки; такие тики пропускаются, datastore
 хранит старое значение.</li>
 <li>Результаты кодируются обратно в регистры с фиксированным порядком байт
-<b>ABCD</b> (строки hex/ascii кодируются как dec).</li>
+<b>ABCD</b> (строки hex/ascii кодируются как u16).</li>
 </ul>
 """
 
@@ -669,7 +669,7 @@ REGISTERS_HELP_ZH_CN = """
 <b>地址</b>（十进制或 0x 十六进制）、<b>数量</b>，以及可选的每行<b>从站地址</b>和
 <b>轮询间隔（毫秒）</b>、显示<b>格式</b>、带趋势线的最后读取<b>当前值</b>和用于写入的
 <b>新值</b>。s16/u32/s32/f32/u64/s64/f64 按显示格式输入数字（如 f32 输入 0.1），
-ascii 输入普通文本，dec/hex 和位区域输入原始值；写入时不应用缩放和偏移。</p>
+ascii 输入普通文本，u16/hex 和位区域输入原始值；写入时不应用缩放和偏移。</p>
 <ul>
 <li><b>首列复选框</b>决定该行是否参与轮询和<b>读取全部</b>；取消勾选后跳过该行，
 但 Ctrl+R、快捷操作和写入仍然可用。</li>
@@ -682,9 +682,9 @@ ascii 输入普通文本，dec/hex 和位区域输入原始值；写入时不应
 <b>按地址排序</b>重新排列；<b>CSV</b>导入/导出表格；<b>掩码写入（0x16）…</b>和
 <b>读写寄存器（0x17）…</b>执行高级功能。</li>
 <li><b>值名称</b>位于显示设置对话框底部，为选中行的整数值命名，每行填写
-<code>值=名称</code>（如 <code>0=停止</code>）。单寄存器 dec/s16 或位值匹配时，
+<code>值=名称</code>（如 <code>0=停止</code>）。单寄存器 u16/s16 或位值匹配时，
 显示为“名称 (N)”，“新值”变为下拉框，选择后立即写入。每次写入后重置选择，
-因此可以再次选择相同值。勾选<b>位掩码</b>后，名称对应单寄存器 dec/s16/hex 行的位 0..15；
+因此可以再次选择相同值。勾选<b>位掩码</b>后，名称对应单寄存器 u16/s16/hex 行的位 0..15；
 “当前值”列出已置位的名称，如“运行, 报警 (0000 0000 1010 0101)”，
 “新值”变为打开位选择对话框的按钮。</li>
 <li><b>报警…</b>根据缩放后的值设置每行报警规则（跳过 hex/ascii 行）。
@@ -775,7 +775,7 @@ SCANNER_HELP_ZH_CN = """
 列出至少响应一个探测项的从站。可添加/删除探测项；<b>停止</b>中止扫描。</li>
 <li><b>双击</b>找到的从站，可在连接面板中选中它；<b>设备标识…</b>读取该从站的标识（0x2B/0x0E）。</li>
 <li><b>寄存器扫描</b>探测指定从站、类型和地址范围。寄存器区域按两个一组读取，
-结果以 dec/hex/s16/u32/s32/f32/ascii 各列显示；映射边缘只有一个寄存器时，32 位列显示“—”。
+结果以 u16/hex/s16/u32/s32/f32/ascii 各列显示；映射边缘只有一个寄存器时，32 位列显示“—”。
 线圈/离散输入显示布尔值。找到的地址默认勾选；取消不需要的行（空格键切换，也可全选/全不选），
 点击<b>将选中项添加到表格</b>生成寄存器行；相同类型和地址的重复项会跳过。</li>
 </ul>
@@ -852,8 +852,8 @@ SIMULATOR_HELP_ZH_CN = """
 <b>ascii1</b> 每个寄存器存放一个字符（Wiren Board 的字符串约定，例如型号/固件字符串）。</li>
 <li><b>模板…</b>从内置设备模板添加行，跳过类型+地址重复的项；<b>添加行</b>追加空行，✕ 删除行。</li>
 <li><b>值名称…</b>为当前行整数值命名，每行填写 <code>值=名称</code>。
-单寄存器 dec/s16 或位值匹配时显示为“名称 (N)”；手动行的值单元格变为下拉框，选择后立即写入数据区，
-表达式行仅显示名称。勾选<b>位掩码</b>后，名称对应单寄存器 dec/s16/hex 行的位 0..15；
+单寄存器 u16/s16 或位值匹配时显示为“名称 (N)”；手动行的值单元格变为下拉框，选择后立即写入数据区，
+表达式行仅显示名称。勾选<b>位掩码</b>后，名称对应单寄存器 u16/s16/hex 行的位 0..15；
 值单元格列出置位项，手动行可通过按钮打开位选择对话框。</li>
 </ul>
 <h4>规则</h4>
@@ -873,7 +873,7 @@ SIMULATOR_HELP_ZH_CN = """
 <ul>
 <li><b>⚠</b>表示语法错误，悬停查看详情；<b>—</b>表示本次无值：引用行缺失、计算失败或结果超出行格式范围。
 此时跳过本次更新，数据区保留旧值。</li>
-<li>结果以固定 <b>ABCD</b> 字节序编码回寄存器（hex/ascii 行按 dec 编码）。</li>
+<li>结果以固定 <b>ABCD</b> 字节序编码回寄存器（hex/ascii 行按 u16 编码）。</li>
 </ul>
 """
 

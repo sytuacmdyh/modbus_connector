@@ -170,8 +170,9 @@ class UnitTab(QWidget):
         self._table.setItem(index, COL_TYPE, type_item)
 
         format_combo = theme.FitComboBox()
-        format_combo.addItems(FORMATS)
-        format_combo.setCurrentText(fmt)
+        for value in FORMATS:
+            format_combo.addItem("u16" if value == "dec" else value, value)
+        format_combo.setCurrentIndex(format_combo.findData(fmt))
         format_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         format_combo.setToolTip(
             tr("Display format (registers only; coils/discrete show 0/1)")
@@ -215,7 +216,7 @@ class UnitTab(QWidget):
     def _format_at(self, key: tuple[str, int]) -> str:
         index = self._row_index(key)
         combo = self._table.cellWidget(index, COL_FORMAT) if index is not None else None
-        return combo.currentText() if combo is not None else "dec"
+        return combo.currentData() if combo is not None else "dec"
 
     def _render_value(self, key: tuple[str, int]) -> None:
         index = self._row_index(key)
@@ -387,7 +388,7 @@ class UnitTab(QWidget):
                 "count": 1,
                 "unit_id": "",
                 "poll_ms": "",
-                "format": combo.currentText() if combo is not None else "dec",
+                "format": combo.currentData() if combo is not None else "dec",
                 "scale": 1.0,
                 "offset": 0.0,
                 "unit": "",
@@ -419,7 +420,7 @@ class UnitTab(QWidget):
                     "address": int(address_item.text()),
                     "kind": type_item.text(),
                     "name": name_item.text(),
-                    "format": combo.currentText() if combo is not None else "dec",
+                    "format": combo.currentData() if combo is not None else "dec",
                     "value": list(name_item.data(_VALUES_ROLE) or []),
                 }
             )

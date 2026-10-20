@@ -39,7 +39,7 @@ COL_TYPE, COL_ADDRESS, COL_COUNT, COL_ACTIONS = range(4)
 _BIT_KINDS = ("coils", "discrete_inputs")
 # value columns of the registers-scan result table (Address is column 0);
 # 32-bit formats need a register pair — the scanner reads count=2 per address
-SCAN_VALUE_FORMATS = ("dec", "hex", "s16", "u32", "s32", "f32", "ascii")
+SCAN_VALUE_FORMATS = ("u16", "hex", "s16", "u32", "s32", "f32", "ascii")
 
 
 def _format_scan_values(kind: RegisterKind, values: list[int | bool]) -> list[str]:

@@ -278,7 +278,7 @@ def test_register_scan_shows_value_columns(qapp: QApplication) -> None:
     headers = [
         results.horizontalHeaderItem(column).text() for column in range(8)
     ]
-    assert headers == ["Address", "dec", "hex", "s16", "u32", "s32", "f32", "ascii"]
+    assert headers == ["Address", "u16", "hex", "s16", "u32", "s32", "f32", "ascii"]
     assert results.item(0, 0).text() == "0x0000 (0)"
     assert results.item(0, 1).text() == "100"
     assert results.item(0, 2).text() == "0x0064"

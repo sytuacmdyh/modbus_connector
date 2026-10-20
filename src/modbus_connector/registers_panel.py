@@ -403,6 +403,11 @@ class RegisterDelegate(QStyledItemDelegate):
         super().__init__(panel._table)
         self._panel = panel
 
+    def initStyleOption(self, option: QStyleOptionViewItem, index: QModelIndex) -> None:
+        super().initStyleOption(option, index)
+        if index.column() == COL_FORMAT and option.text == "dec":
+            option.text = "u16"
+
     def createEditor(
         self, parent: QWidget, option: QStyleOptionViewItem, index: QModelIndex
     ) -> QWidget | None:
@@ -411,7 +416,9 @@ class RegisterDelegate(QStyledItemDelegate):
         col = index.column()
         if col in (COL_TYPE, COL_FORMAT):
             combo = theme.FitComboBox(parent)
-            combo.addItems(KINDS if col == COL_TYPE else FORMATS)
+            for value in KINDS if col == COL_TYPE else FORMATS:
+                label = "u16" if col == COL_FORMAT and value == "dec" else value
+                combo.addItem(label, value)
             combo.setProperty("row_token", token)
             combo.setProperty("column", col)
             combo.currentTextChanged.connect(self._choice_changed)
@@ -447,10 +454,12 @@ class RegisterDelegate(QStyledItemDelegate):
         return super().createEditor(parent, option, index)
 
     @Slot(str)
-    def _choice_changed(self, text: str) -> None:
+    def _choice_changed(self, _text: str) -> None:
         editor = self.sender()
         if isinstance(editor, QComboBox):
-            self._panel._set_choice(editor.property("row_token"), editor.property("column"), text)
+            self._panel._set_choice(
+                editor.property("row_token"), editor.property("column"), editor.currentData()
+            )
 
     @Slot()
     def _edit_bits(self) -> None:
@@ -467,7 +476,7 @@ class RegisterDelegate(QStyledItemDelegate):
     def setEditorData(self, editor: QWidget, index: QModelIndex) -> None:
         if index.column() in (COL_TYPE, COL_FORMAT) and isinstance(editor, QComboBox):
             editor.blockSignals(True)
-            editor.setCurrentText(str(index.data()))
+            editor.setCurrentIndex(editor.findData(str(index.data())))
             editor.blockSignals(False)
         elif index.column() == COL_NEW_VALUE and isinstance(editor, QComboBox | QToolButton):
             return
@@ -478,7 +487,7 @@ class RegisterDelegate(QStyledItemDelegate):
         self, editor: QWidget, model: QAbstractItemModel, index: QModelIndex
     ) -> None:
         if index.column() in (COL_TYPE, COL_FORMAT) and isinstance(editor, QComboBox):
-            model.setData(index, editor.currentText())
+            model.setData(index, editor.currentData())
         elif index.column() == COL_NEW_VALUE and isinstance(editor, QComboBox | QToolButton):
             return
         elif index.column() != COL_ACTIONS:
