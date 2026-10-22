@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import traceback
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -56,7 +57,11 @@ def build(bundle: Path, version: str, output: Path, compiler: str) -> None:
         source = stage / 'installer.nsi'
         source.write_text(script, encoding='utf-8')
         prefix = '/' if os.name == 'nt' else '-'
-        subprocess.run([compiler, f'{prefix}INPUTCHARSET', 'UTF8', str(source)], check=True)
+        result = subprocess.run([compiler, f'{prefix}INPUTCHARSET', 'UTF8', str(source)],
+                                capture_output=True, text=True, errors='replace')
+        print(result.stdout)
+        if result.returncode:
+            raise RuntimeError(f'NSIS failed: {result.stderr}\n{result.stdout[-3000:]}')
     print(output)
 
 
@@ -76,4 +81,11 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception:
+        if os.environ.get('GITHUB_ACTIONS'):
+            details = (traceback.format_exc().replace('%', '%25')
+                       .replace('\r', '%0D').replace('\n', '%0A'))
+            print(f'::error::{details}', flush=True)
+        raise

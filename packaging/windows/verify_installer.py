@@ -5,6 +5,7 @@ import os
 import subprocess
 import tempfile
 import time
+import traceback
 import winreg
 from pathlib import Path
 
@@ -84,4 +85,11 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception:
+        if os.environ.get('GITHUB_ACTIONS'):
+            details = (traceback.format_exc().replace('%', '%25')
+                       .replace('\r', '%0D').replace('\n', '%0A'))
+            print(f'::error::{details}', flush=True)
+        raise
