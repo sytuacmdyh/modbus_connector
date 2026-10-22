@@ -19,6 +19,16 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
 
 ## Архитектура
 
+- Application updates: Help → Check for updates uses `update_check.py` (Qt-free,
+  stdlib HTTPS, public GitHub Releases API for `sytuacmdyh/modbus_connector`)
+  and `update_dialog.py` (QThread, manual checks, plain-text release notes,
+  browser download link, no automatic installation). Missing releases, network
+  errors and rate limits are explicit. Closing waits asynchronously for the
+  bounded request to finish before destroying the thread. Stable tags only:
+  `vMAJOR.MINOR.PATCH`. `modbus_connector.__version__` is the single version
+  source for setuptools and the GUI, including PyInstaller builds. The build
+  workflow verifies tag/version equality before publishing existing packages.
+
 - WebDAV cloud sync: `cloud_sync.py` is Qt-free and uses stdlib HTTP Basic auth,
   PROPFIND, GET, PUT and MKCOL. `cloud_dialog.py` snapshots UI state before
   transfers on a QThread and confirms before restoring tabs. File → Cloud sync.

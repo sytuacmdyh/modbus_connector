@@ -1,5 +1,7 @@
 import sys
 
+from modbus_connector import __version__
+
 try:
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QApplication
@@ -28,6 +30,7 @@ def main() -> int:
     configure_qt()
     app = QApplication(sys.argv)
     app.setApplicationName("modbus-connector")
+    app.setApplicationVersion(__version__)
     # qdarktheme needs a QApplication; apply before the window is shown
     settings = load_settings()
     theme = settings.get("theme", "system")

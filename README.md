@@ -663,6 +663,28 @@ fields fall back to defaults. Files are written UTF-8 with BOM so Excel opens
 them cleanly.
 
 
+## Checking for updates and publishing releases
+
+Use **Help → Check for updates…** to check the latest stable release in
+[sytuacmdyh/modbus_connector](https://github.com/sytuacmdyh/modbus_connector/releases).
+The check runs in a background thread and shows the current version, available
+version and release notes. **Download update…** opens the release page in your
+browser; choose the package for your OS and install it manually. Windows ZIP
+users should exit the application and replace the whole application folder.
+Settings remain in `~/.modbus_connector/`. Checking never uploads settings.
+
+The public GitHub API requires no token. Drafts and prereleases are excluded.
+A missing release, network failure or API rate limit is shown explicitly, and
+you can retry. Checks are manual; the application does not check on startup.
+
+To publish an update, change `__version__` in
+`src/modbus_connector/__init__.py` (the single source for package and GUI
+versions), commit it, and push a matching tag such as `v0.14.3`. Tags use
+`vMAJOR.MINOR.PATCH`. The existing `.github/workflows/build.yml` verifies the
+tag matches the application version, builds Windows/macOS/Linux packages, and
+attaches them to GitHub Releases. Edit the release notes on GitHub as needed.
+The update checker uses this fork's releases, rather than the upstream project.
+
 ## Building a standalone executable
 
 ```bash

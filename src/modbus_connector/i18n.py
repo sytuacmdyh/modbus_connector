@@ -1237,6 +1237,56 @@ ZH_CN.update({
 })
 
 
+RU.update({
+    "Check for updates…": "Проверить обновления…",
+    "Check for updates": "Проверка обновлений",
+    "Current version: {version}": "Текущая версия: {version}",
+    "Check again": "Проверить снова",
+    "Open releases page": "Открыть страницу релизов",
+    "Checking for updates…": "Проверка обновлений…",
+    "Finishing update check…": "Завершение проверки обновлений…",
+    "Update check failed: {detail}": "Не удалось проверить обновления: {detail}",
+    "No public stable release is available. Check the releases page.":
+        "Публичный стабильный релиз недоступен. Проверьте страницу релизов.",
+    "No release notes.": "Описание релиза отсутствует.",
+    "New version available: {version}": "Доступна новая версия: {version}",
+    "Download update…": "Скачать обновление…",
+    "You are up to date. Latest release: {version}":
+        "Обновление не требуется. Последний релиз: {version}",
+    "Could not open browser. Visit: {url}": "Не удалось открыть браузер. Перейдите: {url}",
+    "Unsupported release version: {version}": "Неподдерживаемая версия релиза: {version}",
+    "GitHub denied the request or rate limit exceeded. Try later.":
+        "GitHub отклонил запрос или превышен лимит запросов. Повторите позже.",
+    "GitHub request failed: HTTP {status}.": "Ошибка запроса GitHub: HTTP {status}.",
+    "Could not reach GitHub: {detail}": "Не удалось подключиться к GitHub: {detail}",
+    "Invalid GitHub release response.": "Некорректный ответ GitHub о релизе.",
+})
+
+ZH_CN.update({
+    "Check for updates…": "检查更新…",
+    "Check for updates": "检查更新",
+    "Current version: {version}": "当前版本：{version}",
+    "Check again": "重新检查",
+    "Open releases page": "打开发布页",
+    "Checking for updates…": "正在检查更新…",
+    "Finishing update check…": "正在结束更新检查…",
+    "Update check failed: {detail}": "检查更新失败：{detail}",
+    "No public stable release is available. Check the releases page.":
+        "暂无可用的公开正式版本，请查看发布页。",
+    "No release notes.": "暂无更新说明。",
+    "New version available: {version}": "发现新版本：{version}",
+    "Download update…": "下载更新…",
+    "You are up to date. Latest release: {version}": "当前已是最新版本。最新发布：{version}",
+    "Could not open browser. Visit: {url}": "无法打开浏览器，请访问：{url}",
+    "Unsupported release version: {version}": "不支持的发布版本号：{version}",
+    "GitHub denied the request or rate limit exceeded. Try later.":
+        "GitHub 拒绝了请求或请求次数已达上限，请稍后重试。",
+    "GitHub request failed: HTTP {status}.": "GitHub 请求失败：HTTP {status}。",
+    "Could not reach GitHub: {detail}": "无法连接 GitHub：{detail}",
+    "Invalid GitHub release response.": "GitHub 版本信息响应无效。",
+})
+
+
 class _LanguageNotifier(QObject):
     changed = Signal(str)
 

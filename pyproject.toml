@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "modbus-connector"
-version = "0.14.2"
+dynamic = ["version"]
 description = "PySide6 GUI for debugging Modbus buses and developing Modbus devices — master client, device simulator, RTU sniffer and gateway"
 readme = "README.md"
 license = {text = "MIT"}
@@ -60,6 +60,9 @@ build = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "modbus_connector.__version__"}
 
 [tool.setuptools.package-data]
 modbus_connector = ["templates/*.json", "templates/*/*.json"]

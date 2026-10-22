@@ -28,6 +28,7 @@ from modbus_connector.session_widget import SessionWidget
 from modbus_connector.settings_store import load_settings, save_settings
 from modbus_connector.templates import TemplateInfo, list_templates, load_template
 from modbus_connector.theme import THEMES, apply_theme, current_theme
+from modbus_connector.update_dialog import UpdateDialog
 
 
 class MainWindow(QMainWindow):
@@ -92,6 +93,10 @@ class MainWindow(QMainWindow):
             )
             self._language_actions[key] = action
         self._sync_language_menu()
+        self._help_menu = self.menuBar().addMenu(tr("Help"))
+        self._update_action = self._help_menu.addAction(
+            tr("Check for updates…"), self._open_update_check
+        )
         languageChanged.connect(self._on_language_changed)
 
         self._apply_state(load_settings())
@@ -241,6 +246,8 @@ class MainWindow(QMainWindow):
         self._save_action.setText(tr("Save Settings to File…"))
         self._load_action.setText(tr("Load Settings from File…"))
         self._cloud_action.setText(tr("Cloud sync…"))
+        self._help_menu.setTitle(tr("Help"))
+        self._update_action.setText(tr("Check for updates…"))
         self._templates_menu.setTitle(tr("Templates"))
         self._view_menu.setTitle(tr("View"))
         self._theme_menu.setTitle(tr("Theme"))
@@ -335,6 +342,11 @@ class MainWindow(QMainWindow):
     def _open_cloud_sync(self) -> None:
         dialog = CloudSyncDialog(self._collect_state, self._restore_cloud_configuration, self)
         dialog.templatesUpdated.connect(self._refresh_templates)
+        dialog.exec()
+        dialog.deleteLater()
+
+    def _open_update_check(self) -> None:
+        dialog = UpdateDialog(self)
         dialog.exec()
         dialog.deleteLater()
 
