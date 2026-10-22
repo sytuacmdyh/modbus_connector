@@ -823,7 +823,9 @@ also be started manually via "Run workflow".
 
 Pushing a `v*` tag (e.g. `git tag v0.1.0 && git push origin v0.1.0`)
 automatically attaches the same files to a GitHub Release — a permanent
-download page (Releases in the repository). On Linux you get four files:
+download page (Releases in the repository). PyPI publishing is limited to
+the upstream `cramen/modbus_connector` repository; forks publish GitHub Releases.
+On Linux you get four files:
 the zip, a portable `ModbusConnector.AppImage` (chmod +x and run — no
 installation, any distro) and `modbus-connector_<version>_amd64.deb`
 (`sudo dpkg -i …` installs to /opt with an app-menu entry on Debian/Ubuntu).

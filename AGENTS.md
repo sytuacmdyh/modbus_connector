@@ -1083,6 +1083,8 @@ macOS/Windows/Linux: pytest (по одному процессу на test-фай
 CLI-бинарь — отдельным артефактом modbus-connector-cli-<suffix> из dist-cli/;
 на Linux дополнительно AppImage + deb через packaging/linux — на тегах
 прикрепляются к релизу отдельным шагом, как и CLI-бинарь).
+Linux installs Qt runtime libraries before testing; PyPI publishing is restricted
+to `cramen/modbus_connector`, while forks can publish tagged GitHub Releases.
 
 ## Соглашения
 
