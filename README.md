@@ -12,8 +12,8 @@ A PySide6 GUI application for debugging Modbus buses and developing Modbus
 devices. Works with Modbus TCP and Modbus RTU via synchronous pymodbus clients;
 all Modbus logic runs in a separate thread (QThread), so the GUI never freezes.
 
-Release descriptions are maintained in [docs/releases](docs/releases/README.md).
-They include version highlights, platform downloads and upgrade instructions.
+Release notes automatically summarize commits since the previous stable tag,
+with one full changelog link. No per-version Markdown file is required.
 
 ## Features
 

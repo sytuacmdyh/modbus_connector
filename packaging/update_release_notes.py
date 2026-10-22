@@ -1,24 +1,69 @@
-"""Replace existing release titles/bodies from reviewed, versioned Markdown."""
+"""Summarize release commits and replace existing release descriptions."""
 
 import argparse
 import json
 import os
 import re
+import subprocess
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-NOTES = Path(__file__).resolve().parents[1] / "docs" / "releases"
+ROOT = Path(__file__).resolve().parents[1]
+MAX_ITEMS = 10
 TAG = re.compile(r"v\d+\.\d+\.\d+")
 
 
-def read_notes(path: Path) -> tuple[str, str]:
-    text = path.read_text(encoding="utf-8").strip()
-    title, _, body = text.partition("\n")
-    if not title.startswith(f"# {path.stem} ") or not body.strip():
-        raise ValueError(f"{path}: expected a version heading and release body")
-    return title.removeprefix("# ").strip(), body.strip()
+def git(*args: str) -> str:
+    return subprocess.check_output(
+        ["git", *args], cwd=ROOT, text=True, encoding="utf-8",
+    ).strip()
+
+
+def stable_tags(*args: str) -> list[str]:
+    return [tag for tag in git("tag", "--sort=-version:refname", *args).splitlines()
+            if TAG.fullmatch(tag)]
+
+
+def summarize(subjects: list[str]) -> list[str]:
+    summaries = []
+    for subject in subjects:
+        match = re.fullmatch(r"(\w+)(?:\(([^)]+)\))?!?:\s*(.+)", subject)
+        if match:
+            kind, scope, subject = match.groups()
+            if kind == "chore" and scope == "release" and re.fullmatch(
+                r"(?:(?:发布|更新|升级|提升|同步)\s*)?v?\d+\.\d+\.\d+(?:版本)?", subject,
+            ):
+                continue
+        if re.match(r"bump (?:version|.+ version)\b", subject, re.IGNORECASE):
+            continue
+        if subject not in summaries:
+            summaries.append(subject)
+    return summaries
+
+
+def generate_notes(tag: str, repository: str) -> str:
+    # Only consider earlier tags reachable from this release, not newer or sibling branches.
+    commit = git("rev-parse", f"{tag}^{{commit}}")
+    previous = next((candidate for candidate in stable_tags("--merged", tag)
+                     if git("rev-parse", f"{candidate}^{{commit}}") != commit), None)
+    revision = f"{previous}..{tag}" if previous else tag
+    subjects = git("log", "--no-merges", "--format=%s", revision).splitlines()
+    summaries = summarize(subjects)
+    lines = ["## 更新内容", ""]
+    if not previous:
+        lines += [f"首个版本，以下为最近 {min(len(summaries), MAX_ITEMS)} 项提交摘要。", ""]
+    for summary in summaries[:MAX_ITEMS]:
+        escaped = re.sub(r"([\\`*_{}\[\]<>])", r"\\\1", summary)
+        lines.append(f"- {escaped}")
+    if not summaries:
+        lines.append("- 常规版本更新。")
+    if previous and len(summaries) > MAX_ITEMS:
+        lines += ["", f"其余 {len(summaries) - MAX_ITEMS} 项变更见完整提交记录。"]
+    path = f"compare/{previous}...{tag}" if previous else f"commits/{tag}"
+    lines += ["", f"[完整变更](https://github.com/{repository}/{path})"]
+    return "\n".join(lines)
 
 
 def sync_notes(tag: str, title: str, body: str, *, missing_ok: bool) -> None:
@@ -54,26 +99,21 @@ def sync_notes(tag: str, title: str, body: str, *, missing_ok: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--tag", help="Update one existing release; default: all documented releases",
-    )
-    parser.add_argument(
-        "--check", action="store_true", help="Validate notes without network access",
-    )
+    parser.add_argument("--tag", help="Update one release; default: all local stable tags")
+    parser.add_argument("--preview", action="store_true", help="Print notes without network access")
     args = parser.parse_args()
     if args.tag and not TAG.fullmatch(args.tag):
         parser.error("tag must be vMAJOR.MINOR.PATCH")
-    paths = ([NOTES / f"{args.tag}.md"] if args.tag else
-             sorted(p for p in NOTES.glob("v*.md") if TAG.fullmatch(p.stem)))
-    if not paths:
-        parser.error("no release notes found")
-    # Validate the entire batch before changing any remote release.
-    notes = [(path.stem, *read_notes(path)) for path in paths]
-    for tag, title, body in notes:
-        if args.check:
-            print(f"{tag}: notes valid")
+    tags = [args.tag] if args.tag else stable_tags()
+    if not tags:
+        parser.error("no release tags found")
+    repository = os.environ["GITHUB_REPOSITORY"]
+    for tag in tags:
+        body = generate_notes(tag, repository)
+        if args.preview:
+            print(f"# {tag}\n\n{body}\n")
         else:
-            sync_notes(tag, title, body, missing_ok=args.tag is None)
+            sync_notes(tag, tag, body, missing_ok=args.tag is None)
 
 
 if __name__ == "__main__":

@@ -56,7 +56,6 @@ jobs:
           if [ "$RUNNER_OS" == "Windows" ]; then PY=.venv/Scripts/python; else PY=.venv/bin/python; fi
           VERSION=$("$PY" -c "from modbus_connector import __version__; print(__version__)")
           test "$GITHUB_REF_NAME" = "v$VERSION"
-          "$PY" packaging/update_release_notes.py --check --tag "$GITHUB_REF_NAME"
 
       - name: Run tests
         shell: bash
@@ -162,7 +161,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Write release description once after all uploads
+        with:
+          fetch-depth: 0
+      - name: Summarize commits once after all uploads
         env:
           GITHUB_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
