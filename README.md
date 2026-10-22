@@ -262,7 +262,8 @@ GUI dependencies (extra `[gui]`, installed automatically by
 `pip install "modbus-connector[gui]"` and baked into the standalone
 bundles):
 
-- `PySide6` — Qt 6 GUI framework; the full meta-package including Addons
+- `PySide6==6.10.3` — Qt 6 GUI framework; pinned to avoid the 6.12.0
+  Python 3.11 reference-count crash; the full meta-package including Addons
   (QtMultimedia is used for the alarm sound)
 - `pyqtgraph` — live register graphs (pulls in `numpy`)
 - `pyqtdarktheme` — light/dark/system themes

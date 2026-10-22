@@ -54,7 +54,7 @@ jobs:
       - name: Run tests
         shell: bash
         env:
-          QT_QPA_PLATFORM: ${{ runner.os == 'macOS' && 'cocoa' || 'offscreen' }}
+          QT_QPA_PLATFORM: offscreen
         # Per-module processes: a Qt segfault (seen intermittently in long
         # offscreen runs on CI) then fails only its module instead of the
         # whole suite, and the failing module is identified precisely.

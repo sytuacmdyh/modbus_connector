@@ -41,13 +41,14 @@ Issues = "https://github.com/cramen/modbus_connector/issues"
 
 [project.optional-dependencies]
 gui = [
-    "PySide6",
+    # 6.12.0 loses None references on Python 3.11 and crashes at shutdown.
+    "PySide6==6.10.3",
     "pyqtgraph",
     "pyqtdarktheme",
 ]
 # extras cannot reference each other in setuptools, so dev repeats the gui deps
 dev = [
-    "PySide6",
+    "PySide6==6.10.3",
     "pyqtgraph",
     "pyqtdarktheme",
     "pytest",

@@ -72,8 +72,10 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
 
 ## Стек
 
-- Python 3.11+, PySide6 (полный метапакет — включает Addons; alarm_sound.py
-  использует QtMultimedia QSoundEffect, PyInstaller подхватывает импорт сам)
+- Python 3.11+, PySide6==6.10.3 (6.12.0 loses None references on Python 3.11;
+  tests/test_qt_runtime.py checks repeated void calls and process shutdown).
+  Полный метапакет — включает Addons; alarm_sound.py
+  использует QtMultimedia QSoundEffect, PyInstaller подхватывает импорт сам.
 - `pyqtgraph` (тянет numpy) — живые графики значений регистров
 - `pyqtdarktheme` — темы System/Light/Dark (theme.py)
 - `pymodbus[serial]==3.6.9` — sync-клиенты; методы чтения/записи принимают
