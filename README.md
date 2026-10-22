@@ -389,14 +389,17 @@ columns. A row may also carry `value_names` (`{"0": "Stopped", "1": "Running"}`
 ### WebDAV cloud sync
 
 Open **File → Cloud sync…** and enter your own WebDAV folder URL, account and
-relative paths (defaults: `templates` and `settings.json`). Choose a local mode:
+a relative template folder (default: `templates`). The dialog groups connection
+settings, template sync and template history separately. Only public templates
+are synchronized; session configurations are not uploaded or restored.
+Choose a local mode:
 
-- **Consumer** (default): test the connection, update templates, restore a
-  configuration, browse history and download a selected historical version.
-  Publish/upload/rollback controls are hidden; the sync backend also rejects
+- **Consumer** (default): test the connection, update templates, browse template
+  history and download a selected historical version.
+  Publish/rollback controls are hidden; the sync backend also rejects
   write operations in this mode. Use a WebDAV account with read-only access.
-- **Publisher**: all consumer actions plus **Publish local templates**, **Upload
-  configuration**, and **Set as current version**. Use an account with write
+- **Publisher**: all consumer actions plus **Publish local templates** and
+  **Set as current cloud version…**. Use an account with write
   access. Changing the mode never changes the server account's permissions.
 
 **Publish local templates** publishes every template in the current local
@@ -413,15 +416,11 @@ folders remain supported. Templates use the same JSON schema as bundled files.
 Updates refresh both the main and simulator template menus and remain available
 offline in `~/.modbus_connector/cloud_templates.json`.
 
-Configuration uploads archive `settings.json.versions/<version>.json` before
-replacing `settings.json`; nested paths are created automatically. Credentials
-and local cloud mode are excluded. Restoring asks for confirmation before closing
-active connections and replacing tabs; restored connections stay disconnected.
-
-Select **Templates** or **Configuration**, click **Load history**, select a
-version and choose **Download selected version** to use it locally. Publishers
-can also **Set as current version** for everyone, after confirmation. Rollback
-creates a new version and preserves the existing history. Versions use a UTC
+In **Template history**, click **Load history**, select a version and choose
+**Use selected templates** to use it locally. Version actions remain disabled
+until a version is selected. Publishers can also **Set as current cloud version…**
+for everyone, after confirmation. Rollback creates a new version and preserves
+the existing history. Versions use a UTC
 timestamp and random suffix. Concurrent publishers use last-completed-write wins.
 A snapshot whose current-file update failed can still appear in history.
 
@@ -435,8 +434,10 @@ WebDAV settings live separately in `~/.modbus_connector/cloud.json`. Passwords
 are not saved by default. **Remember password on this computer (plain text)**
 explicitly opts into storing the password in this local JSON file. The application
 has no Windows Credential Manager integration. A connection previously saved only
-in Credential Manager requires entering the password again. File-menu exports and
-cloud configurations never include cloud credentials or mode.
+in Credential Manager requires entering the password again. File-menu exports
+never include cloud credentials or mode. Legacy
+`configuration_path` settings are ignored and omitted when connection settings
+are saved; existing remote configuration files are not modified.
 
 ### Adding registers
 
@@ -818,7 +819,7 @@ src/modbus_connector/
   log_panel.py         # log panel (hideable): Raw hex traffic toggle, Save…
   settings_store.py    # settings persistence in ~/.modbus_connector/settings.json
   cloud_sync.py    # Qt-free WebDAV client, local cloud settings, atomic template cache
-  cloud_dialog.py  # cloud setup, background transfers, explicit upload/restore actions
+  cloud_dialog.py  # connection setup, background template sync and template history
   custom_templates.py  # Qt-free local custom templates and timestamped versions
   custom_templates_dialog.py  # rename/delete templates, browse/open/delete versions
   template_menu.py  # shared public/custom menu grouping

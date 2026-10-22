@@ -17,12 +17,9 @@ from modbus_connector.cloud_sync import (
     WebDavClient,
     WebDavSettings,
     atomic_json,
-    validate_configuration,
 )
 
 TEMPLATE = {"name": "Cloud device", "connection": {"type": "RTU"}, "registers": []}
-STATE = {"theme": "light", "language": "zh_CN", "tabs": [{"connection": {"unit": 3}}],
-         "active_tab": 0}
 
 
 @pytest.fixture()
@@ -118,17 +115,6 @@ def dav_server() -> Iterator[SimpleNamespace]:
     thread.join(timeout=3)
 
 
-def test_configuration_roundtrip_and_nested_path(dav_server: SimpleNamespace) -> None:
-    client = WebDavClient(replace(dav_server.settings, configuration_path="备份/机器.json"))
-    client.test_connection()
-    client.upload_configuration({**STATE, "cloud": {"password": "never-upload"}})
-    assert json.loads(dav_server.files["/dav/备份/机器.json"]) == STATE
-    assert client.download_configuration() == STATE
-    client.upload_configuration({**STATE, "theme": "dark"})
-    assert client.download_configuration()["theme"] == "dark"
-    assert ("MKCOL", "/dav/备份/") in dav_server.requests
-
-
 def test_templates_overlay_cache_and_refresh(
     dav_server: SimpleNamespace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -205,13 +191,6 @@ def test_reject_invalid_listing(dav_server: SimpleNamespace, body: bytes) -> Non
         WebDavClient(dav_server.settings).test_connection()
 
 
-@pytest.mark.parametrize("body", [b"{", b"[]", b"{}", b'{"tabs": []}', b'{"tabs": [1]}'])
-def test_reject_invalid_configuration(dav_server: SimpleNamespace, body: bytes) -> None:
-    dav_server.files["/dav/settings.json"] = body
-    with pytest.raises(CloudSyncError, match="Invalid cloud configuration"):
-        WebDavClient(dav_server.settings).download_configuration()
-
-
 @pytest.mark.parametrize("url", ["file:///tmp/dav", "ftp://host", "https://a:b@host/",
                                  "https://host/?token=secret", "https://host/#fragment",
                                  "https://host/%2e%2e/dav", "https://host:bad/", ""])
@@ -224,7 +203,7 @@ def test_reject_invalid_url(url: str) -> None:
                                   "a\\b", "https://other/x", "a?query", ""])
 def test_reject_invalid_relative_paths(path: str) -> None:
     with pytest.raises(CloudSyncError):
-        WebDavSettings(url="https://example.com", configuration_path=path).validated()
+        WebDavSettings(url="https://example.com", templates_path=path).validated()
 
 
 def test_credentials_are_local_and_opt_in(tmp_path: Path) -> None:
@@ -238,7 +217,6 @@ def test_credentials_are_local_and_opt_in(tmp_path: Path) -> None:
     settings.save(path)
     assert "secret" not in path.read_text(encoding="utf-8")
     assert "secret" not in repr(settings)
-    assert "cloud" not in validate_configuration({**STATE, "cloud": {"password": "secret"}})
 
 
 def test_atomic_cache_failure_keeps_previous_file(tmp_path: Path) -> None:
@@ -254,9 +232,9 @@ def test_response_size_limit(
     dav_server: SimpleNamespace, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(cloud_sync, "MAX_RESPONSE_BYTES", 5)
-    dav_server.files["/dav/settings.json"] = b"123456"
+    dav_server.files["/dav/templates/.catalog.json"] = b"123456"
     with pytest.raises(CloudSyncError, match="limit"):
-        WebDavClient(dav_server.settings).download_configuration()
+        WebDavClient(dav_server.settings).download_templates()
 
 
 def test_mode_is_local_defaults_to_consumer_and_persists(tmp_path: Path):
@@ -272,18 +250,16 @@ def test_mode_is_local_defaults_to_consumer_and_persists(tmp_path: Path):
         replace(settings, mode="invalid").validated()
 
 
-@pytest.mark.parametrize("operation", ["configuration", "templates", "activate", "PUT", "MKCOL"])
+@pytest.mark.parametrize("operation", ["templates", "activate", "PUT", "MKCOL"])
 def test_consumer_blocks_all_writes_before_network(dav_server, operation):
     client = WebDavClient(replace(dav_server.settings, mode="consumer"))
     with pytest.raises(CloudSyncError, match="Consumer mode"):
-        if operation == "configuration":
-            client.upload_configuration(STATE)
-        elif operation == "templates":
+        if operation == "templates":
             client.publish_templates({"厂家/a.json": TEMPLATE})
         elif operation == "activate":
-            client.activate_version("templates", "invalid")
+            client.activate_version("invalid")
         else:
-            client._request(operation, "settings.json", body=b"{}")
+            client._request(operation, "templates/.catalog.json", body=b"{}")
     assert dav_server.requests == []
 
 
@@ -294,33 +270,19 @@ def test_template_publication_history_consumer_download_and_rollback(dav_server,
     second = {"厂家/设备.json": {**TEMPLATE, "name": "Version 2"}}
     v1 = publisher.publish_templates(first)
     v2 = publisher.publish_templates(second)
-    assert consumer.list_versions("templates") == sorted([v1, v2], reverse=True)
+    assert consumer.list_versions() == sorted([v1, v2], reverse=True)
     cache = tmp_path / "cache.json"
     consumer.download_templates(cache_path=cache)
     assert json.loads(cache.read_text(encoding="utf-8")) == second
     consumer.download_templates(cache_path=cache, version=v1)
     assert json.loads(cache.read_text(encoding="utf-8")) == first
-    v3 = publisher.activate_version("templates", v1)
+    v3 = publisher.activate_version(v1)
     consumer.download_templates(cache_path=cache)
     assert json.loads(cache.read_text(encoding="utf-8")) == first
-    assert len(consumer.list_versions("templates")) == 3
+    assert len(consumer.list_versions()) == 3
     assert v3 not in (v1, v2)
     archived = json.loads(dav_server.files[f"/dav/templates/.versions/{v2}.json"])
     assert archived["templates"] == second
-
-
-def test_configuration_history_isolated_from_credentials_and_rollback(dav_server):
-    publisher = WebDavClient(dav_server.settings)
-    consumer = WebDavClient(replace(dav_server.settings, mode="consumer"))
-    assert consumer.list_versions("configuration") == []
-    v1 = publisher.upload_configuration({**STATE, "password": "not-uploaded", "mode": "publisher"})
-    v2 = publisher.upload_configuration({**STATE, "theme": "dark"})
-    assert consumer.download_configuration(version=v1) == STATE
-    assert consumer.download_configuration()["theme"] == "dark"
-    publisher.activate_version("configuration", v1)
-    assert consumer.download_configuration() == STATE
-    assert len(consumer.list_versions("configuration")) == 3
-    assert consumer.download_configuration(version=v2)["theme"] == "dark"
 
 
 def test_failed_and_cancelled_publish_preserve_current_release(dav_server):
@@ -336,12 +298,10 @@ def test_failed_and_cancelled_publish_preserve_current_release(dav_server):
     with pytest.raises(CloudSyncError, match="cancelled"):
         client.publish_templates(first, cancelled=lambda: True)
     assert dav_server.files["/dav/templates/.catalog.json"] == current
-    client.upload_configuration(STATE)
-    config = dav_server.files["/dav/settings.json"]
     checks = iter([False, True])
     with pytest.raises(CloudSyncError, match="cancelled"):
-        client.upload_configuration({**STATE, "theme": "dark"}, cancelled=lambda: next(checks))
-    assert dav_server.files["/dav/settings.json"] == config
+        client.publish_templates({"厂家/b.json": TEMPLATE}, cancelled=lambda: next(checks))
+    assert dav_server.files["/dav/templates/.catalog.json"] == current
 
 
 @pytest.mark.parametrize("key", ["../a.json", "a/b/c.json", ".versions/x.json", "a\\b/c.json"])
@@ -364,5 +324,35 @@ def test_bad_catalog_or_version_never_changes_cache(dav_server, tmp_path, versio
     assert json.loads(cache.read_text(encoding="utf-8")) == {"preserved": True}
     requests_before = len(dav_server.requests)
     with pytest.raises(CloudSyncError, match="version"):
-        client.download_configuration(version="../outside")
+        client.download_templates(cache_path=cache, version="../outside")
     assert len(dav_server.requests) == requests_before
+
+
+def test_legacy_configuration_path_is_ignored(tmp_path: Path) -> None:
+    path = tmp_path / "cloud.json"
+    atomic_json(path, {
+        "url": "https://example.com/dav/", "username": "alice", "mode": "publisher",
+        "templates_path": "shared/templates", "configuration_path": "../legacy.json",
+        "timeout": 25, "remember_password": True, "password": "secret",
+    })
+    settings = WebDavSettings.load(path).validated()
+    assert settings.templates_path == "shared/templates"
+    assert settings.mode == "publisher"
+    assert settings.username == "alice"
+    assert settings.password == "secret"
+    assert settings.timeout == 25
+    settings.save(path)
+    assert "configuration_path" not in json.loads(path.read_text(encoding="utf-8"))
+    assert WebDavSettings.load(path) == settings
+
+
+def test_template_nested_path_and_empty_history(dav_server, tmp_path):
+    client = WebDavClient(replace(dav_server.settings, templates_path="共享/模板"))
+    client.test_connection()
+    assert client.list_versions() == []
+    version = client.publish_templates({"厂家/设备.json": TEMPLATE})
+    assert client.list_versions() == [version]
+    cache = tmp_path / "cache.json"
+    assert client.download_templates(cache_path=cache) == 1
+    assert json.loads(cache.read_text(encoding="utf-8")) == {"厂家/设备.json": TEMPLATE}
+    assert ("MKCOL", "/dav/共享/") in dav_server.requests

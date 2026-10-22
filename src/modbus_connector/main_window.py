@@ -401,7 +401,7 @@ class MainWindow(QMainWindow):
             session.log_panel.append(line)
 
     def _open_cloud_sync(self) -> None:
-        dialog = CloudSyncDialog(self._collect_state, self._restore_cloud_configuration, self)
+        dialog = CloudSyncDialog(self)
         dialog.templatesUpdated.connect(self._refresh_templates)
         dialog.exec()
         dialog.deleteLater()
@@ -415,24 +415,6 @@ class MainWindow(QMainWindow):
         self._populate_templates_menu()
         for index in range(self._tabs.count()):
             self._tabs.widget(index).sim_panel.refresh_templates()
-
-    def _restore_cloud_configuration(self, state: dict[str, Any]) -> None:
-        sessions: list[SessionWidget] = []
-        try:
-            for entry in state["tabs"]:
-                session = SessionWidget()
-                sessions.append(session)
-                session.set_state(entry)
-        except Exception:
-            for session in sessions:
-                session.shutdown()
-                session.deleteLater()
-            raise
-        self._clear_sessions()
-        for session in sessions:
-            self._insert_session(session)
-        self._apply_state({**state, "tabs": []})
-        save_settings(self._collect_state())
 
     def closeEvent(self, event: QCloseEvent) -> None:
         save_settings(self._collect_state())

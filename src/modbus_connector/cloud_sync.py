@@ -53,7 +53,6 @@ class WebDavSettings:
     username: str = ""
     password: str = field(default="", repr=False)
     templates_path: str = "templates"
-    configuration_path: str = "settings.json"
     timeout: int = 15
     remember_password: bool = False
     mode: str = "consumer"
@@ -75,7 +74,6 @@ class WebDavSettings:
         if ":" in self.username or any(c in self.username for c in "\r\n"):
             raise CloudSyncError("Invalid WebDAV username.")
         relative_path(self.templates_path)
-        relative_path(self.configuration_path)
         if not 1 <= self.timeout <= 120:
             raise CloudSyncError("Timeout must be between 1 and 120 seconds.")
         if self.mode not in ("publisher", "consumer"):
@@ -88,7 +86,7 @@ class WebDavSettings:
         defaults = cls()
         values = {
             name: data.get(name, getattr(defaults, name))
-            for name in ("url", "username", "password", "templates_path", "configuration_path")
+            for name in ("url", "username", "password", "templates_path")
         }
         values = {k: v if isinstance(v, str) else getattr(defaults, k) for k, v in values.items()}
         timeout = data.get("timeout", 15)
@@ -121,16 +119,6 @@ def atomic_json(path: Path, data: object) -> None:
     finally:
         if temporary is not None:
             Path(temporary).unlink(missing_ok=True)
-
-
-def validate_configuration(data: object) -> dict[str, Any]:
-    if (
-        not isinstance(data, dict) or not isinstance(data.get("tabs"), list)
-        or not data["tabs"] or not all(isinstance(tab, dict) for tab in data["tabs"])
-    ):
-        raise CloudSyncError("Invalid cloud configuration: expected a non-empty tabs list.")
-    # Only application state is transferred; never import cloud credentials.
-    return {key: data[key] for key in ("theme", "language", "tabs", "active_tab") if key in data}
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -234,7 +222,7 @@ class WebDavClient:
 
     def _require_publisher(self) -> None:
         if self.settings.mode != "publisher":
-            raise CloudSyncError("Consumer mode cannot publish or upload.")
+            raise CloudSyncError("Consumer mode cannot publish templates.")
 
     def _optional_get(self, path: str) -> bytes | None:
         try:
@@ -270,16 +258,12 @@ class WebDavClient:
             raise CloudSyncError("Invalid cloud version.")
         return value
 
-    def _history_path(self, kind: str) -> str:
-        if kind == "templates":
-            return self.settings.templates_path + "/.versions"
-        if kind == "configuration":
-            return self.settings.configuration_path + ".versions"
-        raise CloudSyncError("Invalid cloud version.")
+    def _history_path(self) -> str:
+        return self.settings.templates_path + "/.versions"
 
-    def list_versions(self, kind: str) -> list[str]:
+    def list_versions(self) -> list[str]:
         try:
-            entries = self._listing(self._history_path(kind))
+            entries = self._listing(self._history_path())
         except CloudSyncError as exc:
             if exc.params.get("status") == 404:
                 return []
@@ -328,7 +312,7 @@ class WebDavClient:
         raw = self._json_bytes({"schema": 1, "version": version, "templates": catalog})
         if cancelled():
             raise CloudSyncError("Cloud operation cancelled.")
-        self._put(f"{self._history_path('templates')}/{version}.json", raw)
+        self._put(f"{self._history_path()}/{version}.json", raw)
         if cancelled():
             raise CloudSyncError("Cloud operation cancelled.")
         # A complete immutable snapshot exists before the current catalog changes.
@@ -336,16 +320,12 @@ class WebDavClient:
         return version
 
     def activate_version(
-        self, kind: str, version: str, *, cancelled: Callable[[], bool] = lambda: False,
+        self, version: str, *, cancelled: Callable[[], bool] = lambda: False,
     ) -> str:
         self._require_publisher()
         self._version(version)
-        if kind == "templates":
-            raw = self._request("GET", f"{self._history_path(kind)}/{version}.json")
-            return self.publish_templates(self._catalog(raw)["templates"], cancelled=cancelled)
-        self._history_path(kind)  # validate kind before any network operation
-        return self.upload_configuration(self.download_configuration(version=version),
-                                         cancelled=cancelled)
+        raw = self._request("GET", f"{self._history_path()}/{version}.json")
+        return self.publish_templates(self._catalog(raw)["templates"], cancelled=cancelled)
 
     def download_templates(
         self, *, cache_path: Path | None = None, cancelled: Callable[[], bool] = lambda: False,
@@ -359,7 +339,7 @@ class WebDavClient:
                 raise CloudSyncError("Cloud operation cancelled.")
 
         check_cancelled()
-        catalog_path = (f"{self._history_path('templates')}/{self._version(version)}.json"
+        catalog_path = (f"{self._history_path()}/{self._version(version)}.json"
                         if version is not None else f"{self.settings.templates_path}/.catalog.json")
         raw_catalog = (self._request("GET", catalog_path) if version is not None
                        else self._optional_get(catalog_path))
@@ -394,28 +374,3 @@ class WebDavClient:
         check_cancelled()
         atomic_json(cache_path or templates.CLOUD_TEMPLATES_PATH, downloaded)
         return len(downloaded)
-
-    def upload_configuration(
-        self, state: dict[str, Any], *, cancelled: Callable[[], bool] = lambda: False,
-    ) -> str:
-        self._require_publisher()
-        data = validate_configuration(state)
-        body = self._json_bytes(data)
-        version = self._version()
-        if cancelled():
-            raise CloudSyncError("Cloud operation cancelled.")
-        self._put(f"{self._history_path('configuration')}/{version}.json", body)
-        if cancelled():
-            raise CloudSyncError("Cloud operation cancelled.")
-        self._put(self.settings.configuration_path, body)
-        return version
-
-    def download_configuration(self, *, version: str | None = None) -> dict[str, Any]:
-        path = (self.settings.configuration_path if version is None else
-                f"{self._history_path('configuration')}/{self._version(version)}.json")
-        raw = self._request("GET", path)
-        try:
-            data = json.loads(raw.decode("utf-8-sig"))
-        except (ValueError, UnicodeError) as exc:
-            raise CloudSyncError("Invalid cloud configuration JSON.") from exc
-        return validate_configuration(data)

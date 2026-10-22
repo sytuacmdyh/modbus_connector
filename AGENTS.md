@@ -39,29 +39,31 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
   missing installer from an existing release ZIP without changing its notes/assets.
 
 - WebDAV cloud sync: `cloud_sync.py` is Qt-free and uses stdlib HTTP Basic auth,
-  PROPFIND, GET, PUT and MKCOL. `cloud_dialog.py` snapshots UI state before
-  transfers on a QThread and confirms before restoring tabs. File → Cloud sync.
+  PROPFIND, GET, PUT and MKCOL. `cloud_dialog.py` snapshots the public template
+  catalog before transfers on a QThread. File → Cloud sync. The dialog separates connection
+  settings, template sync and template history; only public templates are synced.
+  Configuration upload/restore and configuration history are not supported. Legacy
+  `configuration_path` settings are ignored on load and omitted on save.
   Connection settings and local `mode` (`consumer` default / `publisher`) live
   separately in `~/.modbus_connector/cloud.json`; plaintext password saving is
   opt-in on every platform. No Windows Credential Manager integration. Never
   export/upload cloud settings or credentials in session configurations.
-  Consumer mode hides publish/upload/activate controls and backend writes fail
+  Consumer mode hides publish/activate controls and backend writes fail
   before network access. Real account permissions still belong to the server.
   Publishing templates snapshots the visible local catalog (bundled + cache) to
   `templates/.versions/<UTC-and-random-version>.json`, then PUTs `.catalog.json`.
   Downloads validate the complete catalog before atomically replacing the local
   `cloud_templates.json` cache. With no `.catalog.json`, legacy remote
-  `templates/<Manufacturer>/<Device>.json` remains supported. Histories for
-  configurations are `<configuration_path>.versions/<version>.json`; upload
-  archives first, then updates current. History downloads only alter local state;
-  publisher activation creates a new version, preserving previous snapshots.
+  `templates/<Manufacturer>/<Device>.json` remains supported. Template history
+  downloads only alter the local template cache; publisher activation creates a
+  new version, preserving previous snapshots.
   No automatic publishing, pruning or server permission changes. Refresh main
-  and existing simulator template menus after download. Restore stages new
-  SessionWidgets before shutting down old ones; restored sessions disconnected.
+  and existing simulator template menus after download. Sync never replaces
+  sessions. Version actions require a selected version.
   Transfers manual; redirects rejected; TLS verification enabled. Tests use a
   local HTTP/WebDAV fixture for publication, history, failure/cancellation,
   read-only enforcement; GUI tests cover mode controls, confirmation, worker
-  threading, restore and menu refresh.
+  threading, session preservation and menu refresh.
 
 - Custom templates: `custom_templates.py` is Qt-free; public bundled/cloud
   templates remain read-only through the GUI. `list_templates()` in `templates/`

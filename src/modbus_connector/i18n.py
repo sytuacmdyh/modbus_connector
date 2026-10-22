@@ -1185,20 +1185,23 @@ ZH_CN: dict[str, str] = {
 
 RU.update({
     "Cloud sync…": "Облачная синхронизация…",
+    "Connection settings": "Настройки подключения",
+    "Template sync": "Синхронизация шаблонов",
+    "Template history": "История шаблонов",
+    "Use selected templates": "Использовать выбранные шаблоны",
+    "Set as current cloud version…": "Сделать текущей облачной версией…",
+    "Sync public templates only; personal templates are not included. "
+    "Consumers download; publishers can also publish and activate template versions. "
+    "Account permissions are enforced by the WebDAV server.":
+        "Синхронизируются только общие шаблоны, без личных. Пользователи скачивают; "
+        "издатели также публикуют и активируют версии шаблонов. "
+        "Права доступа определяются сервером WebDAV.",
     "Consumer": "Пользователь",
     "Publisher": "Издатель",
-    "Configuration": "Настройки",
     "Publish local templates": "Опубликовать локальные шаблоны",
-    "Version history:": "История версий:",
     "Load history": "Загрузить историю",
-    "Download selected version": "Скачать выбранную версию",
-    "Set as current version": "Сделать текущей версией",
-    "Publishers can publish local templates and configurations with version history. "
-    "Consumers only download. Account permissions are enforced by the WebDAV server.":
-        "Издатели публикуют локальные шаблоны и настройки с историей версий. "
-        "Пользователи только скачивают. Права доступа определяются сервером WebDAV.",
     "Invalid cloud mode.": "Неверный облачный режим.",
-    "Consumer mode cannot publish or upload.": "В режиме пользователя публикация запрещена.",
+    "Consumer mode cannot publish templates.": "В режиме пользователя публикация запрещена.",
     "Invalid cloud version.": "Неверная облачная версия.",
     "Invalid cloud template catalog.": "Неверный каталог облачных шаблонов.",
     "Select a cloud version first.": "Сначала выберите облачную версию.",
@@ -1216,61 +1219,49 @@ RU.update({
     "Username:": "Имя пользователя:",
     "Password:": "Пароль:",
     "Templates folder:": "Папка шаблонов:",
-    "Configuration file:": "Файл настроек:",
     "Timeout, s:": "Таймаут, с:",
     "Remember password on this computer (plain text)":
         "Запомнить пароль на этом компьютере (открытый текст)",
-    "Use an existing WebDAV folder. Templates: templates/Manufacturer/Device.json. "
-    "Uploading replaces the configuration file. Cloud credentials stay on this computer.":
-        "Укажите существующую папку WebDAV. Шаблоны: templates/Производитель/Устройство.json. "
-        "Загрузка заменяет файл настроек. Данные входа остаются на этом компьютере.",
     "Test connection": "Проверить подключение",
     "Update templates": "Обновить шаблоны",
-    "Upload configuration": "Отправить настройки",
-    "Restore configuration": "Восстановить настройки",
     "Save connection": "Сохранить подключение",
     "Cloud sync failed: {detail}": "Ошибка облачной синхронизации: {detail}",
     "Cloud connection saved.": "Облачное подключение сохранено.",
     "Cloud operation in progress…": "Выполняется облачная операция…",
     "Cloud operation cancelled.": "Облачная операция отменена.",
     "Updated {count} cloud templates.": "Обновлено облачных шаблонов: {count}.",
-    "Replace all current tabs with the cloud configuration? Active connections will be closed.":
-        "Заменить все текущие вкладки облачными настройками? Активные подключения будут закрыты.",
-    "Cloud configuration restored.": "Облачные настройки восстановлены.",
-    "Configuration uploaded.": "Настройки отправлены.",
     "WebDAV connection successful.": "Подключение WebDAV успешно.",
     "Cancelling cloud operation…": "Отмена облачной операции…",
     "Enter a relative cloud path without '..'.": "Укажите относительный путь без '..'.",
     "Enter a valid HTTP or HTTPS WebDAV URL.": "Укажите корректный HTTP или HTTPS URL WebDAV.",
     "Invalid WebDAV username.": "Некорректное имя пользователя WebDAV.",
     "Timeout must be between 1 and 120 seconds.": "Таймаут должен быть от 1 до 120 секунд.",
-    "Invalid cloud configuration: expected a non-empty tabs list.":
-        "Неверные облачные настройки: ожидается непустой список вкладок.",
     "WebDAV {method} failed: HTTP {status}.": "Ошибка WebDAV {method}: HTTP {status}.",
     "Cloud response exceeds the 16 MiB limit.": "Облачный ответ превышает лимит 16 МиБ.",
     "WebDAV connection failed: {detail}": "Ошибка подключения WebDAV: {detail}",
     "Invalid WebDAV directory response.": "Неверный ответ каталога WebDAV.",
     "Cloud template catalog is too large.": "Облачный каталог шаблонов слишком большой.",
     "Invalid cloud template: {name}": "Неверный облачный шаблон: {name}",
-    "Invalid cloud configuration JSON.": "Неверный JSON облачных настроек.",
 })
 
 ZH_CN.update({
     "Cloud sync…": "云端同步…",
+    "Connection settings": "连接设置",
+    "Template sync": "模板同步",
+    "Template history": "模板历史",
+    "Use selected templates": "使用此版模板",
+    "Set as current cloud version…": "设为云端当前版本…",
+    "Sync public templates only; personal templates are not included. "
+    "Consumers download; publishers can also publish and activate template versions. "
+    "Account permissions are enforced by the WebDAV server.":
+        "仅同步公共模板，不包含个人模板。使用者可下载；发布者还可发布模板和切换云端版本。"
+        "账号的实际读写权限由 WebDAV 服务控制。",
     "Consumer": "使用者",
     "Publisher": "发布者",
-    "Configuration": "配置",
     "Publish local templates": "发布本地模板",
-    "Version history:": "版本历史：",
     "Load history": "加载历史",
-    "Download selected version": "下载所选版本",
-    "Set as current version": "设为当前版本",
-    "Publishers can publish local templates and configurations with version history. "
-    "Consumers only download. Account permissions are enforced by the WebDAV server.":
-        "发布者可以发布本地模板和配置，并保留历史版本；使用者仅下载。"
-        "账号的实际读写权限由 WebDAV 服务控制。",
     "Invalid cloud mode.": "云端模式无效。",
-    "Consumer mode cannot publish or upload.": "使用者模式不允许发布或上传。",
+    "Consumer mode cannot publish templates.": "使用者模式不允许发布模板。",
     "Invalid cloud version.": "云端版本无效。",
     "Invalid cloud template catalog.": "云端模板目录无效。",
     "Select a cloud version first.": "请先选择云端版本。",
@@ -1286,42 +1277,28 @@ ZH_CN.update({
     "Username:": "用户名：",
     "Password:": "密码：",
     "Templates folder:": "模板文件夹：",
-    "Configuration file:": "配置文件：",
     "Timeout, s:": "超时（秒）：",
     "Remember password on this computer (plain text)": "在本机记住密码（明文保存）",
-    "Use an existing WebDAV folder. Templates: templates/Manufacturer/Device.json. "
-    "Uploading replaces the configuration file. Cloud credentials stay on this computer.":
-        "请填写已存在的 WebDAV 文件夹地址。模板结构：templates/厂家/设备.json。"
-        "上传会覆盖指定的配置文件。云端凭据仅保留在本机。",
     "Test connection": "测试连接",
     "Update templates": "更新模板",
-    "Upload configuration": "上传当前配置",
-    "Restore configuration": "恢复云端配置",
     "Save connection": "保存连接设置",
     "Cloud sync failed: {detail}": "云端同步失败：{detail}",
     "Cloud connection saved.": "云端连接设置已保存。",
     "Cloud operation in progress…": "正在执行云端操作…",
     "Cloud operation cancelled.": "云端操作已取消。",
     "Updated {count} cloud templates.": "已更新 {count} 个云端模板。",
-    "Replace all current tabs with the cloud configuration? Active connections will be closed.":
-        "使用云端配置替换当前所有标签页？当前活动连接将关闭。",
-    "Cloud configuration restored.": "已恢复云端配置。",
-    "Configuration uploaded.": "当前配置已上传。",
     "WebDAV connection successful.": "WebDAV 连接成功。",
     "Cancelling cloud operation…": "正在取消云端操作…",
     "Enter a relative cloud path without '..'.": "请输入不包含“..”的云端相对路径。",
     "Enter a valid HTTP or HTTPS WebDAV URL.": "请输入有效的 HTTP 或 HTTPS WebDAV 地址。",
     "Invalid WebDAV username.": "WebDAV 用户名无效。",
     "Timeout must be between 1 and 120 seconds.": "超时必须在 1 到 120 秒之间。",
-    "Invalid cloud configuration: expected a non-empty tabs list.":
-        "云端配置无效：需要非空的标签页列表。",
     "WebDAV {method} failed: HTTP {status}.": "WebDAV {method} 失败：HTTP {status}。",
     "Cloud response exceeds the 16 MiB limit.": "云端响应超过 16 MiB 限制。",
     "WebDAV connection failed: {detail}": "WebDAV 连接失败：{detail}",
     "Invalid WebDAV directory response.": "WebDAV 目录响应无效。",
     "Cloud template catalog is too large.": "云端模板目录过大。",
     "Invalid cloud template: {name}": "云端模板无效：{name}",
-    "Invalid cloud configuration JSON.": "云端配置 JSON 无效。",
 })
 
 

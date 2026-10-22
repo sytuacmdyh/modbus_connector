@@ -3,14 +3,13 @@ import threading
 import time
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
 
 import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 try:
-    from PySide6.QtWidgets import QApplication, QMessageBox
+    from PySide6.QtWidgets import QApplication, QGroupBox, QMessageBox
 except ImportError as exc:
     pytest.skip(f"Qt system libraries not available: {exc}", allow_module_level=True)
 
@@ -58,7 +57,7 @@ def wait_finished(qapp: QApplication, dialog: CloudSyncDialog) -> None:
 
 
 def make_dialog() -> CloudSyncDialog:
-    dialog = CloudSyncDialog(lambda: {"tabs": [{}]}, lambda state: None)
+    dialog = CloudSyncDialog()
     dialog._url.setText("https://dav.example.com/folder/")
     dialog._username.setText("alice")
     dialog._password.setText("secret")
@@ -101,64 +100,6 @@ def test_requests_run_off_gui_thread_and_close_waits(
     assert refreshed == ([True] if operation == "templates" else [])
 
 
-def test_upload_captures_current_state_on_gui_thread(
-    qapp: QApplication, monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    captured: list[dict[str, Any]] = []
-    gui_thread = threading.get_ident()
-
-    def collect() -> dict[str, Any]:
-        assert threading.get_ident() == gui_thread
-        return {"tabs": [{"connection": {"unit": 7}}]}
-
-    monkeypatch.setattr(WebDavClient, "upload_configuration",
-                        lambda client, s, **kw: captured.append(s))
-    dialog = CloudSyncDialog(collect, lambda state: None)
-    dialog._url.setText("https://dav.example.com/")
-    dialog._mode.setCurrentIndex(dialog._mode.findData("publisher"))
-    dialog._start("upload")
-    wait_finished(qapp, dialog)
-    assert captured == [{"tabs": [{"connection": {"unit": 7}}]}]
-    assert dialog._status.text() == "Configuration uploaded."
-    assert dialog._actions[0].isEnabled()
-
-
-def test_restore_requires_confirmation_and_applies_all_tabs(
-    qapp: QApplication, monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    state = {"language": "en", "tabs": [
-        {"connection": {"type": "TCP", "tcp_host": "192.0.2.1"}},
-        {"connection": {"unit": 9}},
-    ], "active_tab": 1}
-    monkeypatch.setattr(WebDavClient, "download_configuration", lambda client: state)
-    window = MainWindow()
-    old_session = window._tabs.widget(0)
-    dialog = CloudSyncDialog(window._collect_state, window._restore_cloud_configuration, window)
-    dialog._url.setText("https://dav.example.com/")
-    monkeypatch.setattr(QMessageBox, "question", lambda *args: QMessageBox.StandardButton.No)
-    dialog._start("restore")
-    wait_finished(qapp, dialog)
-    assert window._tabs.widget(0) is old_session
-    monkeypatch.setattr(QMessageBox, "question", lambda *args: QMessageBox.StandardButton.Yes)
-    dialog._start("restore")
-    wait_finished(qapp, dialog)
-    assert dialog._status.text() == "Cloud configuration restored."
-    assert window._tabs.count() == 2
-    restored = window._collect_state()
-    assert restored["active_tab"] == 1
-    assert restored["tabs"][0]["connection"]["tcp_host"] == "192.0.2.1"
-    assert restored["tabs"][1]["connection"]["unit"] == 9
-
-
-def test_bad_configuration_keeps_current_sessions(qapp: QApplication) -> None:
-    window = MainWindow()
-    old_session = window._tabs.widget(0)
-    with pytest.raises((ValueError, TypeError)):
-        window._restore_cloud_configuration({"tabs": [{"connection": {"unit": [1, 2]}}]})
-    assert window._tabs.widget(0) is old_session
-    assert window._tabs.count() == 1
-
-
 def test_download_refreshes_main_and_simulator_menus(
     qapp: QApplication, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -170,11 +111,15 @@ def test_download_refreshes_main_and_simulator_menus(
 
     monkeypatch.setattr(WebDavClient, "download_templates", download)
     window = MainWindow()
-    dialog = CloudSyncDialog(window._collect_state, window._restore_cloud_configuration, window)
+    old_session = window._tabs.widget(0)
+    before = window._collect_state()
+    dialog = CloudSyncDialog(window)
     dialog.templatesUpdated.connect(window._refresh_templates)
     dialog._url.setText("https://dav.example.com/")
     dialog._start("templates")
     wait_finished(qapp, dialog)
+    assert window._tabs.widget(0) is old_session
+    assert window._collect_state() == before
     public = window._templates_menu.actions()[0].menu()
     assert any(a.text() == "CloudCo" for a in public.actions())
     sim_menu = window._tabs.widget(0).sim_panel._template_button.menu()
@@ -184,14 +129,14 @@ def test_download_refreshes_main_and_simulator_menus(
     assert window._cloud_action.text() == "云端同步…"
 
 
-def test_mode_hides_publisher_actions_and_blocks_programmatic_upload(qapp, monkeypatch):
+def test_mode_hides_publisher_actions_and_blocks_programmatic_publish(qapp, monkeypatch):
     uploaded = []
-    monkeypatch.setattr(WebDavClient, "upload_configuration", lambda *a, **kw: uploaded.append(a))
+    monkeypatch.setattr(WebDavClient, "publish_templates", lambda *a, **kw: uploaded.append(a))
     dialog = make_dialog()
     dialog.show()
     assert dialog._mode.currentData() == "consumer"
     assert all(button.isHidden() for button in dialog._publisher_actions)
-    for operation in ("upload", "publish", "activate"):
+    for operation in ("publish", "activate"):
         dialog._start(operation)
         assert dialog._task is None
         assert "Consumer mode" in dialog._status.text()
@@ -209,9 +154,20 @@ def test_publish_requires_confirmation_and_snapshots_all_visible_templates(qapp,
     info = templates.TemplateInfo(name="Local", manufacturer="Maker", resource="Maker/Local.json")
     data = {"name": "Local", "connection": {}, "registers": []}
     monkeypatch.setattr(templates, "list_templates", lambda: [info])
-    monkeypatch.setattr(templates, "load_template", lambda t: data)
-    monkeypatch.setattr(WebDavClient, "publish_templates",
-                        lambda c, catalog, **kw: published.append(catalog) or "v1")
+    gui_thread = threading.get_ident()
+    publish_threads = []
+
+    def load_template(info):
+        assert threading.get_ident() == gui_thread
+        return data
+
+    def publish(client, catalog, **kwargs):
+        publish_threads.append(threading.get_ident())
+        published.append(catalog)
+        return "v1"
+
+    monkeypatch.setattr(templates, "load_template", load_template)
+    monkeypatch.setattr(WebDavClient, "publish_templates", publish)
     dialog = make_dialog()
     dialog._mode.setCurrentIndex(dialog._mode.findData("publisher"))
     monkeypatch.setattr(QMessageBox, "question", lambda *a: QMessageBox.StandardButton.No)
@@ -221,35 +177,53 @@ def test_publish_requires_confirmation_and_snapshots_all_visible_templates(qapp,
     dialog._start("publish")
     wait_finished(qapp, dialog)
     assert published == [{"Maker/Local.json": data}]
+    assert publish_threads[0] != gui_thread
     assert dialog._status.text() == "Published 1 templates. Version: v1"
 
 
 def test_history_download_and_publisher_only_activation(qapp, monkeypatch):
-    restored, activated = [], []
-    monkeypatch.setattr(WebDavClient, "list_versions", lambda c, k: ["v2", "v1"])
-    monkeypatch.setattr(WebDavClient, "download_configuration",
-                        lambda c, **kw: {"tabs": [{}], "version": kw["version"]})
+    downloaded, activated = [], []
+    monkeypatch.setattr(WebDavClient, "list_versions", lambda c: ["v2", "v1"])
+    monkeypatch.setattr(WebDavClient, "download_templates",
+                        lambda c, **kw: downloaded.append(kw["version"]) or 1)
     monkeypatch.setattr(WebDavClient, "activate_version",
-                        lambda c, k, v, **kw: activated.append((k, v)) or "v3")
+                        lambda c, v, **kw: activated.append(v) or "v3")
     monkeypatch.setattr(QMessageBox, "question", lambda *a: QMessageBox.StandardButton.Yes)
-    dialog = CloudSyncDialog(lambda: {"tabs": [{}]}, restored.append)
+    dialog = CloudSyncDialog()
     dialog._url.setText("https://dav.example.com/")
-    dialog._history_kind.setCurrentIndex(dialog._history_kind.findData("configuration"))
+    assert all(not button.isEnabled() for button in dialog._version_actions)
     dialog._start("history")
     wait_finished(qapp, dialog)
     assert dialog._versions.count() == 2
+    assert dialog._version_actions[0].isEnabled()
     dialog._versions.setCurrentIndex(1)
     dialog._start("download_version")
     wait_finished(qapp, dialog)
-    assert restored == [{"tabs": [{}], "version": "v1"}]
+    assert downloaded == ["v1"]
     dialog._start("activate")
     assert dialog._task is None and not activated
     dialog._mode.setCurrentIndex(dialog._mode.findData("publisher"))
     dialog._start("activate")
     wait_finished(qapp, dialog)
-    assert activated == [("configuration", "v1")]
+    assert activated == ["v1"]
     assert dialog._versions.count() == 0
-    dialog._history_kind.setCurrentIndex(0)
+    assert all(not button.isEnabled() for button in dialog._version_actions)
     dialog._start("download_version")
     assert dialog._task is None
     assert "Select a cloud version" in dialog._status.text()
+
+
+@pytest.mark.parametrize("language, titles", [
+    ("en", {"Connection settings", "Template sync", "Template history"}),
+    ("zh_CN", {"连接设置", "模板同步", "模板历史"}),
+    ("ru", {"Настройки подключения", "Синхронизация шаблонов", "История шаблонов"}),
+])
+def test_template_only_layout(qapp, language, titles):
+    set_language(language)
+    dialog = make_dialog()
+    assert {group.title() for group in dialog.findChildren(QGroupBox)} == titles
+    assert dialog._test.parentWidget() is dialog._form
+    assert dialog._save.parentWidget() is dialog._form
+    assert len(dialog._actions) == 2
+    assert not hasattr(dialog, "_configuration_path")
+    assert not hasattr(dialog, "_history_kind")
