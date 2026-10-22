@@ -41,6 +41,7 @@ jobs:
           if [ "$RUNNER_OS" == "Windows" ]; then PY=.venv/Scripts/python; else PY=.venv/bin/python; fi
           "$PY" -m pip install -U pip
           "$PY" -m pip install -e ".[dev,build]"
+          "$PY" -m pip install -e ./mcp
 
       - name: Check release tag matches application version
         if: startsWith(github.ref, 'refs/tags/')
@@ -52,6 +53,8 @@ jobs:
 
       - name: Run tests
         shell: bash
+        env:
+          QT_QPA_PLATFORM: ${{ runner.os == 'macOS' && 'cocoa' || 'offscreen' }}
         # Per-module processes: a Qt segfault (seen intermittently in long
         # offscreen runs on CI) then fails only its module instead of the
         # whole suite, and the failing module is identified precisely.
@@ -62,12 +65,17 @@ jobs:
           if [ "$RUNNER_OS" == "Windows" ]; then PY=.venv/Scripts/python; else PY=.venv/bin/python; fi
           for f in tests/test_*.py; do
             code=0
-            "$PY" -m pytest "$f" -q || code=$?  # `||` shields against set -e
+            "$PY" -m pytest "$f" -q --tb=short > test-output.log 2>&1 || code=$?
+            cat test-output.log
             if [ $code -eq 0 ] || [ $code -eq 5 ]; then continue; fi
             echo "::warning::$f failed with exit $code — retrying once in a fresh process"
             code=0
-            "$PY" -m pytest "$f" -q || code=$?
-            if [ $code -ne 0 ] && [ $code -ne 5 ]; then exit $code; fi
+            "$PY" -m pytest "$f" -q --tb=short > test-output.log 2>&1 || code=$?
+            cat test-output.log
+            if [ $code -ne 0 ] && [ $code -ne 5 ]; then
+              "$PY" -c 'from pathlib import Path; text=Path("test-output.log").read_text(errors="replace")[-6000:]; print("::error::"+text.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))'
+              exit $code
+            fi
           done
 
       - name: Build (macOS/Linux)

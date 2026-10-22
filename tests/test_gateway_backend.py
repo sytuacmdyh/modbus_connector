@@ -4,6 +4,7 @@ from collections.abc import Iterator
 import pytest
 from pymodbus.client import ModbusTcpClient
 
+from modbus_connector.backend import BackendConnectionError
 from modbus_connector.gateway_backend import (
     GatewayBackend,
     GatewayTcpListenParams,
@@ -149,9 +150,10 @@ def test_listen_port_busy(modbus_server: int) -> None:
 
 def test_target_unreachable() -> None:
     backend = GatewayBackend()
-    with pytest.raises(ConnectionError, match="Не удалось подключиться"):
+    with pytest.raises(BackendConnectionError) as error:
         backend.start(
             GatewayTcpListenParams("127.0.0.1", _free_port()),
             TcpParams("127.0.0.1", _free_port(), timeout=0.5),
         )
+    assert error.value.message_key == "Could not connect to {description}"
     assert not backend.running
