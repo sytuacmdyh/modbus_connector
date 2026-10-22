@@ -4,7 +4,7 @@
 
 [English version: README.md](https://github.com/cramen/modbus_connector/blob/main/README.md)
 
-**[Скачать готовые сборки для macOS / Windows / Linux → Releases](https://github.com/cramen/modbus_connector/releases)**
+**[Скачать готовые сборки для macOS / Windows / Linux → Releases](https://github.com/sytuacmdyh/modbus_connector/releases)**
 
 **[Смотреть видео-презентацию (полторы минуты, субтитры) → docs/presentation.mp4](https://github.com/cramen/modbus_connector/blob/main/docs/presentation.mp4)** (музыка: «Carefree» Kevin MacLeod, incompetech.com, CC BY 4.0)
 
@@ -216,7 +216,7 @@ pip install "modbus-connector[gui]" # CLI + GUI
 
 Готовые автономные бинарники (`modbus-connector-cli-macos` / `-linux` /
 `-windows.exe`, Python не нужен) прикладываются к
-[Releases](https://github.com/cramen/modbus_connector/releases).
+[Releases](https://github.com/sytuacmdyh/modbus_connector/releases).
 
 Для LLM-агентов есть отдельный **MCP-сервер**
 ([`modbus-connector-mcp`](mcp/README.md), `pip install

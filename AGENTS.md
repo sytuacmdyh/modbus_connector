@@ -29,6 +29,15 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
   source for setuptools and the GUI, including PyInstaller builds. The build
   workflow verifies tag/version equality before publishing existing packages.
 
+- Windows distribution: `packaging/windows/build_installer.py` wraps the GUI
+  bundle with NSIS into `modbus-connector-<version>-windows-x64-setup.exe`.
+  Per-user installation uses LocalAppData, HKCU uninstall registration and start
+  menu shortcuts. Uninstall deletes only packaged files; settings/custom templates
+  remain outside the install directory. `verify_installer.py` requires a disposable
+  Windows runner and checks payload hashes, startup, reinstall and uninstall.
+  Build publishes both ZIP and installer. `windows-installer.yml` backfills a
+  missing installer from an existing release ZIP without changing its notes/assets.
+
 - WebDAV cloud sync: `cloud_sync.py` is Qt-free and uses stdlib HTTP Basic auth,
   PROPFIND, GET, PUT and MKCOL. `cloud_dialog.py` snapshots UI state before
   transfers on a QThread and confirms before restoring tabs. File → Cloud sync.

@@ -4,7 +4,7 @@
 
 [Russian version: README_ru.md](https://github.com/cramen/modbus_connector/blob/main/README_ru.md)
 
-**[Download ready-made builds for macOS / Windows / Linux → Releases](https://github.com/cramen/modbus_connector/releases)**
+**[Download ready-made builds for macOS / Windows / Linux → Releases](https://github.com/sytuacmdyh/modbus_connector/releases)**
 
 **[Watch the video presentation (1.5 min, Russian subtitles) → docs/presentation.mp4](https://github.com/cramen/modbus_connector/blob/main/docs/presentation.mp4)** (music: “Carefree” Kevin MacLeod, incompetech.com, CC BY 4.0)
 
@@ -215,7 +215,7 @@ pip install "modbus-connector[gui]" # CLI + GUI
 
 Ready-made standalone binaries (`modbus-connector-cli-macos` /
 `-linux` / `-windows.exe`, no Python needed) are attached to
-[Releases](https://github.com/cramen/modbus_connector/releases).
+[Releases](https://github.com/sytuacmdyh/modbus_connector/releases).
 
 For LLM agents there is a companion **MCP server**
 ([`modbus-connector-mcp`](mcp/README.md), `pip install
@@ -693,8 +693,12 @@ Use **Help → Check for updates…** to check the latest stable release in
 [sytuacmdyh/modbus_connector](https://github.com/sytuacmdyh/modbus_connector/releases).
 The check runs in a background thread and shows the current version, available
 version and release notes. **Download update…** opens the release page in your
-browser; choose the package for your OS and install it manually. Windows ZIP
-users should exit the application and replace the whole application folder.
+browser; choose the package for your OS and install it manually. On Windows,
+download **`modbus-connector-<version>-windows-x64-setup.exe`** for the installer
+(start menu shortcuts and uninstall entry; no administrator rights required).
+Exit the application before updating. **`modbus-connector-windows.zip`** is the
+portable alternative: extract it and run `ModbusConnector/ModbusConnector.exe`.
+ZIP users should replace the whole application folder when updating.
 Settings remain in `~/.modbus_connector/`. Checking never uploads settings.
 
 The public GitHub API requires no token. Drafts and prereleases are excluded.
@@ -706,7 +710,10 @@ To publish an update, change `__version__` in
 versions), commit it, and push a matching tag such as `v0.14.3`. Tags use
 `vMAJOR.MINOR.PATCH`. The existing `.github/workflows/build.yml` verifies the
 tag matches the application version, builds Windows/macOS/Linux packages, and
-attaches them to GitHub Releases. Edit the release notes on GitHub as needed.
+attaches them to GitHub Releases. Release notes automatically summarize commits.
+The Windows job builds and tests an NSIS installer as well as the portable ZIP.
+`windows-installer.yml` can also add a missing installer to an existing release
+using its published ZIP; existing assets and release notes are preserved.
 The update checker uses this fork's releases, rather than the upstream project.
 
 ## Building a standalone executable
@@ -722,6 +729,12 @@ application into `dist/`: on macOS — `ModbusConnector.app` plus a
 folder with the executable inside (`ModbusConnector.exe` on Windows; copy the
 whole folder to another machine). The artifact does not require Python on the
 target machine.
+
+To create a Windows installer after `build.bat`, install NSIS and run
+`python packaging/windows/build_installer.py`. The output is
+`dist/modbus-connector-<version>-windows-x64-setup.exe`. Installation defaults to
+`%LOCALAPPDATA%\Programs\ModbusConnector`; uninstall retains user settings and
+custom templates in `~/.modbus_connector/`.
 
 macOS notes:
 
