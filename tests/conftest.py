@@ -7,18 +7,16 @@ from collections.abc import Iterator
 
 import pytest
 
-# pyqtdarktheme's "auto" theme spawns a QThread running darkdetect.listener,
-# whose ctypes WNDPROC callback pokes a QObject from the listener thread.
-# On Windows that intermittently corrupts the heap and crashes the test
-# process with an access violation at unrelated Qt calls. Tests never rely
-# on live OS-theme switching, so neutralize the listener (kept as a no-op:
-# darkdetect.theme() one-shot lookups still work, the thread exits at once).
+# Tests don't use live OS-theme switching. Disable listener creation entirely:
+# a no-op darkdetect.listener still creates a QThread, whose atexit terminate()
+# can crash in pthread_cancel after the thread has already finished.
+# One-shot theme lookups and real light/dark styles remain enabled.
 try:
-    import darkdetect
+    import qdarktheme._main as qdarktheme_main
 
-    darkdetect.listener = lambda callback: None  # noqa: E731
+    qdarktheme_main._sync_theme_with_system = lambda app, callback: None  # noqa: E731
 except ImportError:
-    pass  # darkdetect only ships with the GUI dependencies
+    pass  # qdarktheme only ships with the GUI dependencies
 
 from pymodbus.datastore import (
     ModbusSequentialDataBlock,

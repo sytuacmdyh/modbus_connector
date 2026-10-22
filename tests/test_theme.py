@@ -22,10 +22,15 @@ def qapp() -> QApplication:
 
 
 @pytest.fixture(autouse=True)
-def _restore_theme() -> None:
+def _restore_theme(qapp: QApplication) -> None:
     yield
     theme.apply_theme("system")  # the theme is app-global: leave no trace
     set_language("en")  # a MainWindow applies the persisted language on build
+    for widget in qapp.topLevelWidgets():
+        if isinstance(widget, MainWindow):
+            widget._shutdown_sessions()
+        widget.close()
+        widget.deleteLater()
 
 
 def test_apply_theme_switches_stylesheet(qapp: QApplication) -> None:
