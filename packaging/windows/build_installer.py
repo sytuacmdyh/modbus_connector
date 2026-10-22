@@ -47,9 +47,11 @@ def build(bundle: Path, version: str, output: Path, compiler: str) -> None:
         (stage / 'uninstall-files.nsh').write_text('\n'.join(manifest), encoding='utf-8')
         definitions = {
             'VERSION': version, 'BUNDLE_FILES': str(bundle / '*'),
-            'OUTPUT_FILE': output.as_posix(), 'SOURCE_DIR': ROOT.as_posix(),
+            'OUTPUT_FILE': str(output),
+            'ICON_FILE': str(ROOT / 'assets/icon.ico'),
+            'LICENSE_FILE': str(ROOT / 'LICENSE'),
             'INSTALLED_KIB': str(sum(p.stat().st_size for p in files) // 1024 + 1),
-            'UNINSTALL_FILES': (stage / 'uninstall-files.nsh').as_posix(),
+            'UNINSTALL_FILES': str(stage / 'uninstall-files.nsh'),
         }
         # Compile-time file paths do not use runtime dollar escaping.
         script = '\n'.join(f'!define {k} `{v}`' for k, v in definitions.items())

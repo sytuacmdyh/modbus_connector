@@ -15,12 +15,12 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 VIAddVersionKey "FileVersion" "${VERSION}.0"
 VIAddVersionKey "FileDescription" "Modbus Connector Windows x64 Setup"
 VIAddVersionKey "LegalCopyright" "MIT License - Modbus Connector contributors"
-!define MUI_ICON "${SOURCE_DIR}/assets/icon.ico"
-!define MUI_UNICON "${SOURCE_DIR}/assets/icon.ico"
+!define MUI_ICON "${ICON_FILE}"
+!define MUI_UNICON "${ICON_FILE}"
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_NOAUTOCLOSE
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "${SOURCE_DIR}/LICENSE"
+!insertmacro MUI_PAGE_LICENSE "${LICENSE_FILE}"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
