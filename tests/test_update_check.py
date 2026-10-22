@@ -91,6 +91,10 @@ def test_http_errors_are_not_reported_as_up_to_date(
     json.dumps({"tag_name": "v1.0.0", "draft": False,
                 "prerelease": False, "body": []}).encode(),
     b" " * (1024 * 1024 + 1),
+], ids=[
+    "invalid-json", "invalid-encoding", "array", "missing-fields", "null",
+    "draft", "prerelease", "invalid-tag-type", "release-candidate", "unsafe-tag",
+    "invalid-notes", "oversized-response",
 ])
 def test_reject_invalid_or_unstable_release(github: dict[str, Any], payload: bytes) -> None:
     github["body"] = payload
