@@ -1,0 +1,27 @@
+name: Update release notes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/releases/**
+      - packaging/update_release_notes.py
+      - .github/workflows/release-notes.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-notes
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Update existing release descriptions
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 packaging/update_release_notes.py

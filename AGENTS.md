@@ -1101,6 +1101,13 @@ CLI-бинарь — отдельным артефактом modbus-connector-cl
 прикрепляются к релизу отдельным шагом, как и CLI-бинарь).
 Linux installs Qt runtime libraries before testing; PyPI publishing is restricted
 to `cramen/modbus_connector`, while forks can publish tagged GitHub Releases.
+Release descriptions live in `docs/releases/vMAJOR.MINOR.PATCH.md` (first H1 is
+release title, rest is the body). Tagged builds validate this file, upload assets
+without generated notes, then run `packaging/update_release_notes.py --tag` once
+after the matrix succeeds. `.github/workflows/release-notes.yml` synchronizes
+Markdown edits on main to existing releases, or can be run manually; bulk sync
+skips unpublished tags. Only release name/body are patched, never assets or tags.
+Validate notes offline with `python packaging/update_release_notes.py --check`.
 
 ## Соглашения
 
