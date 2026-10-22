@@ -46,7 +46,7 @@ def build(bundle: Path, version: str, output: Path, compiler: str) -> None:
         ]
         (stage / 'uninstall-files.nsh').write_text('\n'.join(manifest), encoding='utf-8')
         definitions = {
-            'VERSION': version, 'BUNDLE': bundle.as_posix(),
+            'VERSION': version, 'BUNDLE_FILES': str(bundle / '*'),
             'OUTPUT_FILE': output.as_posix(), 'SOURCE_DIR': ROOT.as_posix(),
             'INSTALLED_KIB': str(sum(p.stat().st_size for p in files) // 1024 + 1),
             'UNINSTALL_FILES': (stage / 'uninstall-files.nsh').as_posix(),
