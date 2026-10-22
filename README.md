@@ -706,10 +706,36 @@ The public GitHub API requires no token. Drafts and prereleases are excluded.
 A missing release, network failure or API rate limit is shown explicitly, and
 you can retry. Checks are manual; the application does not check on startup.
 
-To publish an update, change `__version__` in
-`src/modbus_connector/__init__.py` (the single source for package and GUI
-versions), commit it, and push a matching tag such as `v0.14.3`. Tags use
-`vMAJOR.MINOR.PATCH`. The existing `.github/workflows/build.yml` verifies the
+To publish an update, commit your changes on `main`, fetch and integrate any
+remote updates, then run the release script with the next stable version:
+
+```bash
+python packaging/release.py 0.15.1 --dry-run  # validate without changing local or remote state
+python packaging/release.py 0.15.1            # publish and wait for the complete release
+python packaging/release.py 0.15.1 --status   # check an existing release
+```
+
+The script needs Python 3.11+ and Git push access to the GitHub `origin` remote;
+no extra Python packages or GitHub CLI are required. Use `--remote NAME` to
+select another remote with matching fetch/push URLs. It refuses uncommitted
+changes, remote history missing locally, older versions and duplicate tags.
+It updates `__version__` in `src/modbus_connector/__init__.py` (the single source
+for package and GUI versions), commits the version change, creates an annotated
+`vMAJOR.MINOR.PATCH` tag, then atomically pushes `main` and the tag without force.
+CI runs the tests and creates the packages. The script waits up to 30 minutes and
+only reports completion when the matching tag build succeeds, release notes are
+present and all 12 expected assets are uploaded, including the Windows installer.
+`--no-wait` returns after pushing; `--timeout SECONDS` changes the wait limit.
+An optional `GH_TOKEN` or `GITHUB_TOKEN` raises the API rate limit; tokens are never
+required for public status checks or printed by the script.
+
+If pushing fails after local preparation, fix the cause and run
+`python packaging/release.py 0.15.1 --resume`. This reuses the local commit/tag
+only if the version and current `HEAD` match; remote tags are never overwritten.
+If CI fails or the wait times out, inspect the printed Actions link and use
+`--status` to check again. Do not move a published tag to a different commit.
+
+The existing `.github/workflows/build.yml` verifies the
 tag matches the application version, builds Windows/macOS/Linux packages, and
 attaches them to GitHub Releases. Release notes automatically summarize commits.
 The Windows job builds and tests an NSIS installer as well as the portable ZIP.
