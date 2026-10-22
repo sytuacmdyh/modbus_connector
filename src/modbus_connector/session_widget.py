@@ -223,6 +223,7 @@ class SessionWidget(QWidget):
     def state(self) -> dict[str, Any]:
         return {
             "mode": self._mode,
+            "custom_template_id": self.property("custom_template_id"),
             "connection": self.connection_panel.state(),
             "registers": self.registers_panel.state(),
             "registers_options": self.registers_panel.options_state(),
@@ -237,6 +238,10 @@ class SessionWidget(QWidget):
     def set_state(self, state: dict[str, Any]) -> None:
         if not state:
             return
+        template_id = state.get("custom_template_id")
+        self.setProperty(
+            "custom_template_id", template_id if isinstance(template_id, str) else None,
+        )
         # режим — до панелей: выставляет видимость и центральный стек;
         # старые state без "mode" читаются как master
         mode = state.get("mode")

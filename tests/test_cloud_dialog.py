@@ -175,9 +175,11 @@ def test_download_refreshes_main_and_simulator_menus(
     dialog._url.setText("https://dav.example.com/")
     dialog._start("templates")
     wait_finished(qapp, dialog)
-    assert any(a.text() == "CloudCo" for a in window._templates_menu.actions())
+    public = window._templates_menu.actions()[0].menu()
+    assert any(a.text() == "CloudCo" for a in public.actions())
     sim_menu = window._tabs.widget(0).sim_panel._template_button.menu()
-    assert any(a.text() == "CloudCo" for a in sim_menu.actions())
+    sim_public = sim_menu.actions()[0].menu()
+    assert any(a.text() == "CloudCo" for a in sim_public.actions())
     set_language("zh_CN")
     assert window._cloud_action.text() == "云端同步…"
 

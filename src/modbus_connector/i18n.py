@@ -16,6 +16,50 @@ LANGUAGES = ("en", "ru", "zh_CN")
 LANGUAGE_NAMES = {"en": "English", "ru": "Русский", "zh_CN": "简体中文"}
 
 RU: dict[str, str] = {
+    "Public templates":
+        "Общие шаблоны",
+    "Custom templates":
+        "Пользовательские шаблоны",
+    "Save as custom template…":
+        "Сохранить как пользовательский шаблон…",
+    "Save new version":
+        "Сохранить новую версию",
+    "Manage custom templates…":
+        "Управление пользовательскими шаблонами…",
+    "Manage custom templates":
+        "Управление пользовательскими шаблонами",
+    "Open a version, edit it, then save a new version.":
+        "Откройте версию, измените и сохраните новую версию.",
+    "Open version":
+        "Открыть версию",
+    "Rename…":
+        "Переименовать…",
+    "Delete template…":
+        "Удалить шаблон…",
+    "Delete version…":
+        "Удалить версию…",
+    "Template name:":
+        "Название шаблона:",
+    "Delete this custom template and all its versions?":
+        "Удалить этот шаблон и все его версии?",
+    "Delete this saved version?":
+        "Удалить эту сохранённую версию?",
+    "Custom template version saved.":
+        "Версия пользовательского шаблона сохранена.",
+    "Invalid custom template ID.":
+        "Недопустимый идентификатор шаблона.",
+    "Invalid custom template file.":
+        "Некорректный файл шаблона.",
+    "Invalid custom template version.":
+        "Некорректная версия шаблона.",
+    "Custom template version not found.":
+        "Версия шаблона не найдена.",
+    "Template name cannot be empty.":
+        "Название шаблона не может быть пустым.",
+    "Invalid custom template state.":
+        "Некорректное содержимое шаблона.",
+    "Cannot delete the last version; delete the template instead.":
+        "Нельзя удалить последнюю версию; удалите шаблон целиком.",
     # backend errors (rendered in the current UI language)
     "Could not connect to {description}": "Не удалось подключиться к {description}",
     "Read {kind}@{address} failed": "Ошибка чтения {kind}@{address}",
@@ -585,6 +629,50 @@ RU: dict[str, str] = {
 
 
 ZH_CN: dict[str, str] = {
+    "Public templates":
+        "公共模板",
+    "Custom templates":
+        "用户自定义模板",
+    "Save as custom template…":
+        "另存为自定义模板…",
+    "Save new version":
+        "保存新版本",
+    "Manage custom templates…":
+        "管理自定义模板…",
+    "Manage custom templates":
+        "管理自定义模板",
+    "Open a version, edit it, then save a new version.":
+        "打开历史版本，编辑后可保存为新版本。",
+    "Open version":
+        "打开版本",
+    "Rename…":
+        "重命名…",
+    "Delete template…":
+        "删除模板…",
+    "Delete version…":
+        "删除版本…",
+    "Template name:":
+        "模板名称：",
+    "Delete this custom template and all its versions?":
+        "删除此自定义模板及其所有历史版本？",
+    "Delete this saved version?":
+        "删除此历史版本？",
+    "Custom template version saved.":
+        "自定义模板版本已保存。",
+    "Invalid custom template ID.":
+        "无效的自定义模板标识。",
+    "Invalid custom template file.":
+        "自定义模板文件无效。",
+    "Invalid custom template version.":
+        "自定义模板版本无效。",
+    "Custom template version not found.":
+        "未找到此自定义模板版本。",
+    "Template name cannot be empty.":
+        "模板名称不能为空。",
+    "Invalid custom template state.":
+        "自定义模板内容无效。",
+    "Cannot delete the last version; delete the template instead.":
+        "不能单独删除最后一个版本，请删除整个模板。",
     # backend errors (rendered in the current UI language)
     "Could not connect to {description}": "无法连接到 {description}",
     "Read {kind}@{address} failed": "读取 {kind}@{address} 失败",

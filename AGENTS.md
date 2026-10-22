@@ -54,6 +54,22 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
   read-only enforcement; GUI tests cover mode controls, confirmation, worker
   threading, restore and menu refresh.
 
+- Custom templates: `custom_templates.py` is Qt-free; public bundled/cloud
+  templates remain read-only through the GUI. `list_templates()` in `templates/`
+  remains the public catalog used by cloud publication and CLI/MCP. Personal
+  templates live separately in `~/.modbus_connector/custom_templates/<uuid>.json`.
+  Each schema-1 file contains a display name and timestamped session snapshots;
+  saves append even when unchanged and atomically replace the file. Rename only
+  changes display metadata; delete-version cannot remove the final version.
+  `template_menu.py` groups Public/Custom in the main and simulator menus.
+  `custom_templates_dialog.py` opens historical versions in disconnected tabs and
+  confirms deletion of templates/versions. Save as custom always creates a new
+  identity; Save new version appends to the current session's `custom_template_id`
+  (persisted in session settings, excluded from template snapshots). Opening an
+  old version and saving creates a new snapshot. Cloud downloads/publication do
+  not include or overwrite personal templates. GUI tests isolate local storage;
+  `test_custom_templates.py` covers snapshots, failure atomicity and isolation.
+
 - Вся Modbus-логика — в `backend.py` на **синхронных** клиентах pymodbus
   (`ModbusTcpClient`, `ModbusSerialClient`). backend.py и models.py не импортируют Qt.
 - Qt-слой тонкий: `worker.py` (QObject в отдельном QThread, сигналы/слоты над

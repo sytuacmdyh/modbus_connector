@@ -332,13 +332,33 @@ and is saved with the settings.
 
 ### Device templates
 
-The **Templates** menu (between File and View) lists the bundled device
-templates grouped by manufacturer. Choosing one opens a **new tab** with the
+The **Templates** menu (between File and View) separates **Public templates**
+(bundled templates and cloud downloads, grouped by manufacturer) from local
+**Custom templates**. Choosing one opens a **new tab** with the
 connection settings and the register table pre-filled from the template —
 press **Connect** and read. The tab keeps the template's name until the
 session connects.
 
-To add your own template, drop a JSON file into
+Use **Templates → Save as custom template…** to save the current session under
+a personal name. Public templates cannot be overwritten: edit their session and
+save a custom copy. **Save new version** appends a snapshot every time, even
+when nothing changed. The session retains its custom-template association across
+app restarts. **Manage custom templates…** lists versions newest first, shows
+save times in the local timezone, opens any version in a new disconnected tab,
+and supports renaming or deleting a template and deleting individual versions.
+To return to an old version, open it and save a new version. Deleting the latest
+version makes the preceding version current; to remove the last version, delete
+the entire template. Deletions require confirmation and do not close open tabs.
+
+Custom templates preserve session settings, register annotations, expressions and
+simulator rules. They are stored separately in
+`~/.modbus_connector/custom_templates/<id>.json`; each file contains its display
+name and all UTC timestamped snapshots, replaced atomically on save. Renaming
+does not rewrite snapshots. Cloud template downloads and publication never
+modify or publish this personal catalog. Simulator template menus expose both
+catalogs and import the simulator map when the saved session is in Slave mode.
+
+For developers adding a bundled public template, place a JSON file in
 `src/modbus_connector/templates/<Manufacturer>/<Device>.json`:
 
 ```json
@@ -783,6 +803,9 @@ src/modbus_connector/
   settings_store.py    # settings persistence in ~/.modbus_connector/settings.json
   cloud_sync.py    # Qt-free WebDAV client, local cloud settings, atomic template cache
   cloud_dialog.py  # cloud setup, background transfers, explicit upload/restore actions
+  custom_templates.py  # Qt-free local custom templates and timestamped versions
+  custom_templates_dialog.py  # rename/delete templates, browse/open/delete versions
+  template_menu.py  # shared public/custom menu grouping
   templates/      # bundled device templates: <Manufacturer>/<Device>.json
                   # register maps + default connection settings (package data,
                   # read via importlib.resources; loader in templates/__init__.py)

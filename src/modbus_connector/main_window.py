@@ -6,15 +6,18 @@ from PySide6.QtCore import Slot
 from PySide6.QtGui import QActionGroup, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QFileDialog,
+    QInputDialog,
     QLabel,
     QMainWindow,
-    QMenu,
+    QMessageBox,
     QTabWidget,
     QWidget,
 )
 
 from modbus_connector import icons
 from modbus_connector.cloud_dialog import CloudSyncDialog
+from modbus_connector.custom_templates import CustomTemplateStore
+from modbus_connector.custom_templates_dialog import CustomTemplatesDialog
 from modbus_connector.i18n import (
     LANGUAGE_NAMES,
     LANGUAGES,
@@ -26,7 +29,8 @@ from modbus_connector.i18n import (
 from modbus_connector.models import StatsSnapshot
 from modbus_connector.session_widget import SessionWidget
 from modbus_connector.settings_store import load_settings, save_settings
-from modbus_connector.templates import TemplateInfo, list_templates, load_template
+from modbus_connector.template_menu import populate_template_menu
+from modbus_connector.templates import TemplateInfo, load_template
 from modbus_connector.theme import THEMES, apply_theme, current_theme
 from modbus_connector.update_dialog import UpdateDialog
 
@@ -124,30 +128,82 @@ class MainWindow(QMainWindow):
 
     def _populate_templates_menu(self) -> None:
         self._templates_menu.clear()
-        infos = list_templates()
-        if not infos:
-            action = self._templates_menu.addAction(tr("(empty)"))
-            action.setEnabled(False)
+        populate_template_menu(
+            self._templates_menu, self._apply_template,
+            lambda info: self._open_custom_template(info.id),
+        )
+        self._templates_menu.addSeparator()
+        self._templates_menu.addAction(
+            tr("Save as custom template…"), lambda: self._save_custom_template(copy=True),
+        )
+        self._save_version_action = self._templates_menu.addAction(
+            tr("Save new version"), self._save_custom_template,
+        )
+        session = self._tabs.currentWidget()
+        self._save_version_action.setEnabled(
+            session is not None and bool(session.property("custom_template_id")),
+        )
+        self._templates_menu.addAction(
+            tr("Manage custom templates…"), self._manage_custom_templates,
+        )
+
+    def _open_custom_template(self, template_id: str, version_id: str | None = None) -> None:
+        try:
+            state = CustomTemplateStore().load(template_id, version_id)
+            session = self._add_session(state)
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, tr("Custom templates"), tr(str(exc)))
             return
-        submenus: dict[str, QMenu] = {}
-        for info in infos:
-            submenu = submenus.get(info.manufacturer)
-            if submenu is None:
-                # explicit C++ parent: wrappers of addMenu(str) results take
-                # ownership and delete the menu when garbage collected
-                submenu = QMenu(info.manufacturer, self._templates_menu)
-                self._templates_menu.addMenu(submenu)
-                submenus[info.manufacturer] = submenu
-            action = submenu.addAction(info.name)
-            if info.description:
-                action.setToolTip(info.description)
-            action.triggered.connect(
-                lambda checked=False, i=info: self._apply_template(i)
+        session.setProperty("custom_template_id", template_id)
+        self._tabs.setTabText(self._tabs.indexOf(session), state["name"])
+        self._save_version_action.setEnabled(True)
+
+    def _save_custom_template(self, *, copy: bool = False) -> None:
+        session = self._tabs.currentWidget()
+        if session is None:
+            return
+        template_id = None if copy else session.property("custom_template_id")
+        name = None
+        if not template_id:
+            name, ok = QInputDialog.getText(
+                self, tr("Save as custom template…"), tr("Template name:"),
+                text=self._tabs.tabText(self._tabs.currentIndex()),
             )
+            if not ok:
+                return
+        try:
+            info = CustomTemplateStore().save(
+                session.state(), name=name, template_id=template_id,
+            )
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, tr("Custom templates"), tr(str(exc)))
+            return
+        session.setProperty("custom_template_id", info.id)
+        self._tabs.setTabText(self._tabs.indexOf(session), info.name)
+        self._refresh_templates()
+        self.statusBar().showMessage(tr("Custom template version saved."), 5000)
+
+    def _manage_custom_templates(self) -> None:
+        dialog = CustomTemplatesDialog(self)
+        dialog.templatesChanged.connect(self._custom_templates_changed)
+        dialog.openRequested.connect(self._open_custom_template)
+        dialog.exec()
+        dialog.deleteLater()
+
+    def _custom_templates_changed(self) -> None:
+        names = {info.id: info.name for info in CustomTemplateStore().list_templates()}
+        for index in range(self._tabs.count()):
+            session = self._tabs.widget(index)
+            template_id = session.property("custom_template_id")
+            if template_id in names:
+                self._tabs.setTabText(index, names[template_id])
+            elif template_id:
+                session.setProperty("custom_template_id", None)
+        self._refresh_templates()
 
     def _apply_template(self, info: TemplateInfo) -> None:
         try:
-            state = load_template(info)
+            state = {**load_template(info), "custom_template_id": None}
         except ValueError as exc:
             self._log_line(
                 tr("✗ failed to load template {name}: {exc}", name=info.resource, exc=exc)
@@ -194,6 +250,10 @@ class MainWindow(QMainWindow):
         session = self._tabs.widget(index)
         if session is not None:
             self._update_stats(session.last_stats())
+        if hasattr(self, "_save_version_action"):
+            self._save_version_action.setEnabled(
+                session is not None and bool(session.property("custom_template_id")),
+            )
 
     @Slot(object)
     def _update_stats(self, snapshot: StatsSnapshot) -> None:
@@ -249,6 +309,7 @@ class MainWindow(QMainWindow):
         self._help_menu.setTitle(tr("Help"))
         self._update_action.setText(tr("Check for updates…"))
         self._templates_menu.setTitle(tr("Templates"))
+        self._populate_templates_menu()
         self._view_menu.setTitle(tr("View"))
         self._theme_menu.setTitle(tr("Theme"))
         self._language_menu.setTitle(tr("Language"))

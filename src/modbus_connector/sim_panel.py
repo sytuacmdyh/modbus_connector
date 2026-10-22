@@ -33,6 +33,7 @@ from serial.tools import list_ports
 from modbus_connector import icons, theme
 from modbus_connector.bits_dialog import BitsDialog
 from modbus_connector.connection_panel import BAUDRATES
+from modbus_connector.custom_templates import CustomTemplateInfo, CustomTemplateStore
 from modbus_connector.help_dialog import SIMULATOR_HELP, make_help_button
 from modbus_connector.i18n import tr
 from modbus_connector.models import (
@@ -63,7 +64,8 @@ from modbus_connector.sim_backend import (
     SimTcpParams,
     describe_sim,
 )
-from modbus_connector.templates import TemplateInfo, list_templates, load_template
+from modbus_connector.template_menu import populate_template_menu
+from modbus_connector.templates import TemplateInfo, load_template
 
 KINDS = list(get_args(RegisterKind))
 FORMATS = list(get_args(DisplayFormat))
@@ -307,26 +309,7 @@ class SimPanel(QWidget):
 
     def _build_templates_menu(self) -> QMenu:
         menu = QMenu(self._template_button)
-        infos = list_templates()
-        if not infos:
-            action = menu.addAction(tr("(empty)"))
-            action.setEnabled(False)
-            return menu
-        submenus: dict[str, QMenu] = {}
-        for info in infos:
-            submenu = submenus.get(info.manufacturer)
-            if submenu is None:
-                # explicit C++ parent (см. main_window._populate_templates_menu):
-                # wrapper addMenu(str) удалит меню при сборке мусора
-                submenu = QMenu(info.manufacturer, menu)
-                menu.addMenu(submenu)
-                submenus[info.manufacturer] = submenu
-            action = submenu.addAction(info.name)
-            if info.description:
-                action.setToolTip(info.description)
-            action.triggered.connect(
-                lambda checked=False, i=info: self._apply_template(i)
-            )
+        populate_template_menu(menu, self._apply_template, self._apply_template)
         return menu
 
     def refresh_templates(self) -> None:
@@ -957,13 +940,14 @@ class SimPanel(QWidget):
 
     # --- шаблоны ---
 
-    def _apply_template(self, info: TemplateInfo) -> None:
+    def _apply_template(self, info: TemplateInfo | CustomTemplateInfo) -> None:
         """Добавить регистры шаблона в карту (дубли kind+address пропускаются)."""
         try:
-            data = load_template(info)
-        except ValueError as exc:
+            data = (CustomTemplateStore().load(info.id)
+                    if isinstance(info, CustomTemplateInfo) else load_template(info))
+        except (OSError, ValueError) as exc:
             self.logLine.emit(
-                tr("✗ failed to load template {name}: {exc}", name=info.resource, exc=exc)
+                tr("✗ failed to load template {name}: {exc}", name=info.name, exc=exc)
             )
             return
         existing = set()
@@ -972,7 +956,9 @@ class SimPanel(QWidget):
             if address is not None:
                 existing.add((self._kind_at(index), address))
         added = skipped = 0
-        for entry in data.get("registers", []):
+        rows = (data.get("sim", {}).get("rows", [])
+                if data.get("mode") == "slave" else data.get("registers", []))
+        for entry in rows:
             if not isinstance(entry, dict):
                 continue
             kind = entry.get("kind") if entry.get("kind") in KINDS else "holding_registers"
@@ -1251,6 +1237,7 @@ class SimPanel(QWidget):
 
     def retranslate(self) -> None:
         """Переприменить tr() ко всем строкам панели (по смене языка)."""
+        self.refresh_templates()
         for widget, text in self._translatable:
             widget.setText(tr(text))
             if isinstance(widget, QToolButton):
