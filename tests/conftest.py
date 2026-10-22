@@ -1,5 +1,6 @@
 import asyncio
 import socket
+import sys
 import threading
 import time
 from collections.abc import Iterator
@@ -29,6 +30,16 @@ from pymodbus.framer import Framer
 from pymodbus.server import ModbusTcpServer
 
 UNIT_ID = 1
+
+
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_runtest_teardown() -> Iterator[None]:
+    yield
+    # Tests don't run app.exec(): processEvents() alone leaves deleteLater()
+    # queued until interpreter shutdown, when Qt parents may already be gone.
+    qtcore = sys.modules.get("PySide6.QtCore")
+    if qtcore is not None and qtcore.QCoreApplication.instance() is not None:
+        qtcore.QCoreApplication.sendPostedEvents(None, qtcore.QEvent.Type.DeferredDelete)
 
 
 @pytest.fixture(autouse=True)
