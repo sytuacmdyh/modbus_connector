@@ -414,6 +414,10 @@ RU: dict[str, str] = {
     "Map the essential fields: {fields}":
         "Сопоставьте обязательные поля: {fields}",
     # logging settings dialog
+    "Write interval:": "Интервал записи:",
+    "CSV: time in the first column, one register per column; latest values at each interval.":
+        "CSV: время в первом столбце, каждый регистр в отдельном; последние значения по интервалу.",
+    "✗ logging: {exc}": "✗ запись: {exc}",
     "Logging settings": "Настройки записи",
     "Log file path": "Путь к файлу записи",
     "Browse…": "Обзор…",
@@ -985,6 +989,10 @@ ZH_CN: dict[str, str] = {
     "— skip —": "— 跳过 —",
     "Map the essential fields: {fields}": "请映射必填字段：{fields}",
     # logging settings dialog
+    "Write interval:": "写入间隔：",
+    "CSV: time in the first column, one register per column; latest values at each interval.":
+        "CSV：第一列为时间，每个寄存器占一列；按固定间隔写入最新读取值。",
+    "✗ logging: {exc}": "✗ 记录失败：{exc}",
     "Logging settings": "记录设置",
     "Log file path": "记录文件路径",
     "Browse…": "浏览…",

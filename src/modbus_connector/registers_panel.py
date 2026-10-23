@@ -730,7 +730,12 @@ class RegistersPanel(QWidget):
         self._logger = DataLogger()
         self._log_flush_timer = QTimer(self)
         self._log_flush_timer.setInterval(1000)
-        self._log_flush_timer.timeout.connect(self._logger.flush)
+        self._log_flush_timer.timeout.connect(self._flush_log)
+        self._log_snapshot_timer = QTimer(self)
+        self._log_snapshot_timer.setTimerType(Qt.TimerType.PreciseTimer)
+        self._log_snapshot_timer.timeout.connect(self._write_log_snapshot)
+        self._log_columns: list[int] = []
+        self._log_values: dict[int, str] = {}
         self._log_button = icons.make_button(  # text never changes
             tr("Log to file"), "log", checkable=True
         )
@@ -1094,6 +1099,7 @@ class RegistersPanel(QWidget):
             "format": self._log_settings.format,
             "fields": [f for f in LOG_FIELDS if f in self._log_settings.fields],
             "append": self._log_settings.append,
+            "interval_ms": self._log_settings.interval_ms,
         }
 
     def set_logging_state(self, state: dict) -> None:
@@ -1110,6 +1116,10 @@ class RegistersPanel(QWidget):
             )
         if isinstance(state.get("append"), bool):
             settings.append = state["append"]
+
+        interval = state.get("interval_ms")
+        if isinstance(interval, int) and not isinstance(interval, bool):
+            settings.interval_ms = max(100, min(86400000, interval))
 
     def set_state(self, rows: list) -> None:
         self._close_row_editors()
@@ -2840,6 +2850,9 @@ class RegistersPanel(QWidget):
             address = int(self._text_at(index, COL_ADDRESS), 0)
         except ValueError:
             address = -1
+        if self._log_settings.format == "csv":
+            self._log_values[token] = self._log_value(index, values)
+            return
         self._logger.write(
             LogSample(
                 timestamp=datetime.now().isoformat(timespec="milliseconds"),
@@ -2902,8 +2915,14 @@ class RegistersPanel(QWidget):
             return
         if ok:
             self._last_values[token] = list(values)  # raw, for +/-/toggle
-        if ok and self._logger.is_open:
-            self._log_read(index, values)
+        if self._logger.is_open:
+            if ok:
+                try:
+                    self._log_read(index, values)
+                except OSError as exc:
+                    self._logging_failed(exc)
+            else:
+                self._log_values.pop(token, None)
         if ok and self._recording and self.row_trend_enabled(token):
             primary = self._primary_value(index, values)
             if primary is not None:
@@ -3025,6 +3044,31 @@ class RegistersPanel(QWidget):
 
     # --- logging to file --------------------------------------------------
 
+    def _logging_failed(self, exc: OSError) -> None:
+        self.logLine.emit(tr("✗ logging: {exc}", exc=exc))
+        self.stop_logging()
+
+    def _flush_log(self) -> None:
+        try:
+            self._logger.flush()
+        except OSError as exc:
+            self._logging_failed(exc)
+
+    def _write_log_snapshot(self) -> None:
+        if not self._logger.is_open or not self._log_columns:
+            return
+        existing_tokens = set(self.row_tokens())
+        try:
+            self._logger.write_snapshot(
+                datetime.now().isoformat(sep=" ", timespec="milliseconds"),
+                [self._log_values.get(token, "")
+                 if token in existing_tokens else ""
+                 for token in self._log_columns],
+            )
+            self._logger.flush()
+        except OSError as exc:
+            self._logging_failed(exc)
+
     def is_logging(self) -> bool:
         return self._logger.is_open
 
@@ -3035,8 +3079,23 @@ class RegistersPanel(QWidget):
             self._sync_logging_ui()  # a cancelled dialog must not leave the button on
             return
         try:
-            self._logger.open(self._log_settings)
-        except OSError as exc:
+            entries = [entry for entry in self._log_row_entries() if entry[2]]
+            self._log_columns = [token for token, _, _ in entries]
+            self._log_values.clear()
+            columns = []
+            for token, _, _ in entries:
+                index = self._find_row_by_token(token)
+                name = self._text_at(index, COL_NAME)
+                unit = _parse_unit_id(self._text_at(index, COL_UNIT_ID))
+                if unit is None:
+                    unit = self._unit_id
+                address = self._text_at(index, COL_ADDRESS)
+                columns.append(f"{name}@{unit}_{address}")
+            self._logger.open(
+                self._log_settings,
+                columns=columns if self._log_settings.format == "csv" else None,
+            )
+        except (OSError, ValueError) as exc:
             self.logLine.emit(
                 tr(
                     "✗ logging: cannot open {path}: {exc}",
@@ -3047,6 +3106,8 @@ class RegistersPanel(QWidget):
             self._sync_logging_ui()
             return
         self._log_flush_timer.start()
+        if self._log_settings.format == "csv":
+            self._log_snapshot_timer.start(self._log_settings.interval_ms)
         if not self.is_polling():  # logging needs reads: start polling
             self.start_polling(self._record_mode)  # records per the split mode
         self.logLine.emit(
@@ -3062,8 +3123,13 @@ class RegistersPanel(QWidget):
         if not self._logger.is_open:
             return
         self._log_flush_timer.stop()
+        self._log_snapshot_timer.stop()
+        self._log_values.clear()
         rows, path = self._logger.rows_written, self._log_settings.path
-        self._logger.close()
+        try:
+            self._logger.close()
+        except OSError as exc:
+            self.logLine.emit(tr("✗ logging: {exc}", exc=exc))
         self.logLine.emit(
             tr("← logging stopped: {rows} rows written to {path}",
                rows=rows, path=path)

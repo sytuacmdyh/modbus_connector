@@ -122,3 +122,30 @@ def test_flush_and_close_are_idempotent(tmp_path: Path) -> None:
     assert logger.rows_written == 1
     assert not logger.is_open
     assert len(_read_csv(path)) == 2
+
+
+def test_snapshot_columns_and_append_validation(tmp_path: Path) -> None:
+    import pytest
+
+    path = tmp_path / "wide.csv"
+    settings = LogSettings(path=str(path))
+    logger = DataLogger()
+    columns = ["温度, unit 1", "压力"]
+    logger.open(settings, columns=columns)
+    logger.write_snapshot("t1", ["20.5", ""])
+    logger.close()
+    original = path.read_bytes()
+    with pytest.raises(ValueError, match="CSV columns differ"):
+        logger.open(settings, columns=["other"])
+    assert not logger.is_open
+    assert path.read_bytes() == original
+    logger.open(settings, columns=columns)
+    logger.write_snapshot("t2", ["21", "2"])
+    logger.close()
+    assert _read_csv(path) == [
+        ["timestamp", *columns], ["t1", "20.5", ""], ["t2", "21", "2"]
+    ]
+    settings.append = False
+    logger.open(settings, columns=["new"])
+    logger.close()
+    assert _read_csv(path) == [["timestamp", "new"]]

@@ -2,6 +2,7 @@ import csv
 import itertools
 import json
 import os
+import time
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -780,17 +781,17 @@ def test_logging_starts_polling_and_writes_csv(
     assert panel._log_button.isChecked()
 
     panel.handle_read_finished(_read_row(panel, 0), True, [17163, 52429], "")
+    panel._write_log_snapshot()
     panel.stop_logging()
     assert not panel.is_logging()
     assert panel.is_polling()  # polling keeps running after logging stops
     panel.stop_polling()
 
     rows = list(csv.reader(path.read_text(encoding="utf-8").splitlines()))
-    assert rows[0] == ["timestamp", "name", "address", "kind", "value"]
-    timestamp, name, address, kind, value = rows[1]
-    assert "T" in timestamp  # ISO 8601
-    assert (name, address, kind) == ("temp", "5", "holding_registers")
-    assert value == "13.98"  # f32-decoded (139.8), scaled by 0.1, no unit suffix
+    assert rows[0] == ["timestamp", "temp@1_5"]
+    timestamp, value = rows[1]
+    assert timestamp[10] == " " and "T" not in timestamp
+    assert value == "13.98"  # f32-decoded and scaled, no unit suffix
 
 
 def test_logging_poll_only_mode_starts_without_recording(
@@ -853,7 +854,8 @@ def test_logging_state_roundtrip(qapp: QApplication, tmp_path: Path) -> None:
     )
     state = panel.logging_state()
     assert state == {"path": str(tmp_path / "x.jsonl"), "format": "jsonl",
-                     "fields": ["name", "kind"], "append": False}  # canonical order
+                     "fields": ["name", "kind"], "append": False,
+                     "interval_ms": 1000}  # canonical order
 
     fresh = RegistersPanel(itertools.count(100).__next__)
     fresh.set_logging_state(state)
@@ -929,11 +931,13 @@ def test_logging_skips_unchecked_rows(qapp: QApplication, tmp_path: Path) -> Non
     panel.start_logging()
     panel.handle_read_finished(_read_row(panel, 0), True, [10], "")
     panel.handle_read_finished(_read_row(panel, 1), True, [20], "")
+    panel._write_log_snapshot()
     panel.stop_logging()
     panel.stop_polling()
 
     rows = list(csv.reader(path.read_text(encoding="utf-8").splitlines()))
-    assert rows == [["name", "value"], ["a", "10"]]  # "b" excluded
+    assert rows[0] == ["timestamp", "a@1_0"]
+    assert rows[1][1:] == ["10"]  # "b" excluded
 
     # "select none" → only the header lands in a fresh file
     dialog = LoggingSettingsDialog(LogSettings(), panel._log_row_entries(), panel)
@@ -945,7 +949,7 @@ def test_logging_skips_unchecked_rows(qapp: QApplication, tmp_path: Path) -> Non
     panel.handle_read_finished(_read_row(panel, 0), True, [11], "")
     panel.stop_logging()
     panel.stop_polling()
-    assert none_path.read_text(encoding="utf-8").splitlines() == ["name,value"]
+    assert none_path.read_text(encoding="utf-8").splitlines() == ["timestamp"]
 
     # a row added after the selection defaults to logged
     panel._add_row(RegisterRow(name="c", kind="holding_registers", address=2))
@@ -987,3 +991,44 @@ def test_bus_controls_disabled_until_connected(qapp: QApplication) -> None:
     assert all(not button.isEnabled() for button in gated)
 
 
+
+
+def test_csv_logging_fixed_timer_snapshot(qapp: QApplication, tmp_path: Path) -> None:
+    panel = RegistersPanel(itertools.count(1).__next__)
+    panel.set_state([
+        {"name": "a", "kind": "holding_registers", "address": 0, "count": 1},
+        {"name": "b", "kind": "holding_registers", "address": 1, "count": 1},
+    ])
+    path = tmp_path / "timed.csv"
+    panel.set_logging_state({"path": str(path), "interval_ms": 100})
+    panel.start_logging()
+    panel.stop_polling()
+    panel.handle_read_finished(_read_row(panel, 0), True, [10], "")
+    panel._logger.flush()
+    assert len(list(csv.reader(path.read_text().splitlines()))) == 1
+    # Reads update the cache; only the independent logging timer adds rows.
+    deadline = time.monotonic() + 2
+    while panel._logger.rows_written < 2 and time.monotonic() < deadline:
+        qapp.processEvents()
+    assert panel._logger.rows_written >= 2
+    panel.handle_read_finished(_read_row(panel, 0), True, [11], "")
+    panel.handle_read_finished(_read_row(panel, 1), True, [20], "")
+    panel._write_log_snapshot()
+    panel.handle_read_finished(_read_row(panel, 0), False, [], "timeout")
+    panel._write_log_snapshot()
+    panel.stop_logging()
+    assert not panel._log_snapshot_timer.isActive()
+    rows = list(csv.reader(path.read_text().splitlines()))
+    assert rows[1][1:] == ["10", ""]
+    assert rows[2][1:] == ["10", ""]
+    assert rows[-2][1:] == ["11", "20"]
+    assert rows[-1][1:] == ["", "20"]
+
+
+def test_logging_dialog_interval(qapp: QApplication) -> None:
+    dialog = LoggingSettingsDialog(LogSettings(interval_ms=2500))
+    assert dialog._interval_spin.value() == 2500
+    dialog._interval_spin.setValue(500)
+    assert dialog.settings().interval_ms == 500
+    dialog._format_combo.setCurrentText("JSON Lines")
+    assert not dialog._interval_spin.isEnabled()
