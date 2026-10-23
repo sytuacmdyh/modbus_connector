@@ -136,7 +136,10 @@ with one full changelog link. No per-version Markdown file is required.
   ("Raw" checkbox) and export of the whole log to a file ("Save…").
 - A help button (a "?" icon with a tooltip) in each window (table toolbar,
   graph, scanner) opens a short help sheet with that window's controls and
-  hotkeys; window toolbars use compact icon buttons with tooltips.
+  hotkeys; window toolbars use compact icon buttons with tooltips. The register
+  toolbar uses two rows: common actions, polling and filtering above; grouped
+  transaction, display, CSV/snapshot and logging tools below. Read all and polling
+  also show text labels.
 - Multilingual UI: English, Русский and 简体中文, switched live in View → Language
   (default follows the system locale; the choice persists).
 

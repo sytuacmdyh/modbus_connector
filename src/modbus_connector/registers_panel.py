@@ -42,6 +42,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QFileDialog,
     QFormLayout,
+    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -722,6 +723,7 @@ class RegistersPanel(QWidget):
         self._track(add_button, "Add register")
         add_button.clicked.connect(lambda: self._add_row())
         self._read_all_button = icons.make_button(tr("Read all"), "read_all")
+        self._read_all_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self._track(
             self._read_all_button, "Read all", "Read every row once (Ctrl/Cmd+Shift+R)"
         )
@@ -862,7 +864,7 @@ class RegistersPanel(QWidget):
         self._poll_button = QToolButton()  # menu button: icon registered manually
         self._poll_button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
         self._poll_button.setIconSize(QSize(icons.ICON_SIZE, icons.ICON_SIZE))
-        self._poll_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        self._poll_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self._translatable_tips.append((self._poll_button, POLL_BUTTON_TIP))
         self._poll_button.setToolTip(tr(POLL_BUTTON_TIP))
         poll_menu = QMenu(self._poll_button)
@@ -876,39 +878,49 @@ class RegistersPanel(QWidget):
         self._sync_poll_button(False, False)  # sets icon + text + tooltip
 
         top = QHBoxLayout()
+        top.setSpacing(6)
         top.addWidget(add_button)
+        top.addWidget(sort_button)
+        top.addSpacing(8)
         top.addWidget(self._read_all_button)
         top.addWidget(self._group_reads_button)
-        top.addWidget(sort_button)
-        top.addWidget(self._mask_write_button)
-        top.addWidget(self._readwrite_button)
-        top.addWidget(self._filter_edit)
-        top.addWidget(self._checked_only_button)
-        top.addWidget(display_button)
-        top.addWidget(alarms_button)
-        top.addWidget(self._expr_button)
-        top.addWidget(csv_button)
-        top.addWidget(self._snapshot_button)
-        top.addWidget(self._diff_button)
-        top.addWidget(self._log_button)
-        top.addWidget(self._log_settings_button)
-        top.addStretch(1)
-        order_label = QLabel()
-        self._track(order_label, "Order:")
-        top.addWidget(order_label)
-        top.addWidget(self._global_order_combo)
+        top.addSpacing(8)
         interval_label = QLabel()
         self._track(interval_label, "Interval:")
         top.addWidget(interval_label)
         top.addWidget(self._poll_interval)
         top.addWidget(self._poll_button)
+        top.addSpacing(8)
+        top.addWidget(self._filter_edit, 1)
+        top.addWidget(self._checked_only_button)
         self._help_button = make_help_button(
             self, "Registers — Help", REGISTERS_HELP
         )
         top.addWidget(self._help_button)
 
+        order_label = QLabel()
+        self._track(order_label, "Order:")
+        tools = QHBoxLayout()
+        tools.setSpacing(6)
+        for index, group in enumerate((
+            (self._mask_write_button, self._readwrite_button),
+            (display_button, alarms_button, self._expr_button,
+             order_label, self._global_order_combo),
+            (csv_button, self._snapshot_button, self._diff_button),
+            (self._log_button, self._log_settings_button),
+        )):
+            if index:
+                separator = QFrame()
+                separator.setFrameShape(QFrame.Shape.VLine)
+                separator.setFrameShadow(QFrame.Shadow.Sunken)
+                tools.addWidget(separator)
+            for widget in group:
+                tools.addWidget(widget)
+        tools.addStretch(1)
+
         layout = QVBoxLayout(self)
         layout.addLayout(top)
+        layout.addLayout(tools)
         layout.addWidget(self._table, 1)
         layout.addWidget(self._expressions_widget())
 

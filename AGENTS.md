@@ -425,6 +425,9 @@ src/modbus_connector/
                        # кнопка "Diagnostics…" — диалог диагностики (0x08):
                        # loopback, счётчики, clear counters
   registers_panel.py   # таблица регистров: чтение/запись, поллинг по QTimer,
+                       # two toolbar rows: common actions/polling/filter above;
+                       # grouped transaction/display/CSV/snapshot/logging below;
+                       # Read all and polling show text beside their icons,
                        # первая колонка — чекбокс «строка в поллинге»
                        # (по умолчанию вкл.; снятые строки пропускаются
                        # поллингом и Read all, per-row таймер строки
