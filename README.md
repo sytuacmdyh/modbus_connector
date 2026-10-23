@@ -85,6 +85,10 @@ with one full changelog link. No per-version Markdown file is required.
 - Filter box and one-click "Sort by address" for large tables. Table columns
   can be reordered by dragging the headers and shown/hidden via the header's
   right-click checklist; the layout persists between sessions.
+  The filter button next to the search box toggles "Show checked rows only";
+  it combines with the text filter and updates when rows are checked or unchecked.
+  While dragging in the checkbox column, rows hide after release so the row
+  positions stay stable during the gesture.
 - Per-row polling checkbox (leftmost column): unchecked rows are skipped by
   polling and "Read all" and are hidden from the graph window; manual reads
   and writes still work. The header checkbox selects or clears all rows (including

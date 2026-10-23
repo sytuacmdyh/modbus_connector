@@ -177,6 +177,60 @@ def _five_row_panel() -> RegistersPanel:
     return panel
 
 
+def test_checked_only_filter_combines_with_text_and_restores(qapp: QApplication) -> None:
+    panel = _five_row_panel()
+    table = panel._table
+    table.item(1, COL_POLL_ENABLED).setCheckState(Qt.CheckState.Unchecked)
+    panel._checked_only_button.click()
+    assert [table.isRowHidden(i) for i in range(5)] == [False, True, False, False, False]
+    panel._filter_edit.setText("B")
+    assert all(table.isRowHidden(i) for i in range(5))
+    panel._checked_only_button.click()
+    assert not table.isRowHidden(1)
+    assert table.isRowHidden(0)  # text filter remains active
+    panel._filter_edit.clear()
+    assert not any(table.isRowHidden(i) for i in range(5))
+    assert not panel.state()[1]["poll_enabled"]
+
+
+def test_checked_only_filter_tracks_checks_bulk_loads_and_moves(qapp: QApplication) -> None:
+    panel = _five_row_panel()
+    table = panel._table
+    panel._checked_only_button.click()
+    table.item(1, COL_POLL_ENABLED).setCheckState(Qt.CheckState.Unchecked)
+    assert table.isRowHidden(1)
+    panel._swap_rows(0, 1)
+    assert table.isRowHidden(0) and not table.isRowHidden(1)
+    panel._poll_header.check_box.click()  # mixed -> all checked
+    assert not any(table.isRowHidden(i) for i in range(5))
+    panel._poll_header.check_box.click()  # all unchecked
+    assert all(table.isRowHidden(i) for i in range(5))
+    panel._add_row()
+    assert not table.isRowHidden(5)  # new rows default to checked
+    panel.set_state([{"address": 0, "count": 1, "poll_enabled": False},
+                     {"address": 1, "count": 1}])
+    assert table.isRowHidden(0) and not table.isRowHidden(1)
+    assert panel._checked_only_button.isChecked()
+
+
+@pytest.mark.parametrize("end_row", [0, 2])
+def test_checked_only_filter_waits_for_drag_release(qapp: QApplication, end_row: int) -> None:
+    panel = _five_row_panel()
+    table = panel._table
+    panel._checked_only_button.click()
+    panel.resize(1100, 600)
+    panel.show()
+    qapp.processEvents()
+    points = [table.visualItemRect(table.item(i, COL_POLL_ENABLED)).center() for i in range(5)]
+    QTest.mousePress(table.viewport(), Qt.MouseButton.LeftButton, pos=points[0])
+    if end_row:
+        _drag_move(table, points[end_row])
+    assert not any(table.isRowHidden(i) for i in range(5))  # keep drag targets stable
+    QTest.mouseRelease(table.viewport(), Qt.MouseButton.LeftButton, pos=points[end_row])
+    assert [_checked(panel, i) for i in range(5)] == [i > end_row for i in range(5)]
+    assert [table.isRowHidden(i) for i in range(5)] == [i <= end_row for i in range(5)]
+
+
 def _names(panel: RegistersPanel) -> list[str]:
     return [panel._table.item(i, COL_NAME).text() for i in range(panel._table.rowCount())]
 

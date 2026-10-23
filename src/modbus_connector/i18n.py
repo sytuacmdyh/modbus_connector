@@ -198,6 +198,7 @@ RU: dict[str, str] = {
         "в одном обмене Modbus (функция 0x17). Нужна, когда устройство требует "
         "read-modify-write без гонок.",
     "Filter…": "Фильтр…",
+    "Show checked rows only": "Показывать только отмеченные строки",
     "Display…": "Отображение…",
     "Per-row Scale/Offset/Unit and byte order settings":
         "Scale/Offset/Unit и порядок байт для каждой строки",
@@ -804,6 +805,7 @@ ZH_CN: dict[str, str] = {
         "原子事务：在一次 Modbus 交互中写入保持寄存器并读取其他寄存器（功能码 0x17）。"
         "用于需要避免读改写竞争的设备。",
     "Filter…": "筛选…",
+    "Show checked rows only": "仅显示勾选行",
     "Display…": "显示设置…",
     "Per-row Scale/Offset/Unit and byte order settings": "每行的缩放、偏移、单位和字节序设置",
     "Import/export the register table as CSV": "以 CSV 格式导入/导出寄存器表",

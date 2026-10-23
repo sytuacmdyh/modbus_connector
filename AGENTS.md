@@ -435,6 +435,10 @@ src/modbus_connector/
                        # shows mixed state; left-drag in the poll column inverts each
                        # visited visible row once per gesture; bulk changes sync timers
                        # and emit rowsChanged once,
+                       # checkable filter button next to the text filter shows only
+                       # poll-enabled rows; combines with text and updates on checkbox
+                       # changes (including bulk changes); view-only, not persisted,
+                       # defer hiding until pollDragFinished to keep drag targets stable,
                        # кнопки тулбара — иконочные QToolButton'ы с тултипами
                        # (icons.make_button; text() сохраняет подпись),
                        # set_bus_enabled(ok) — гейтинг контролов, ходящих на

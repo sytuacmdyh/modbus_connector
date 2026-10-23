@@ -205,6 +205,8 @@ class PollHeader(QHeaderView):
 class RegistersTable(QTableWidget):
     """A drag starting in the poll column inverts each visited row once."""
 
+    pollDragFinished = Signal()
+
     def __init__(self) -> None:
         super().__init__(0, len(HEADER_LABELS))
         self._drag_rows: set[int] = set()
@@ -251,6 +253,7 @@ class RegistersTable(QTableWidget):
                 return
             self._drag_last_row = None
             self._drag_rows.clear()
+            self.pollDragFinished.emit()
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
@@ -260,6 +263,7 @@ class RegistersTable(QTableWidget):
                 self._invert_to(index.row())
             self._drag_last_row = None
             self._drag_rows.clear()
+            self.pollDragFinished.emit()
             event.accept()
             return
         super().mouseReleaseEvent(event)
@@ -758,6 +762,12 @@ class RegistersPanel(QWidget):
         self._filter_edit.setPlaceholderText(tr("Filter…"))
         self._filter_edit.setClearButtonEnabled(True)
         self._filter_edit.textChanged.connect(self._apply_filter)
+        self._checked_only_button = icons.make_button(
+            tr("Show checked rows only"), "filter", checkable=True,
+        )
+        self._track(self._checked_only_button, "Show checked rows only")
+        self._checked_only_button.toggled.connect(self._apply_filter)
+        self._table.pollDragFinished.connect(self._apply_filter)
 
         display_button = icons.make_button(tr("Display…"), "display")
         self._track(
@@ -868,6 +878,7 @@ class RegistersPanel(QWidget):
         top.addWidget(self._mask_write_button)
         top.addWidget(self._readwrite_button)
         top.addWidget(self._filter_edit)
+        top.addWidget(self._checked_only_button)
         top.addWidget(display_button)
         top.addWidget(alarms_button)
         top.addWidget(self._expr_button)
@@ -1005,6 +1016,7 @@ class RegistersPanel(QWidget):
             for index in range(count):
                 self._table.item(index, COL_POLL_ENABLED).setCheckState(state)
                 self._sync_row_timer(index)
+        self._apply_filter()
         self.rowsChanged.emit()
 
     def _sync_expr_header(self) -> None:
@@ -1434,6 +1446,8 @@ class RegistersPanel(QWidget):
                 )
             ).lower()
             visible = needle in haystack
+        if self._checked_only_button.isChecked():
+            visible = visible and self._poll_enabled_at(index)
         self._table.setRowHidden(index, not visible)
 
     @Slot()
@@ -1465,6 +1479,8 @@ class RegistersPanel(QWidget):
         self._row_indexes[self._token_at(a)] = a
         self._row_indexes[self._token_at(b)] = b
         table.blockSignals(False)
+        self._apply_filter_to_row(a)
+        self._apply_filter_to_row(b)
         self._on_current_row_changed(table.currentRow(), 0, -1, -1)
 
     def _defer_move(self, delta: int) -> None:
@@ -2543,6 +2559,8 @@ class RegistersPanel(QWidget):
             self._write_table_row(item.row())
         elif item.column() in (COL_POLL, COL_POLL_ENABLED):
             self._sync_row_timer(item.row())
+            if item.column() == COL_POLL_ENABLED and self._table._drag_last_row is None:
+                self._apply_filter_to_row(item.row())
             if item.column() == COL_POLL_ENABLED and not self._loading_rows:
                 self.rowsChanged.emit()  # the graph window hides/shows the row
         if item.column() in (COL_TYPE, COL_FORMAT, COL_COUNT):
