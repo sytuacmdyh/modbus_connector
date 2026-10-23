@@ -22,7 +22,22 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
 - Application updates: Help → Check for updates uses `update_check.py` (Qt-free,
   stdlib HTTPS, public GitHub Releases API for `sytuacmdyh/modbus_connector`)
   and `update_dialog.py` (QThread, manual checks, plain-text release notes,
-  browser download link, no automatic installation). Missing releases, network
+  browser download link and Windows installed-copy updates). `update_install.py`
+  downloads the matching NSIS asset on a worker thread, verifies its size and
+  GitHub SHA-256 digest, and prepares a detached PowerShell helper. The main window
+  strictly saves settings, authorizes the handoff, shuts down sessions and exits;
+  the helper waits for process exit, checks for other instances, rechecks the hash,
+  runs the installer silently in the registered installation directory and restarts
+  the application with a fresh PyInstaller environment. Close cancels downloads;
+  a helper readiness handshake and commit marker prevent premature installation.
+  Failed installs retain temporary files/error.txt and show a Windows error dialog.
+  Source/portable copies and other platforms retain manual installation; missing
+  or unverified installer assets also fall back to the releases page.
+  `test_update_install.py` covers validation/cancellation/handoff failures;
+  `test_update_windows.py` exercises real Windows helper processes with disposable
+  fake installer/app executables, including exit ordering and restart (no registry
+  changes or production installation). Full packaged upgrade validation is separate.
+  Missing releases, network
   errors and rate limits are explicit. Closing waits asynchronously for the
   bounded request to finish before destroying the thread. Stable tags only:
   `vMAJOR.MINOR.PATCH`. `modbus_connector.__version__` is the single version
@@ -416,6 +431,10 @@ src/modbus_connector/
                        # останавливается; Ctrl+R по строке и запись не
                        # затрагиваются; state-ключ "poll_enabled", default
                        # True, в CSV не входит),
+                       # header checkbox selects/clears all rows (including filtered),
+                       # shows mixed state; left-drag in the poll column inverts each
+                       # visited visible row once per gesture; bulk changes sync timers
+                       # and emit rowsChanged once,
                        # кнопки тулбара — иконочные QToolButton'ы с тултипами
                        # (icons.make_button; text() сохраняет подпись),
                        # set_bus_enabled(ok) — гейтинг контролов, ходящих на

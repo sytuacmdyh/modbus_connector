@@ -19,9 +19,13 @@ def load_settings(path: Path = SETTINGS_PATH) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def save_settings(settings: dict[str, Any], path: Path = SETTINGS_PATH) -> None:
+def save_settings(
+    settings: dict[str, Any], path: Path = SETTINGS_PATH, *, strict: bool = False,
+) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
     except OSError as exc:
+        if strict:
+            raise
         logger.warning("Failed to save settings to %s: %s", path, exc)

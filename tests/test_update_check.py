@@ -120,3 +120,19 @@ def test_network_errors(monkeypatch: pytest.MonkeyPatch, error: Exception) -> No
 
 def test_package_and_runtime_version_agree() -> None:
     assert version("modbus-connector") == __version__
+
+
+def test_only_matching_verified_installer_is_selected(github):
+    name = 'modbus-connector-1.0.0-windows-x64-setup.exe'
+    url = f'https://github.com/{update_check.REPOSITORY}/releases/download/v1.0.0/{name}'
+    asset = dict(name=name, browser_download_url=url, size=100, digest='sha256:' + 'a' * 64,
+                 state='uploaded')
+    data = dict(tag_name='v1.0.0', body='', draft=False, prerelease=False, assets=[asset])
+    github['body'] = json.dumps(data).encode()
+    assert check_for_update().installer == update_check.ReleaseAsset(url, 100, 'a' * 64)
+    for key, bad in [('name', 'other.exe'), ('browser_download_url', 'https://evil.test/a'),
+                     ('size', -1), ('size', True), ('size', 1024 ** 3 + 1),
+                     ('digest', None), ('digest', 'md5:abcdef'), ('state', 'new')]:
+        data['assets'] = [{**asset, key: bad}]
+        github['body'] = json.dumps(data).encode()
+        assert check_for_update().installer is None

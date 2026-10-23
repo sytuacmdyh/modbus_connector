@@ -5,6 +5,8 @@ from typing import Any
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QActionGroup, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
     QFileDialog,
     QInputDialog,
     QLabel,
@@ -33,11 +35,13 @@ from modbus_connector.template_menu import populate_template_menu
 from modbus_connector.templates import TemplateInfo, load_template
 from modbus_connector.theme import THEMES, apply_theme, current_theme
 from modbus_connector.update_dialog import UpdateDialog
+from modbus_connector.update_install import UpdateCheckError, UpdateHandoff
 
 
 class MainWindow(QMainWindow):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._update_handoff: UpdateHandoff | None = None
         self.setWindowTitle("Modbus Connector")
         self.resize(1100, 750)
 
@@ -408,7 +412,11 @@ class MainWindow(QMainWindow):
 
     def _open_update_check(self) -> None:
         dialog = UpdateDialog(self)
-        dialog.exec()
+        result = dialog.exec()
+        if result == QDialog.DialogCode.Accepted and dialog.handoff is not None:
+            self._update_handoff = dialog.handoff
+            if self.close():
+                QApplication.instance().quit()
         dialog.deleteLater()
 
     def _refresh_templates(self) -> None:
@@ -417,6 +425,23 @@ class MainWindow(QMainWindow):
             self._tabs.widget(index).sim_panel.refresh_templates()
 
     def closeEvent(self, event: QCloseEvent) -> None:
+        if self._update_handoff is not None:
+            handoff = self._update_handoff
+            self._update_handoff = None
+            try:
+                save_settings(self._collect_state(), strict=True)
+                handoff.commit()
+                self._shutdown_sessions()
+            except Exception as exc:
+                handoff.abort()
+                detail = (tr(exc.message_key, **exc.params)
+                          if isinstance(exc, UpdateCheckError) else str(exc))
+                QMessageBox.critical(self, tr("Install update"),
+                                     tr("Update failed: {detail}", detail=detail))
+                event.ignore()
+                return
+            super().closeEvent(event)
+            return
         save_settings(self._collect_state())
         self._shutdown_sessions()
         super().closeEvent(event)

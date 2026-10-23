@@ -15,6 +15,7 @@ from PySide6.QtCore import (
     QItemSelectionModel,
     QModelIndex,
     QPoint,
+    QSignalBlocker,
     QSize,
     QStringListModel,
     Qt,
@@ -26,6 +27,7 @@ from PySide6.QtGui import (
     QBrush,
     QGuiApplication,
     QKeySequence,
+    QMouseEvent,
     QPainter,
     QPainterPath,
     QPaintEvent,
@@ -125,7 +127,8 @@ HEADER_LABELS = (
     "", "Name", "Type", "Address", "Count", "Unit ID", "Poll, ms",
     "Format", "Value", "New value", "Trend", "",
 )
-POLL_ENABLED_TIP = "Poll this row"  # checkbox column: header and cell tooltip
+POLL_ENABLED_TIP = "Poll this row; drag in this column to invert multiple rows"
+POLL_ALL_TIP = "Select all / deselect all rows"
 TABLE_TOOLTIP = (
     "Enter in 'New value' = write raw values (no scale/offset applied), "
     "Ctrl/Cmd+R = read current row, Ctrl/Cmd+Shift+R = read all rows"
@@ -180,6 +183,86 @@ EXPR_HEADER_LABELS = ("Name", "Expression", "Value", "Trend", "")
     EXPR_COL_TREND,
     EXPR_COL_ACTIONS,
 ) = range(5)
+
+
+class PollHeader(QHeaderView):
+    def __init__(self, parent: QWidget) -> None:
+        super().__init__(Qt.Orientation.Horizontal, parent)
+        self.check_box = QCheckBox(self.viewport())
+        self.check_box.setTristate(True)
+
+    def paintEvent(self, event: QPaintEvent) -> None:
+        super().paintEvent(event)
+        size = self.check_box.sizeHint()
+        self.check_box.setGeometry(
+            self.sectionViewportPosition(COL_POLL_ENABLED)
+            + (self.sectionSize(COL_POLL_ENABLED) - size.width()) // 2,
+            (self.height() - size.height()) // 2,
+            size.width(), size.height(),
+        )
+
+
+class RegistersTable(QTableWidget):
+    """A drag starting in the poll column inverts each visited row once."""
+
+    def __init__(self) -> None:
+        super().__init__(0, len(HEADER_LABELS))
+        self._drag_rows: set[int] = set()
+        self._drag_last_row: int | None = None
+
+    def _invert_to(self, row: int) -> None:
+        start = self._drag_last_row if self._drag_last_row is not None else row
+        if start < 0:
+            start = row
+        self._drag_last_row = row
+        for index in range(min(start, row), max(start, row) + 1):
+            if index in self._drag_rows or self.isRowHidden(index):
+                continue
+            item = self.item(index, COL_POLL_ENABLED)
+            if item is not None:
+                self._drag_rows.add(index)
+                item.setCheckState(
+                    Qt.CheckState.Unchecked
+                    if item.checkState() == Qt.CheckState.Checked else Qt.CheckState.Checked
+                )
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        self._drag_rows.clear()
+        self._drag_last_row = None
+        index = self.indexAt(event.position().toPoint())
+        if event.button() == Qt.MouseButton.LeftButton and index.isValid() and (
+            index.column() == COL_POLL_ENABLED
+        ):
+            self.setCurrentCell(index.row(), COL_POLL_ENABLED)
+            self._invert_to(index.row())
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        if self._drag_last_row is not None:
+            if event.buttons() & Qt.MouseButton.LeftButton:
+                index = self.indexAt(event.position().toPoint())
+                if index.isValid() and index.column() == COL_POLL_ENABLED:
+                    self._invert_to(index.row())
+                else:
+                    self._drag_last_row = -1
+                event.accept()
+                return
+            self._drag_last_row = None
+            self._drag_rows.clear()
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton and self._drag_last_row is not None:
+            index = self.indexAt(event.position().toPoint())
+            if index.isValid() and index.column() == COL_POLL_ENABLED:
+                self._invert_to(index.row())
+            self._drag_last_row = None
+            self._drag_rows.clear()
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
 
 class SparklineWidget(QWidget):
@@ -573,7 +656,11 @@ class RegistersPanel(QWidget):
         self._translatable: list[tuple[QWidget, str]] = []  # (widget, English key)
         self._translatable_tips: list[tuple[QWidget, str]] = []
 
-        self._table = QTableWidget(0, 12)
+        self._table = RegistersTable()
+        self._poll_header = PollHeader(self._table)
+        self._table.setHorizontalHeader(self._poll_header)
+        self._poll_header.check_box.clicked.connect(self._toggle_all_poll_rows)
+        self.rowsChanged.connect(self._sync_poll_header)
         self._sync_header()
         header = self._table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
@@ -895,7 +982,30 @@ class RegistersPanel(QWidget):
         self._table.setHorizontalHeaderLabels([tr(text) for text in HEADER_LABELS])
         header_item = self._table.horizontalHeaderItem(COL_POLL_ENABLED)
         if header_item is not None:  # the checkbox column has no text, only a tip
-            header_item.setToolTip(tr(POLL_ENABLED_TIP))
+            header_item.setToolTip(tr(POLL_ALL_TIP))
+        self._poll_header.check_box.setToolTip(tr(POLL_ALL_TIP))
+        self._poll_header.check_box.setAccessibleName(tr(POLL_ALL_TIP))
+
+    def _sync_poll_header(self) -> None:
+        count = self._table.rowCount()
+        checked = sum(self._poll_enabled_at(i) for i in range(count))
+        self._poll_header.check_box.setEnabled(count > 0)
+        self._poll_header.check_box.setCheckState(
+            Qt.CheckState.Unchecked if checked == 0 else
+            Qt.CheckState.Checked if checked == count else Qt.CheckState.PartiallyChecked
+        )
+
+    def _toggle_all_poll_rows(self) -> None:
+        count = self._table.rowCount()
+        state = (
+            Qt.CheckState.Unchecked if all(self._poll_enabled_at(i) for i in range(count))
+            else Qt.CheckState.Checked
+        )
+        with QSignalBlocker(self._table):
+            for index in range(count):
+                self._table.item(index, COL_POLL_ENABLED).setCheckState(state)
+                self._sync_row_timer(index)
+        self.rowsChanged.emit()
 
     def _sync_expr_header(self) -> None:
         self._expr_table.setHorizontalHeaderLabels(
@@ -2433,7 +2543,7 @@ class RegistersPanel(QWidget):
             self._write_table_row(item.row())
         elif item.column() in (COL_POLL, COL_POLL_ENABLED):
             self._sync_row_timer(item.row())
-            if item.column() == COL_POLL_ENABLED:
+            if item.column() == COL_POLL_ENABLED and not self._loading_rows:
                 self.rowsChanged.emit()  # the graph window hides/shows the row
         if item.column() in (COL_TYPE, COL_FORMAT, COL_COUNT):
             self._sync_value_names_combo(self._token_at(item.row()))

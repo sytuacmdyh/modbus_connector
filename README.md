@@ -87,7 +87,9 @@ with one full changelog link. No per-version Markdown file is required.
   right-click checklist; the layout persists between sessions.
 - Per-row polling checkbox (leftmost column): unchecked rows are skipped by
   polling and "Read all" and are hidden from the graph window; manual reads
-  and writes still work.
+  and writes still work. The header checkbox selects or clears all rows (including
+  filtered rows) and shows a partial check for mixed states. Drag along the first
+  column to invert each visited row once per gesture; filtered rows are skipped.
 - Alarm rules ("Alarms…" button): per-row ordered rules (>, <, >=, <=, ==,
   !=, in/outside range — first match wins) highlight the value cell in red
   or yellow, write an event to the log and optionally play a siren sound
@@ -693,14 +695,27 @@ them cleanly.
 Use **Help → Check for updates…** to check the latest stable release in
 [sytuacmdyh/modbus_connector](https://github.com/sytuacmdyh/modbus_connector/releases).
 The check runs in a background thread and shows the current version, available
-version and release notes. **Download update…** opens the release page in your
-browser; choose the package for your OS and install it manually. On Windows,
-download **`modbus-connector-<version>-windows-x64-setup.exe`** for the installer
+version and release notes. On an installed Windows copy, **Download, install and
+restart** downloads the matching installer after confirmation, shows progress and
+checks its size and SHA-256 against GitHub's release metadata. Close the update
+dialog to cancel a download. After verification, the application saves sessions,
+closes connections and exits. A separate helper waits for it to exit, silently
+installs into the same directory and starts the updated application. Close any
+other running copies before updating. Download or verification failures leave the
+application open for retry. Installation failures show an error and retain the
+installer and `error.txt` in the reported temporary directory for manual recovery;
+automatic rollback is not provided.
+
+Portable/source copies, macOS/Linux, and releases without a verifiable Windows
+installer use **Download update…** to open the release page for manual installation.
+On Windows, download **`modbus-connector-<version>-windows-x64-setup.exe`** for the installer
 (start menu shortcuts and uninstall entry; no administrator rights required).
-Exit the application before updating. **`modbus-connector-windows.zip`** is the
+Exit the application before manually updating. **`modbus-connector-windows.zip`** is the
 portable alternative: extract it and run `ModbusConnector/ModbusConnector.exe`.
 ZIP users should replace the whole application folder when updating.
 Settings remain in `~/.modbus_connector/`. Checking never uploads settings.
+Automatic installation requires Windows PowerShell; the helper never forces the
+application to terminate. Updating restarts the program, not Windows.
 
 The public GitHub API requires no token. Drafts and prereleases are excluded.
 A missing release, network failure or API rate limit is shown explicitly, and

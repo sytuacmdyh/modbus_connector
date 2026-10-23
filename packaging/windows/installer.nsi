@@ -47,7 +47,11 @@ FunctionEnd
 Section "Modbus Connector" Main
   SectionIn RO
   SetOutPath "$INSTDIR"
+  ClearErrors
   File /r "${BUNDLE_FILES}"
+  IfErrors 0 +3
+    SetErrorLevel 1
+    Abort
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   CreateDirectory "$SMPROGRAMS\Modbus Connector"
   CreateShortcut "$SMPROGRAMS\Modbus Connector\Modbus Connector.lnk" "$INSTDIR\ModbusConnector.exe"

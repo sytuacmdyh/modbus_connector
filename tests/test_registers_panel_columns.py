@@ -20,7 +20,8 @@ try:
 except ImportError as exc:
     pytest.skip(f"Qt system libraries not available: {exc}", allow_module_level=True)
 
-from PySide6.QtGui import QGuiApplication  # noqa: E402
+from PySide6.QtCore import QEvent, QPointF  # noqa: E402
+from PySide6.QtGui import QGuiApplication, QMouseEvent  # noqa: E402
 
 from modbus_connector.i18n import tr  # noqa: E402
 from modbus_connector.models import RegisterRow  # noqa: E402
@@ -68,6 +69,103 @@ def _read_row(panel: RegistersPanel, index: int) -> int:
 def _checked(panel: RegistersPanel, index: int) -> bool:
     item = panel._table.item(index, COL_POLL_ENABLED)
     return item is not None and item.checkState() == Qt.CheckState.Checked
+
+
+def test_poll_header_select_all_and_clear(qapp: QApplication) -> None:
+    panel = _five_row_panel()
+    checkbox = panel._poll_header.check_box
+    assert checkbox.checkState() == Qt.CheckState.Checked
+    checkbox.click()
+    assert not any(_checked(panel, i) for i in range(5))
+    assert checkbox.checkState() == Qt.CheckState.Unchecked
+    panel._table.item(2, COL_POLL_ENABLED).setCheckState(Qt.CheckState.Checked)
+    assert checkbox.checkState() == Qt.CheckState.PartiallyChecked
+    checkbox.click()
+    assert all(_checked(panel, i) for i in range(5))
+    assert checkbox.checkState() == Qt.CheckState.Checked
+    panel.set_state([{"address": 0, "count": 1, "poll_enabled": False}])
+    assert checkbox.checkState() == Qt.CheckState.Unchecked
+    panel._delete_row(0)
+    assert not checkbox.isEnabled()
+    panel._add_row()
+    assert checkbox.isEnabled()
+    assert checkbox.checkState() == Qt.CheckState.Checked
+
+
+def test_poll_header_updates_timers_reads_and_notifies_once(qapp: QApplication) -> None:
+    panel = RegistersPanel(itertools.count(1).__next__)
+    panel.set_state([
+        {"address": i, "count": 1, "poll_ms": 5000 if i else None}
+        for i in range(3)
+    ])
+    panel.set_bus_enabled(True)
+    panel._toggle_polling()
+    assert len(panel._row_timers) == 2
+    changes = []
+    reads = []
+    panel.rowsChanged.connect(lambda: changes.append(True))
+    panel.readRequested.connect(lambda *args: reads.append(args))
+    panel._poll_header.check_box.click()
+    assert not panel._row_timers
+    panel.read_all()
+    assert not reads
+    assert len(changes) == 1
+    panel._poll_header.check_box.click()
+    assert len(panel._row_timers) == 2
+    panel.read_all()
+    assert [(r[2].address, r[2].count) for r in reads] == [(0, 3)]
+    assert len(changes) == 2
+    panel.stop_polling()
+
+
+def _drag_move(table, point) -> None:
+    QApplication.sendEvent(table.viewport(), QMouseEvent(
+        QEvent.Type.MouseMove, QPointF(point), QPointF(table.viewport().mapToGlobal(point)),
+        Qt.MouseButton.NoButton, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier,
+    ))
+
+
+def test_poll_drag_inverts_mixed_rows_once_and_fills_skipped_moves(qapp: QApplication) -> None:
+    panel = _five_row_panel()
+    table = panel._table
+    table.item(1, COL_POLL_ENABLED).setCheckState(Qt.CheckState.Unchecked)
+    panel.resize(1100, 600)
+    panel.show()
+    qapp.processEvents()
+    points = [table.visualItemRect(table.item(i, COL_POLL_ENABLED)).center() for i in range(5)]
+    QTest.mousePress(table.viewport(), Qt.MouseButton.LeftButton, pos=points[0])
+    _drag_move(table, points[3])
+    _drag_move(table, points[1])  # returning over rows must not toggle them twice
+    QTest.mouseRelease(table.viewport(), Qt.MouseButton.LeftButton, pos=points[1])
+    assert [_checked(panel, i) for i in range(5)] == [False, True, False, False, True]
+    assert panel._poll_header.check_box.checkState() == Qt.CheckState.PartiallyChecked
+    QTest.mouseClick(table.viewport(), Qt.MouseButton.LeftButton, pos=points[1])
+    assert not _checked(panel, 1)  # a new gesture can invert the same row again
+
+
+def test_poll_drag_ignores_hidden_rows_and_other_columns(qapp: QApplication) -> None:
+    panel = _five_row_panel()
+    table = panel._table
+    table.setRowHidden(1, True)
+    header = table.horizontalHeader()
+    header.moveSection(header.visualIndex(COL_POLL_ENABLED), 2)
+    panel.resize(1100, 600)
+    panel.show()
+    qapp.processEvents()
+    def point(row, col):
+        return table.visualItemRect(table.item(row, col)).center()
+
+    QTest.mousePress(table.viewport(), Qt.MouseButton.LeftButton, pos=point(0, COL_POLL_ENABLED))
+    _drag_move(table, point(2, COL_POLL_ENABLED))
+    _drag_move(table, point(3, COL_NAME))
+    _drag_move(table, point(4, COL_POLL_ENABLED))
+    QTest.mouseRelease(table.viewport(), Qt.MouseButton.LeftButton, pos=point(4, COL_POLL_ENABLED))
+    assert [_checked(panel, i) for i in range(5)] == [False, True, False, True, False]
+    # Header checkbox follows the reordered section and remains clickable.
+    checkbox = panel._poll_header.check_box
+    assert header.logicalIndexAt(checkbox.geometry().center()) == COL_POLL_ENABLED
+    QTest.mouseClick(checkbox, Qt.MouseButton.LeftButton)
+    assert all(_checked(panel, i) for i in range(5))
 
 
 def _five_row_panel() -> RegistersPanel:

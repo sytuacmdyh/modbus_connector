@@ -236,6 +236,9 @@ RU: dict[str, str] = {
         "Формат отображения (только регистры; coils/discrete показывают 0/1)",
     "Delete row": "Удалить строку",
     "Poll this row": "Опрашивать строку",
+    "Poll this row; drag in this column to invert multiple rows":
+        "Опрашивать строку; проведите по столбцу, чтобы инвертировать несколько строк",
+    "Select all / deselect all rows": "Выбрать все / снять выбор со всех строк",
     # expressions block
     "Expressions": "Выражения",
     "Computed rows over register values ([name] references), "
@@ -832,6 +835,9 @@ ZH_CN: dict[str, str] = {
         "显示格式（仅用于寄存器；线圈/离散输入显示为 0/1）",
     "Delete row": "删除行",
     "Poll this row": "轮询此行",
+    "Poll this row; drag in this column to invert multiple rows":
+        "轮询此行；沿此列拖动可翻转多行勾选状态",
+    "Select all / deselect all rows": "全选／全部取消",
     # expressions block
     "Expressions": "表达式",
     "Computed rows over register values ([name] references), "
@@ -1351,6 +1357,74 @@ ZH_CN.update({
     "Invalid GitHub release response.": "GitHub 版本信息响应无效。",
 })
 
+
+RU.update({
+    'Download, install and restart': 'Скачать, установить и перезапустить',
+    'Install update': 'Установка обновления',
+    (
+        'Automatic installation requires a Windows installed copy and a verified '
+        'installer asset. Use the releases page for manual installation.'
+    ): (
+        'Автоустановка требует установленную Windows-версию и проверяемый установщик. '
+        'Установите обновление вручную со страницы релиза.'
+    ),
+    (
+        'Download and install this update? Sessions will be saved, connections closed, '
+        'and the application restarted. Close other Modbus Connector windows first.'
+    ): (
+        'Скачать и установить обновление? Сеансы будут сохранены, соединения закрыты, '
+        'приложение перезапущено. Сначала закройте другие окна Modbus Connector.'
+    ),
+    (
+        'Downloading and verifying update… Close to cancel.'
+    ): (
+        'Загрузка и проверка обновления… Закройте окно для отмены.'
+    ),
+    'Cancelling download…': 'Отмена загрузки…',
+    'Update failed: {detail}': 'Ошибка обновления: {detail}',
+    'Unsafe installer download URL.': 'Небезопасный адрес загрузки установщика.',
+    'Installer download failed: HTTP {status}.': 'Ошибка загрузки установщика: HTTP {status}.',
+    (
+        'Installer verification failed. Please download again.'
+    ): (
+        'Проверка установщика не пройдена. Повторите загрузку.'
+    ),
+    (
+        'The update helper stopped. Please try again.'
+    ): (
+        'Процесс обновления остановился. Повторите попытку.'
+    ),
+    (
+        'Could not start the update helper. Please try again.'
+    ): (
+        'Не удалось запустить процесс обновления. Повторите попытку.'
+    ),
+})
+
+ZH_CN.update({
+    'Download, install and restart': '下载并安装重启',
+    'Install update': '安装更新',
+    (
+        'Automatic installation requires a Windows installed copy and a verified '
+        'installer asset. Use the releases page for manual installation.'
+    ): (
+        '自动安装需要 Windows 安装版和可校验的安装包。请从发布页手动下载安装。'
+    ),
+    (
+        'Download and install this update? Sessions will be saved, connections closed, '
+        'and the application restarted. Close other Modbus Connector windows first.'
+    ): (
+        '是否下载并安装此更新？将保存会话、断开连接并重启程序。请先关闭其他 Modbus Connector 窗口。'
+    ),
+    'Downloading and verifying update… Close to cancel.': '正在下载并校验更新…关闭此窗口可取消。',
+    'Cancelling download…': '正在取消下载…',
+    'Update failed: {detail}': '更新失败：{detail}',
+    'Unsafe installer download URL.': '安装包下载地址不安全。',
+    'Installer download failed: HTTP {status}.': '安装包下载失败：HTTP {status}。',
+    'Installer verification failed. Please download again.': '安装包校验失败，请重新下载。',
+    'The update helper stopped. Please try again.': '更新辅助进程已停止，请重试。',
+    'Could not start the update helper. Please try again.': '无法启动更新辅助进程，请重试。',
+})
 
 class _LanguageNotifier(QObject):
     changed = Signal(str)

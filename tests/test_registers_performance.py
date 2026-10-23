@@ -8,7 +8,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 try:
     from PySide6.QtCore import QCoreApplication, QEvent, Qt
-    from PySide6.QtWidgets import QApplication, QComboBox
+    from PySide6.QtWidgets import QApplication, QComboBox, QTableWidget
 except ImportError as exc:
     pytest.skip(f"Qt unavailable: {exc}", allow_module_level=True)
 
@@ -192,7 +192,7 @@ def test_bulk_trend_setting_and_display_dialog(qapp: QApplication) -> None:
     assert len(changes) == 1  # the graph rebuilds once for the whole selection
     assert not any(panel.row_trend_enabled(t) for t in panel.row_tokens())
     panel._on_display_settings()
-    table = panel._display_dialog.findChild(type(panel._table))
+    table = panel._display_dialog.findChild(QTableWidget)
     table.item(1, 6).setCheckState(Qt.CheckState.Checked)
     assert [panel.row_trend_enabled(t) for t in panel.row_tokens()] == [False, True, False]
     panel._display_dialog.close()
