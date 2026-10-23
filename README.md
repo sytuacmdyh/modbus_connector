@@ -79,7 +79,8 @@ with one full changelog link. No per-version Markdown file is required.
   row and a full plot window with multiple series, sliding-window/follow or
   manual zoom, and draggable markers with per-series min/max/avg.
 - Background logging of polled values to a CSV or JSON Lines file ("Log to
-  file" button), with a configurable set of fields.
+  file" button). CSV records timed snapshots with time first and one register
+  column per selected table row; the write interval is configurable.
 - System/Light/Dark theme (pyqtdarktheme) from the View menu — graphs,
   sparklines, status colors and highlights all follow the theme.
 - Filter box and one-click "Sort by address" for large tables. Table columns
@@ -172,7 +173,7 @@ CSV import — map file columns to register fields before loading the table:
 ![CSV import](https://raw.githubusercontent.com/cramen/modbus_connector/main/docs/screenshots/import_dialog.png)
 
 Logging to a file — write polled values to CSV or JSON Lines: file, format,
-field selection and a per-row checklist (the gear icon next to "Log to file"):
+a CSV write interval and a per-row checklist (the gear icon next to "Log to file"):
 
 ![Logging settings](https://raw.githubusercontent.com/cramen/modbus_connector/main/docs/screenshots/logging_dialog.png)
 
@@ -644,23 +645,31 @@ Closing the graph window only hides it; the data stays.
 
 ### Logging values to a file
 
-The **Log to file** button above the table writes every read value to a file
-while it is on; starting it also starts polling if it wasn't running (with
-history recording if the split button's mode is "and record"). The gear
-button next to it opens the settings: the file (a timestamped name in the
-home directory is suggested), the format, which optional fields —
-timestamp (wall clock, ISO 8601 with milliseconds), row name, register
-address and register type — accompany the value, and which table rows get
-logged at all (the "Rows to log" checklist; new rows join logged by default,
-and the per-row choice persists with the session). Values are
-machine-friendly: decoded numbers with scale/offset but without the unit,
-multi-value rows joined with ";", coils/discrete inputs as 0/1, hex/ascii
-rows as displayed.
+The **Log to file** button starts file recording and also starts polling if
+needed. The gear button selects the file, format, rows and CSV write interval
+(default 1000 ms, minimum 100 ms). Stopping logging leaves polling running.
+Settings and row selections persist with the session; recording never resumes
+automatically after reopening the application.
 
-Formats: **CSV** (one row per read, a header row in new files) and **JSON
-Lines** — one JSON object per line, which streams and appends cleanly.
-Appending to an existing file is the default; the settings (not the on/off
-state) persist with the session. Stopping logging leaves polling running.
+**CSV**, which can be opened in Excel, has time in the first column (local
+`YYYY-MM-DD HH:MM:SS.mmm`) and one column per selected register table row.
+Headers use `name@slave_id_register_id`, for example `Temperature@1_5`.
+Rows without a slave override use the connection's slave ID.
+Each interval appends one snapshot of the latest successful reads since
+recording started. Missing or failed reads leave empty cells; slower registers
+repeat their latest value. The write interval is independent of polling and
+does not trigger additional bus reads. The first snapshot is written after
+one interval. Columns stay fixed for the recording run; restart recording to
+include newly added rows. Deleted rows leave empty cells.
+
+Values use decoded numbers with scale/offset without unit suffixes; multi-value
+table rows occupy one cell joined with ";", bits use 0/1, and hex/ascii remain
+text. **JSON Lines** keeps one object per successful read with selectable
+metadata fields. CLI logs also keep their existing per-read format.
+
+Appending is enabled by default. CSV append requires identical headers;
+otherwise choose a new file or disable append to overwrite it. Old per-read
+CSV logs cannot be appended to with the new snapshot layout.
 
 ### Log panel
 The log panel at the bottom of the main window (toggled with the **Log**

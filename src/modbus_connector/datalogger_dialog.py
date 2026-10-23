@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -73,6 +74,24 @@ class LoggingSettingsDialog(QDialog):
         for log_field, check in self._field_checks.items():
             check.setChecked(log_field in settings.fields)
 
+        self._interval_spin = QSpinBox()
+        self._interval_spin.setRange(100, 86400000)
+        self._interval_spin.setValue(settings.interval_ms)
+        self._interval_spin.setSuffix(" ms")
+        self._interval_spin.setEnabled(settings.format == "csv")
+        self._format_combo.currentTextChanged.connect(
+            lambda: self._interval_spin.setEnabled(self._format() == "csv")
+        )
+        self._layout_hint = QLabel(tr(
+            "CSV: time in the first column, one register per column; "
+            "latest values at each interval."
+        ))
+        self._layout_hint.setWordWrap(True)
+        self._layout_hint.setVisible(settings.format == "csv")
+        self._format_combo.currentTextChanged.connect(
+            lambda: self._layout_hint.setVisible(self._format() == "csv")
+        )
+
         self._append_check = QCheckBox(tr("Append to the file if it exists"))
         self._append_check.setChecked(settings.append)
 
@@ -117,7 +136,15 @@ class LoggingSettingsDialog(QDialog):
         fields_row = QHBoxLayout()
         for check in self._field_checks.values():
             fields_row.addWidget(check)
-        form.addRow(tr("Fields:"), fields_row)
+        self._fields_box = QWidget()
+        self._fields_box.setLayout(fields_row)
+        self._fields_box.setVisible(settings.format != "csv")
+        form.addRow(self._fields_box)
+        self._format_combo.currentTextChanged.connect(
+            lambda: self._fields_box.setVisible(self._format() != "csv")
+        )
+        form.addRow(tr("Write interval:"), self._interval_spin)
+        form.addRow(self._layout_hint)
         form.addRow("", self._append_check)
         form.addRow(rows_box)
         form.addRow(self._warning)
@@ -188,4 +215,5 @@ class LoggingSettingsDialog(QDialog):
                 if check.isChecked()
             ),
             append=self._append_check.isChecked(),
+            interval_ms=self._interval_spin.value(),
         )

@@ -16,6 +16,7 @@ class LogSettings:
     format: LogFormat = "csv"
     fields: frozenset[LogField] = field(default_factory=lambda: frozenset(LOG_FIELDS))
     append: bool = True
+    interval_ms: int = 1000
 
 
 @dataclass
@@ -45,8 +46,20 @@ class DataLogger:
         assert self._settings is not None
         return [f for f in LOG_FIELDS if f in self._settings.fields]
 
-    def open(self, settings: LogSettings) -> None:
+    def open(self, settings: LogSettings, columns: list[str] | None = None) -> None:
         """Открыть файл (OSError пробрасывается вызывающему)."""
+        header = (
+            ["timestamp", *columns] if columns is not None
+            else [*(f for f in LOG_FIELDS if f in settings.fields), "value"]
+        )
+        if settings.format == "csv" and settings.append and columns is not None:
+            try:
+                with open(settings.path, newline="", encoding="utf-8-sig") as existing:
+                    previous = next(csv.reader(existing), None)
+            except FileNotFoundError:
+                previous = None
+            if previous is not None and previous != header:
+                raise ValueError("CSV columns differ; choose a new file or disable append")
         file = open(  # noqa: SIM115  # closed explicitly in close()
             settings.path, "a" if settings.append else "w", newline="", encoding="utf-8"
         )
@@ -56,7 +69,14 @@ class DataLogger:
         if settings.format == "csv":
             self._writer = csv.writer(file, lineterminator="\n")
             if file.tell() == 0:  # a new/empty file gets a header, appends don't
-                self._writer.writerow([*self._columns(), "value"])
+                self._writer.writerow(header)
+
+    def write_snapshot(self, timestamp: str, values: list[str]) -> None:
+        """Write one time sample in the fixed column order supplied to open()."""
+        if self._file is None or self._writer is None:
+            return
+        self._writer.writerow([timestamp, *values])
+        self.rows_written += 1
 
     def write(self, sample: LogSample) -> None:
         if self._file is None or self._settings is None:
@@ -78,6 +98,8 @@ class DataLogger:
     def close(self) -> None:
         if self._file is None:
             return
-        self._file.close()
-        self._file = None
-        self._writer = None
+        try:
+            self._file.close()
+        finally:
+            self._file = None
+            self._writer = None

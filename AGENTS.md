@@ -537,14 +537,18 @@ src/modbus_connector/
                        # start_logging при выключенном поллинге запускает его
                        # (start_polling(_record_mode)); старт без пути открывает
                        # диалог; stop_logging не останавливает поллинг;
-                       # запись — в handle_read_finished при is_open (и ручные
-                       # чтения тоже), flush по QTimer 1 с; _log_value(index,
+                       # CSV: independent precise QTimer (interval_ms, default 1000)
+                       # writes timestamp + one column per selected table row;
+                       # frozen token order, latest read cache, missing/error blank.
+                       # CSV header: name@slave_id_register_id (effective slave ID).
+                       # JSONL: write on successful read; flush QTimer 1 s.
+                       # _log_value(index,
                        # values) — числа со scale/offset без единиц, биты 0/1,
                        # multi-value через ";", hex/ascii как есть;
                        # флаг log на строку (RowDisplaySettings.log, ключ "log"
                        # в state строки, default True) — чек-лист строк в
                        # диалоге настроек, выключенные строки пропускаются
-                       # в _log_read;
+                       # в _log_read; CSV columns selected at start;
                        # logging_state()/set_logging_state() — настройки в
                        # session state (как registers_options), без on/off
                        # алармы: кнопка "Alarms…" (иконка alarm, локальная)
@@ -637,12 +641,16 @@ src/modbus_connector/
                       # циклического импорта нет), язык — при открытии
   datalogger.py     # без Qt: LogSettings (path/format csv|jsonl/fields —
                     # subset timestamp/name/address/kind, value всегда/
-                    # append), LogSample, DataLogger — open/write/flush/close/
+                    # append/interval_ms), LogSample, DataLogger — open/write/flush/close/
                     # is_open/rows_written; CSV: заголовок только в новый/пустой
-                    # файл; JSONL — объект на строку только с включёнными ключами
+                    # файл; JSONL — объект на строку только с включёнными ключами.
+                    # open(columns=...) + write_snapshot for GUI CSV time rows;
+                    # append validates matching headers before modifying file.
+                    # CLI retains per-read write(LogSample).
   datalogger_dialog.py  # LoggingSettingsDialog — файл (+Browse…, подсказка
                         # ~/modbus_log_YYYYMMDD_HHMMSS), формат (синхронизация
-                        # расширения), чекбоксы полей, append/overwrite,
+                        # расширения), JSONL чекбоксы полей, CSV interval_ms
+                        # (100..86400000), append/overwrite,
                         # чек-лист логируемых строк (group box "Rows to log",
                         # Select all/none, Space/Enter)
   bits_dialog.py    # BitsDialog — модальный диалог правки u16-значения как

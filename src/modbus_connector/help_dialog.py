@@ -34,7 +34,9 @@ recording mid-poll without restarting timers).</li>
 and Read all into one request (rows with their own Poll, ms interval are not
 merged). If a grouped read fails, its rows are retried individually.</li>
 <li><b>Log to file</b> records read values to CSV or JSON Lines; <b>⚙</b>
-opens file/format/field/row settings.</li>
+opens file/format/field/row settings. CSV writes time in the first column,
+one register per column at a configurable fixed interval (default 1 s),
+using the latest values; missing or failed reads are blank.</li>
 <li><b>Display…</b> — per-row Scale/Offset/Unit and byte order;
 <b>Filter…</b> hides non-matching rows; <b>Sort by address</b> reorders;
 <b>CSV</b> imports/exports the table; <b>Mask write (0x16)…</b> and

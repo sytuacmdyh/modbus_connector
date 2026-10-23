@@ -243,7 +243,8 @@ def test_logging_settings_roundtrip(qapp: QApplication) -> None:
                      "fields": ["name"], "append": False}}
     )
     assert session.state()["logging"] == {"path": "/tmp/x.jsonl", "format": "jsonl",
-                                          "fields": ["name"], "append": False}
+                                          "fields": ["name"], "append": False,
+                                          "interval_ms": 1000}
     session.set_state({"registers": []})  # missing key: keep current value
     assert session.state()["logging"]["format"] == "jsonl"
     session.shutdown()
