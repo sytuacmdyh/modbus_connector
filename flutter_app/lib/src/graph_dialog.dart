@@ -145,7 +145,7 @@ class _GraphDialogState extends State<GraphDialog> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.session,
+    listenable: Listenable.merge([widget.session, appLanguage]),
     builder: (context, _) {
       final curves = series();
       final points = curves.values.expand((v) => v).toList();
@@ -357,7 +357,7 @@ class _GraphDialogState extends State<GraphDialog> {
                                           );
                                           final at = sample?.value;
                                           return LText(
-                                            '${widget.session.historyLabels[key] ?? key}: ${at?.toStringAsPrecision(6) ?? '—'}   ${values.isEmpty ? '' : '${tr('min')} ${values.reduce(math.min).toStringAsPrecision(4)} / ${tr('max')} ${values.reduce(math.max).toStringAsPrecision(4)} / ${tr('mean')} ${(values.reduce((a, b) => a + b) / values.length).toStringAsPrecision(4)}'}',
+                                            '${tr(widget.session.historyLabels[key] ?? key)}: ${at?.toStringAsPrecision(6) ?? '—'}   ${values.isEmpty ? '' : '${tr('min')} ${values.reduce(math.min).toStringAsPrecision(4)} / ${tr('max')} ${values.reduce(math.max).toStringAsPrecision(4)} / ${tr('mean')} ${(values.reduce((a, b) => a + b) / values.length).toStringAsPrecision(4)}'}',
                                             style: TextStyle(
                                               color:
                                                   curveColors[i %

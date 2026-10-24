@@ -68,8 +68,8 @@ Python 3.11.17 frozen bridge; x64 Linux, GTK 3, Xvfb.
 
 | Check | Result |
 | --- | --- |
-| `flutter analyze --no-pub` | Clean in the workspace follow-up (`PUB_CACHE=/tmp/parity-pub-cache`). |
-| `flutter test --no-pub` | 52 tests passed in the workspace follow-up. Controllers/widgets cover independent tabs, cancellation, scanner, maps/scheduling/snapshots/bits, logging/alarms, modes, graphs, persistence, Chinese/help and cloud task cancellation. Existing minimum-size/large-table/text-scale tests retained. |
+| `flutter analyze --no-pub` | Clean after the Linux acceptance UI fixes (`PUB_CACHE=/tmp/parity-pub-cache`). |
+| `flutter test --no-pub` | 57 tests passed after the Linux acceptance UI fixes. Includes live English/Chinese area/activity/probe/graph labels, localized row defaults and compact one-row versus scrolling 512-row maps. Existing controller/widget, minimum-size and text-scale coverage retained. |
 | Historical broad Python regression | Earlier remaining-gap follow-up: 430 passed across bridge/online, backend/serial/models, simulator/gateway/sniffer, logger and Qt runtime tests. The prior broader 524-test run additionally covered custom templates, WebDAV and updates/install. |
 | Historical PySide6 GUI regression | 33 passed in separate offscreen processes (`test_main_window_tabs.py`, `test_session_widget.py`) with settings isolated in temporary storage. Qt 6.10.3 runtime check also passed in the broad suite. |
 | Latest bridge/online/backend/serial regression | 99 passed in the workspace follow-up (43 bridge/online tests), including display-only multiword rendering, per-row simulator rule failures and expression CSV/JSONL output. Includes real TCP/gateway, pseudo-terminal sniffer, WebDAV HTTP fixture, invalid requests, grouped slicing/fallback, files and shutdown. |
@@ -196,3 +196,11 @@ backend behavior or canonical CSV schema changed in this follow-up.
 Validation for this follow-up uses the cached SDK dependencies with
 `PUB_CACHE=/tmp/parity-pub-cache` and `--no-pub`. The Linux checks are recorded in
 the verification table above; earlier packaging/freeze results remain historical.
+
+Linux acceptance UI fixes (2026-10-24): quick-table area titles, connection/polling
+activity, default register names, the Chinese `dec` gloss, scanner probe/result
+labels and graph legends/statistics follow the language setting. Specific dynamic
+translations take precedence over broad message patterns. The embedded map sizes
+to short content and caps its scrolling body for larger maps, removing the fixed
+470-pixel card height. Protocol area/format tokens and Qt code are unchanged.
+Native acceptance verification of these fixes remains with Grok Bot.

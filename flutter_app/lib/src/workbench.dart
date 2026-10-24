@@ -1028,23 +1028,22 @@ class _WorkbenchState extends State<Workbench> {
                         child: Card(
                           child: Padding(
                             padding: const EdgeInsets.all(12),
-                            child: SizedBox(
-                              height: 470,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  LText(
-                                    'Register map',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Expanded(
-                                    child: RegisterMapPanel(session: session),
-                                  ),
-                                ],
-                              ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                LText(
+                                  'Register map',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium,
+                                ),
+                                const SizedBox(height: 8),
+                                RegisterMapPanel(
+                                  session: session,
+                                  shrinkWrap: true,
+                                ),
+                              ],
                             ),
                           ),
                         ),

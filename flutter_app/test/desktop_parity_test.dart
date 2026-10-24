@@ -209,11 +209,50 @@ void main() {
       expect(find.byType(AlertDialog), findsNothing);
       expect(find.byType(RegisterMapPanel), findsOneWidget);
       expect(find.text('Embedded').hitTestable(), findsOneWidget);
+      final shortHeight = tester.getSize(find.byType(DesktopTable)).height;
+      expect(shortHeight, lessThan(140));
+      final mapCard = find.ancestor(
+        of: find.byType(RegisterMapPanel),
+        matching: find.byType(Card),
+      );
+      expect(
+        tester.getRect(mapCard).bottom -
+            tester.getRect(find.text('Embedded')).bottom,
+        lessThan(65),
+      );
       await tester.tap(find.text('Add row'));
       await tester.pumpAndSettle();
       expect(find.byType(RegisterRowDialog), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
+      session.registers.addAll([
+        for (var i = 1; i < 512; i++)
+          {
+            'name': 'row$i',
+            'kind': 'holding_registers',
+            'address': i,
+            'count': 1,
+            'format': 'dec',
+          },
+      ]);
+      session.registerMap.changed();
+      await tester.pumpAndSettle();
+      final largeHeight = tester.getSize(find.byType(DesktopTable)).height;
+      expect(largeHeight, greaterThan(shortHeight + 200));
+      expect(largeHeight, lessThan(400));
+      expect(find.text('row511'), findsNothing);
+      final rows = find.descendant(
+        of: find.byType(DesktopTable),
+        matching: find.byType(ListView),
+      );
+      tester
+          .widget<ListView>(rows)
+          .controller!
+          .jumpTo(
+            tester.widget<ListView>(rows).controller!.position.maxScrollExtent,
+          );
+      await tester.pumpAndSettle();
+      expect(find.text('row511'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       session.dispose();

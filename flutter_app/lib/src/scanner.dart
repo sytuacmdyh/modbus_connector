@@ -365,7 +365,7 @@ class _ScannerDialogState extends State<ScannerDialog> {
                       subtitle: addresses && hit['formats'] is Map
                           ? Text(
                               (hit['formats'] as Map).entries
-                                  .map((e) => '${e.key}: ${e.value}')
+                                  .map((e) => '${tr('${e.key}')}: ${e.value}')
                                   .join(' · '),
                             )
                           : null,

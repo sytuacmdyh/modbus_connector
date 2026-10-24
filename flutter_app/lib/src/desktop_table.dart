@@ -28,6 +28,7 @@ class DesktopTable extends StatefulWidget {
     this.onRowTap,
     this.onRowMenu,
     this.selected,
+    this.shrinkWrap = false,
   });
   final List<TableColumnSpec> columns;
   final Map<String, dynamic> layout;
@@ -36,6 +37,9 @@ class DesktopTable extends StatefulWidget {
   final ValueChanged<int>? onRowTap;
   final void Function(int, Offset)? onRowMenu;
   final bool Function(int)? selected;
+
+  /// Size short tables to their rows; cap the scrolling body for long maps.
+  final bool shrinkWrap;
   @override
   State<DesktopTable> createState() => _DesktopTableState();
 }
@@ -168,6 +172,45 @@ class _DesktopTableState extends State<DesktopTable> {
     builder: (context, constraints) {
       final keys = order;
       final total = keys.fold<double>(0, (sum, key) => sum + width(key));
+      final rowHeight =
+          56.0 * MediaQuery.textScalerOf(context).scale(1).clamp(1, 2);
+      final body = Scrollbar(
+        controller: vertical,
+        thumbVisibility: true,
+        child: ListView.builder(
+          controller: vertical,
+          primary: false,
+          padding: const EdgeInsets.only(bottom: 14),
+          itemCount: widget.rowCount,
+          itemExtent: rowHeight,
+          itemBuilder: (context, i) => GestureDetector(
+            onSecondaryTapDown: (d) =>
+                widget.onRowMenu?.call(i, d.globalPosition),
+            child: Material(
+              color: widget.selected?.call(i) == true
+                  ? Theme.of(context).colorScheme.primaryContainer
+                  : Colors.transparent,
+              child: InkWell(
+                onTap: widget.onRowTap == null
+                    ? null
+                    : () => widget.onRowTap!(i),
+                child: Row(
+                  children: [
+                    for (final key in keys)
+                      SizedBox(
+                        width: width(key),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: widget.cellBuilder(context, i, key),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
       return Scrollbar(
         controller: horizontal,
         thumbVisibility: true,
@@ -176,61 +219,26 @@ class _DesktopTableState extends State<DesktopTable> {
           scrollDirection: Axis.horizontal,
           child: SizedBox(
             width: total < constraints.maxWidth ? constraints.maxWidth : total,
-            height: constraints.maxHeight,
+            height: widget.shrinkWrap ? null : constraints.maxHeight,
             child: Column(
+              mainAxisSize: widget.shrinkWrap
+                  ? MainAxisSize.min
+                  : MainAxisSize.max,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Material(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: Row(children: keys.map(header).toList()),
                 ),
-                Expanded(
-                  child: Scrollbar(
-                    controller: vertical,
-                    thumbVisibility: true,
-                    child: ListView.builder(
-                      controller: vertical,
-                      primary: false,
-                      padding: const EdgeInsets.only(bottom: 14),
-                      itemCount: widget.rowCount,
-                      itemExtent:
-                          56 *
-                          MediaQuery.textScalerOf(context).scale(1).clamp(1, 2),
-                      itemBuilder: (context, i) => GestureDetector(
-                        onSecondaryTapDown: (d) =>
-                            widget.onRowMenu?.call(i, d.globalPosition),
-                        child: Material(
-                          color: widget.selected?.call(i) == true
-                              ? Theme.of(context).colorScheme.primaryContainer
-                              : Colors.transparent,
-                          child: InkWell(
-                            onTap: widget.onRowTap == null
-                                ? null
-                                : () => widget.onRowTap!(i),
-                            child: Row(
-                              children: [
-                                for (final key in keys)
-                                  SizedBox(
-                                    width: width(key),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                      ),
-                                      child: widget.cellBuilder(
-                                        context,
-                                        i,
-                                        key,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                if (widget.shrinkWrap)
+                  SizedBox(
+                    height: (widget.rowCount * rowHeight + 14)
+                        .clamp(14, 320)
+                        .toDouble(),
+                    child: body,
+                  )
+                else
+                  Expanded(child: body),
               ],
             ),
           ),

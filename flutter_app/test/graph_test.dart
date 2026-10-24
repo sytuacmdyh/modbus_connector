@@ -5,10 +5,52 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:modbus_desktop/src/graph_dialog.dart';
 import 'package:modbus_desktop/src/session_controller.dart';
+import 'package:modbus_desktop/src/translations.dart';
 
 import 'fake_bridge.dart';
 
 void main() {
+  testWidgets('area curve legends and statistics change language live', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 650);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() => appLanguage.value = 'en');
+    final session = SessionController(FakeBridge());
+    await session.connect({'timeout': 0.1}, 1);
+    session.setQuery(ReadQuery(count: 1));
+    await session.read();
+    session.recordPoint('sniff/2/coils/7', 'unit 2 coils @7', 1);
+    session.recordPoint('custom', 'Voltage', 230);
+    await tester.pumpWidget(MaterialApp(home: GraphDialog(session: session)));
+    expect(find.text('holding_registers @0'), findsOneWidget);
+    appLanguage.value = 'zh_CN';
+    await tester.pumpAndSettle();
+    expect(find.text('保持寄存器 @0'), findsOneWidget);
+    expect(find.textContaining('保持寄存器 @0: 100.000'), findsOneWidget);
+    expect(find.text('站号 2 线圈 @7'), findsOneWidget);
+    expect(find.textContaining('站号 2 线圈 @7: 1.00000'), findsOneWidget);
+    expect(find.text('Voltage'), findsOneWidget);
+    expect(find.textContaining('Voltage: 230.000'), findsOneWidget);
+    expect(find.textContaining('holding_registers'), findsNothing);
+    appLanguage.value = 'en';
+    await tester.pumpAndSettle();
+    expect(find.text('holding_registers @0'), findsOneWidget);
+    expect(
+      find.textContaining('holding_registers @0: 100.000'),
+      findsOneWidget,
+    );
+    expect(
+      session.historyLabels['1/holding_registers/0'],
+      'holding_registers @0',
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    session.dispose();
+  });
+
   testWidgets(
     'sniffer unit graph selection and clearing stay within that unit',
     (tester) async {

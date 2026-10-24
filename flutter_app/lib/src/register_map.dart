@@ -68,8 +68,10 @@ class RegisterMapPanel extends StatefulWidget {
     super.key,
     required this.session,
     this.autofocus = false,
+    this.shrinkWrap = false,
   });
   final SessionController session;
+  final bool shrinkWrap;
   @override
   State<RegisterMapPanel> createState() => _RegisterMapPanelState();
 }
@@ -460,6 +462,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
       child: Focus(
         autofocus: widget.autofocus,
         child: Column(
+          mainAxisSize: widget.shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
           children: [
             Wrap(
               spacing: 6,
@@ -579,8 +582,10 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
             if (widget.session.error != null)
               LText(widget.session.error!, maxLines: 2),
             const SizedBox(height: 8),
-            Expanded(
+            Flexible(
+              fit: widget.shrinkWrap ? FlexFit.loose : FlexFit.tight,
               child: DesktopTable(
+                shrinkWrap: widget.shrinkWrap,
                 columns: const [
                   TableColumnSpec('select', 'Select', 70),
                   TableColumnSpec('poll', 'Poll enabled', 100),
@@ -736,7 +741,7 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
   void initState() {
     super.initState();
     for (final e in {
-      'name': 'Register',
+      'name': tr('Register'),
       'address': 0,
       'count': 1,
       'unit_id': '',

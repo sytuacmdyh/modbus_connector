@@ -9,11 +9,12 @@ final appTheme = ValueNotifier<ThemeMode>(ThemeMode.system);
 String tr(String value) =>
     appLanguage.value == 'zh_CN' ? _translate(value, 0) : value;
 
+// Match specific messages before broad patterns such as "Unit {unit}".
 final _dynamicChinese = <(RegExp, String, List<String>)>[
   for (final entry in {...qtChinese, ...flutterChinese}.entries)
     if (RegExp(r'\{\w+\}').hasMatch(entry.key))
       _translationPattern(entry.key, entry.value),
-];
+]..sort((a, b) => b.$1.pattern.length.compareTo(a.$1.pattern.length));
 
 (RegExp, String, List<String>) _translationPattern(
   String key,
@@ -72,6 +73,22 @@ String trf(String key, Map<String, Object?> values) {
 }
 
 const flutterChinese = <String, String>{
+  'Holding registers': '保持寄存器',
+  'Input registers': '输入寄存器',
+  'Coils': '线圈',
+  'Discrete inputs': '离散输入',
+  'Register': '寄存器',
+  'dec': '十进制 (dec)',
+  'Connecting…': '正在连接…',
+  'Connected · {description} · unit {unit}': '已连接 · {description} · 站号 {unit}',
+  'Polling every {interval} ms': '正在轮询，间隔 {interval} 毫秒',
+  'Read {count} {kind} @{address} · {elapsed} ms':
+      '已读取 {count} 个{kind} @{address} · {elapsed} 毫秒',
+  'Wrote {value} → {kind} @{address}': '已写入 {value} → {kind} @{address}',
+  '{kind} @{address} × {count}': '{kind} @{address} × {count}',
+  '{kind} @{address}': '{kind} @{address}',
+  'unit {unit} {kind} @{address}': '站号 {unit} {kind} @{address}',
+  '{kind}/{address}': '{kind}/{address}',
   'Polling stopped': '轮询已停止',
   'Python bridge stopped. Reconnect to recover.': 'Python 桥接进程已停止，请重新连接以恢复。',
   'Restore requires a disconnected session': '恢复工作区需要先断开会话',
