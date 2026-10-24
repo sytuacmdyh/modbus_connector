@@ -19,6 +19,19 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
 
 ## Архитектура
 
+- Flutter desktop MVP lives in `flutter_app/` alongside the existing PySide6 GUI.
+  Material 3 Windows/Linux runners communicate with `flutter_bridge.py` using
+  request/reply NDJSON over an owned subprocess's stdio. The bridge imports only
+  Qt-free backends; stdout is protocol-only. Requests validate unit/address/count
+  and write ranges before I/O. EOF/shutdown disconnects and stops the optional
+  loopback `SimBackend` demo. Flutter schedules at most one transaction, suppresses
+  cancelled poll results and waits for in-flight I/O before disconnecting.
+  Protocol: `flutter_app/BRIDGE_PROTOCOL.md`; run/build/package instructions:
+  `flutter_app/README.md`. Python tests: `tests/test_flutter_bridge.py`.
+  Flutter checks: `flutter analyze`, `flutter test` from `flutter_app/`;
+  desktop integration test additionally needs a display and Python interpreter.
+
+
 - Application updates: Help → Check for updates uses `update_check.py` (Qt-free,
   stdlib HTTPS, public GitHub Releases API for `sytuacmdyh/modbus_connector`)
   and `update_dialog.py` (QThread, manual checks, plain-text release notes,

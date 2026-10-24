@@ -15,6 +15,14 @@ all Modbus logic runs in a separate thread (QThread), so the GUI never freezes.
 Release notes automatically summarize commits since the previous stable tag,
 with one full changelog link. No per-version Markdown file is required.
 
+## Flutter desktop MVP
+
+A separate Material 3 client is available in [`flutter_app/`](flutter_app/README.md),
+with complete Windows/Linux runners and a Qt-free Python subprocess bridge.
+It supports TCP/RTU, register reads/writes, live polling, a chart and a local TCP demo.
+The existing PySide6 application remains available. See the
+[migration status](docs/FLUTTER_STATUS.md) for validation and current scope.
+
 ## Features
 
 - Multiple simultaneous connections in tabs: each tab is an independent
