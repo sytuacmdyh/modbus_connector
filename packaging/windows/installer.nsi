@@ -9,10 +9,10 @@ RequestExecutionLevel user
 SetCompressor /SOLID lzma
 ShowInstDetails show
 ShowUninstDetails show
-VIProductVersion "${VERSION}.0"
+VIProductVersion "${VERSION_QUAD}"
 VIAddVersionKey "ProductName" "Modbus Connector"
 VIAddVersionKey "ProductVersion" "${VERSION}"
-VIAddVersionKey "FileVersion" "${VERSION}.0"
+VIAddVersionKey "FileVersion" "${VERSION_QUAD}"
 VIAddVersionKey "FileDescription" "Modbus Connector Windows x64 Setup"
 VIAddVersionKey "LegalCopyright" "MIT License - Modbus Connector contributors"
 !define MUI_ICON "${ICON_FILE}"

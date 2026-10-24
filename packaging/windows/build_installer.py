@@ -17,6 +17,14 @@ def nsis_literal(value: str) -> str:
     return value.replace('$', '$$').replace('"', '$\\"')
 
 
+def version_quad(version: str) -> str:
+    core = version.split("-", 1)[0].split("+", 1)[0]
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", core)
+    if not match:
+        raise ValueError("Expected MAJOR.MINOR.PATCH or prerelease suffix")
+    return f"{match[1]}.{match[2]}.{match[3]}.0"
+
+
 def build(bundle: Path, version: str, output: Path, compiler: str) -> None:
     if not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][\w.]+)?", version):
         raise ValueError("Expected MAJOR.MINOR.PATCH or prerelease suffix")
@@ -46,7 +54,9 @@ def build(bundle: Path, version: str, output: Path, compiler: str) -> None:
         ]
         (stage / 'uninstall-files.nsh').write_text('\n'.join(manifest), encoding='utf-8')
         definitions = {
-            'VERSION': version, 'BUNDLE_FILES': str(bundle / '*'),
+            'VERSION': version,
+            'VERSION_QUAD': version_quad(version),
+            'BUNDLE_FILES': str(bundle / '*'),
             'OUTPUT_FILE': str(output),
             'ICON_FILE': str(ROOT / 'assets/icon.ico'),
             'LICENSE_FILE': str(ROOT / 'LICENSE'),
