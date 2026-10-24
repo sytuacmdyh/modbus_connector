@@ -47,6 +47,8 @@ def main() -> None:
                 str(scratch),
                 "--paths",
                 str(repo / "src"),
+                "--collect-data",
+                "modbus_connector.templates",
                 "--exclude-module",
                 "PySide6",
                 "--exclude-module",

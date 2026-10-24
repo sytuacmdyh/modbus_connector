@@ -1,0 +1,106 @@
+"""Public catalog reads and separately owned Flutter custom-template history."""
+
+from __future__ import annotations
+
+import os
+from dataclasses import asdict
+from pathlib import Path
+from typing import Any
+
+from .custom_templates import CustomTemplateStore
+from .templates import list_templates, load_template
+
+
+def flutter_directory() -> Path:
+    configured = os.environ.get("MODBUS_FLUTTER_HOME")
+    return Path(configured) if configured else Path.home() / ".modbus_connector" / "flutter"
+
+
+def flutter_state(state: dict[str, Any]) -> dict[str, Any]:
+    connection = state.get("connection", {})
+    extra = state.get("registers_options", {}).get("flutter", {})
+    if "transport" not in connection:
+        transport = {"TCP": "tcp", "RTU over TCP": "rtu_tcp", "RTU over UDP": "rtu_udp"}.get(
+            connection.get("type"), "rtu"
+        )
+        connection = {
+            "transport": transport,
+            "host": connection.get("tcp_host", "127.0.0.1"),
+            "port": connection.get("rtu_port", "")
+            if transport == "rtu"
+            else int(connection.get("tcp_port", 502)),
+            "baudrate": int(connection.get("rtu_baud", 9600)),
+            "bytesize": int(connection.get("rtu_bytesize", 8)),
+            "parity": connection.get("rtu_parity", "N"),
+            "stopbits": int(connection.get("rtu_stopbits", 1)),
+            "timeout": connection.get("timeout", 3),
+        }
+    draft = {
+        "transport": connection.get("transport", "rtu"),
+        "host": str(connection.get("host", "127.0.0.1")),
+        "port": str(connection.get("port", 502)) if connection.get("transport") != "rtu" else "502",
+        "serial": str(connection.get("port", "")) if connection.get("transport") == "rtu" else "",
+        "baud": str(connection.get("baudrate", 9600)),
+        "parity": connection.get("parity", "N"),
+        "bits": connection.get("bytesize", 8),
+        "stop": connection.get("stopbits", 1),
+        "timeout": str(connection.get("timeout", 3)),
+    }
+    return {
+        **state,
+        **extra,
+        "connection": connection,
+        "draft": {**draft, **extra.get("draft", {})},
+        "mode": {"sim": "simulator", "slave": "simulator"}.get(
+            state.get("mode"), state.get("mode", "master")
+        ),
+        "unit": extra.get("unit", state.get("connection", {}).get("unit", 1)),
+        "sim_rows": extra.get("sim_rows", state.get("sim", {}).get("rows", [])),
+    }
+
+
+def catalog_command(data: dict[str, Any]) -> dict[str, Any]:
+    store = CustomTemplateStore(flutter_directory() / "custom_templates")
+    command = data["command"]
+    if command == "template_list":
+        return {
+            "public": [asdict(t) for t in list_templates()],
+            "custom": [asdict(t) for t in store.list_templates()],
+        }
+    template_id = data.get("template_id")
+    if command == "template_load":
+        state = (
+            store.load(template_id, data.get("version_id"))
+            if template_id
+            else load_template(data.get("resource", ""))
+        )
+        return {"state": flutter_state(state), "template_id": template_id}
+    if command == "template_versions":
+        return {"versions": store.versions(template_id)}
+    if command == "template_save":
+        state = data.get("state")
+        if not isinstance(state, dict):
+            raise ValueError("state must be an object")
+        # The shared store keeps only known Qt snapshot keys; preserve Flutter
+        # connection/query/mode data inside its existing options section.
+        state = {
+            **state,
+            "registers_options": {
+                "flutter": {
+                    k: state[k]
+                    for k in ("query", "draft", "unit", "interval_ms", "device_config", "sim_rows")
+                    if k in state
+                }
+            },
+        }
+        info = store.save(state, name=data.get("name"), template_id=template_id)
+        return asdict(info)
+    if command == "template_rename":
+        store.rename(template_id, data.get("name", ""))
+    elif command == "template_delete":
+        store.delete(template_id)
+    elif command == "template_delete_version":
+        store.delete_version(template_id, data.get("version_id", ""))
+    else:
+        raise ValueError("Unknown template command")
+    return {}

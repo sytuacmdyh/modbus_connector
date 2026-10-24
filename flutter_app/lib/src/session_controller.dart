@@ -160,15 +160,18 @@ class SessionController extends ChangeNotifier {
   final Map<String, dynamic> scannerState = {};
   String? customTemplateId;
   void restore(Map<String, dynamic> data) {
-    if (connected || busy || deviceRunning)
+    if (connected || busy || deviceRunning) {
       throw StateError('Restore requires a disconnected session');
+    }
     mode = ['master', 'simulator', 'sniffer', 'gateway'].contains(data['mode'])
         ? data['mode'] as String
         : 'master';
-    if (data['connection'] is Map)
+    if (data['connection'] is Map) {
       connectionConfig = Map<String, dynamic>.from(data['connection'] as Map);
-    if (data['draft'] is Map)
+    }
+    if (data['draft'] is Map) {
       draft.addAll(Map<String, dynamic>.from(data['draft'] as Map));
+    }
     unit =
         (data['unit'] is int &&
             (data['unit'] as int) >= 1 &&
@@ -189,8 +192,9 @@ class SessionController extends ChangeNotifier {
         query = const ReadQuery();
       }
     }
-    if (data['interval_ms'] is int)
+    if (data['interval_ms'] is int) {
       intervalMs = (data['interval_ms'] as int).clamp(100, 60000);
+    }
     void rowsInto(Object? raw, List<Map<String, dynamic>> target) {
       if (raw is! List) return;
       for (final r in raw.take(512)) {
@@ -214,8 +218,9 @@ class SessionController extends ChangeNotifier {
               'ascii',
               'ascii1',
             ].contains(r['format'] ?? 'dec') &&
-            ['ABCD', 'CDAB', 'BADC', 'DCBA'].contains(r['order'] ?? 'ABCD'))
+            ['ABCD', 'CDAB', 'BADC', 'DCBA'].contains(r['order'] ?? 'ABCD')) {
           target.add(Map.of(r));
+        }
       }
     }
 
@@ -226,11 +231,13 @@ class SessionController extends ChangeNotifier {
       'logging': loggingSettings,
       'scanner': scannerState,
     }.entries) {
-      if (data[entry.key] is Map)
+      if (data[entry.key] is Map) {
         entry.value.addAll(Map<String, dynamic>.from(data[entry.key] as Map));
+      }
     }
-    if (data['custom_template_id'] is String)
+    if (data['custom_template_id'] is String) {
       customTemplateId = data['custom_template_id'] as String;
+    }
     if (data['sniffed'] is Map) {
       for (final e in (data['sniffed'] as Map).entries) {
         final id = int.tryParse('${e.key}');

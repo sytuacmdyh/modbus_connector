@@ -81,18 +81,23 @@ class _WorkbenchState extends State<Workbench> {
         saved['transport'] as String? ??
         session.connectionConfig['transport'] as String? ??
         'rtu';
-    if (!['tcp', 'rtu', 'rtu_tcp', 'rtu_udp', 'demo'].contains(_transport))
+    if (!['tcp', 'rtu', 'rtu_tcp', 'rtu_udp', 'demo'].contains(_transport)) {
       _transport = 'rtu';
+    }
     _parity = ['N', 'E', 'O'].contains(saved['parity'])
         ? saved['parity'] as String
         : 'N';
     _bits = saved['bits'] == 7 ? 7 : 8;
     _stop = saved['stop'] == 2 ? 2 : 1;
     _kind = session.query.kind;
-    _address.text = '${session.query.address}';
-    _count.text = '${session.query.count}';
-    _unit.text = '${session.unit}';
-    _interval.text = '${session.intervalMs}';
+    if (!saved.containsKey('address')) {
+      _address.text = '${session.query.address}';
+    }
+    if (!saved.containsKey('count')) _count.text = '${session.query.count}';
+    if (!saved.containsKey('unit')) _unit.text = '${session.unit}';
+    if (!saved.containsKey('interval')) {
+      _interval.text = '${session.intervalMs}';
+    }
     _address.addListener(_rangeEdited);
     _count.addListener(_rangeEdited);
     if (widget.manageLifecycle) {

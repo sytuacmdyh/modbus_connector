@@ -122,6 +122,10 @@ class Bridge:
         if command in ("disconnect", "shutdown"):
             self.close()
             return {}
+        if command.startswith("template_"):
+            from .flutter_catalog import catalog_command
+
+            return catalog_command(data)
         if command in (
             "device_start",
             "device_stop",

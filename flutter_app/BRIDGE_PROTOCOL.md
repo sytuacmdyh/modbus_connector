@@ -134,3 +134,23 @@ Device modes:
 Master `connect` additionally accepts `rtu_tcp` and `rtu_udp` with host/port.
 Disconnect/EOF/shutdown stop all services, rule timers and logging. Switching a
 Flutter session mode disconnects first; inactive tabs keep their services running.
+
+Template commands:
+
+- `template_list`: `{public:[{name,manufacturer,resource,description}],custom:[{id,name}]}`.
+- `template_load`: public `resource` or custom `template_id` + optional `version_id`;
+  returns `{state,template_id}` translated into disconnected Flutter session state.
+- `template_save`: `{state,name}` creates a custom identity; `{state,template_id}`
+  appends a snapshot even when unchanged. Returns `{id,name}`.
+- `template_versions`: `{template_id}` → `{versions:[{id,saved_at}]}` newest first.
+- `template_rename`: `{template_id,name}` changes display name only.
+- `template_delete`: `{template_id}`; `template_delete_version`: adds `version_id`.
+  Removing the final version fails. The Flutter UI confirms deletions.
+
+Public catalog is shared/read-only. Custom histories reuse CustomTemplateStore in
+`~/.modbus_connector/flutter/custom_templates`, isolated from Qt personal templates.
+`MODBUS_FLUTTER_HOME` overrides that Flutter root for testing/portable deployments.
+Flutter workspace files are schema 1 (`tabs`, `active_tab`) and written atomically
+by Dart to `flutter/settings.json`. They never include cloud settings/credentials,
+never auto-connect, and do not overwrite Qt settings. Import is staged before
+closing/replacing sessions. Corrupt startup state disables automatic overwrites.

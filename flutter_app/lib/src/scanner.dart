@@ -118,7 +118,31 @@ class _ScannerDialogState extends State<ScannerDialog> {
   String kind = 'holding_registers';
   final selected = <int>{};
   @override
+  void initState() {
+    super.initState();
+    final state = widget.session.scannerState;
+    addresses = state['addresses'] == true;
+    start.text = '${state['start'] ?? (addresses ? 0 : 1)}';
+    end.text = '${state['end'] ?? (addresses ? 99 : 247)}';
+    unit.text = '${state['unit'] ?? widget.session.unit}';
+    if (areas.containsKey(state['kind'])) kind = state['kind'] as String;
+    if (state['probes'] is List && (state['probes'] as List).isNotEmpty) {
+      probes
+        ..clear()
+        ..addAll((state['probes'] as List).whereType<Map<String, dynamic>>());
+    }
+  }
+
+  @override
   void dispose() {
+    widget.session.scannerState.addAll({
+      'addresses': addresses,
+      'start': int.tryParse(start.text),
+      'end': int.tryParse(end.text),
+      'unit': int.tryParse(unit.text),
+      'kind': kind,
+      'probes': probes,
+    });
     scanner.dispose();
     start.dispose();
     end.dispose();

@@ -158,71 +158,94 @@ def test_subprocess_protocol_eof_and_no_qt(shutdown: bool) -> None:
 
 
 def test_scanner_real_backend(bridge: Bridge, modbus_server: int) -> None:
-    assert request(bridge, 'connect', transport='tcp', host='127.0.0.1', port=modbus_server)['ok']
-    result = request(bridge, 'scan_unit', unit=1, probes=[
-        {'kind': 'holding_registers', 'address': 0, 'count': 1},
-        {'kind': 'holding_registers', 'address': 60000, 'count': 1},
-    ])
-    assert result['result']['hits'] == [0]
-    assert request(bridge, 'scan_address', address=0)['result']['values'] == [100, 101]
-    assert request(bridge, 'scan_address', address=60000)['result']['values'] == []
-    assert not request(bridge, 'scan_unit', probes=[{'address': 65535, 'count': 2}])['ok']
-    assert not request(bridge, 'scan_unit', probes=[])['ok']
+    assert request(bridge, "connect", transport="tcp", host="127.0.0.1", port=modbus_server)["ok"]
+    result = request(
+        bridge,
+        "scan_unit",
+        unit=1,
+        probes=[
+            {"kind": "holding_registers", "address": 0, "count": 1},
+            {"kind": "holding_registers", "address": 60000, "count": 1},
+        ],
+    )
+    assert result["result"]["hits"] == [0]
+    assert request(bridge, "scan_address", address=0)["result"]["values"] == [100, 101]
+    assert request(bridge, "scan_address", address=60000)["result"]["values"] == []
+    assert not request(bridge, "scan_unit", probes=[{"address": 65535, "count": 2}])["ok"]
+    assert not request(bridge, "scan_unit", probes=[])["ok"]
 
 
 def test_register_tools_scaling_csv_and_nonfinite(bridge: Bridge, modbus_server: int) -> None:
-    assert request(bridge, 'connect', transport='tcp', host='127.0.0.1', port=modbus_server)['ok']
-    row = {'name': 'Temperature', 'address': 0, 'count': 2, 'format': 'u32',
-           'scale': 0.1, 'offset': -10, 'unit': 'C', 'order': 'CDAB'}
-    result = request(bridge, 'read_rows', rows=[row])['result']['rows'][0]
-    assert result['numeric'] == (101 * 65536 + 100) * 0.1 - 10
-    encoded = request(bridge, 'encode_values', row=row, text='10')['result']['values']
+    assert request(bridge, "connect", transport="tcp", host="127.0.0.1", port=modbus_server)["ok"]
+    row = {
+        "name": "Temperature",
+        "address": 0,
+        "count": 2,
+        "format": "u32",
+        "scale": 0.1,
+        "offset": -10,
+        "unit": "C",
+        "order": "CDAB",
+    }
+    result = request(bridge, "read_rows", rows=[row])["result"]["rows"][0]
+    assert result["numeric"] == (101 * 65536 + 100) * 0.1 - 10
+    encoded = request(bridge, "encode_values", row=row, text="10")["result"]["values"]
     assert encoded == [200, 0]
-    bitmask = request(bridge, 'read_rows', rows=[{'address': 0, 'bitmask': True,
-                                               'value_names': {'2': 'Alarm'}}])
-    assert bitmask['ok'] and 'Alarm' in bitmask['result']['rows'][0]['display']
-    exported = request(bridge, 'csv_export', rows=[row])['result']['text']
-    parsed = request(bridge, 'csv_parse', text=exported)['result']['rows'][0]
-    assert parsed['name'] == 'Temperature' and parsed['order'] == 'CDAB'
-    assert parsed['scale'] == 0.1
-    assert request(bridge, 'csv_parse', text='n,t,a\nX,coils,0\n',
-                   mapping={'n': 'name', 't': 'kind', 'a': 'address'})['ok']
-    assert not request(bridge, 'read_rows', rows=[row, {'address': -1}])['ok']
-    assert not request(bridge, 'encode_values', row=row, text='nan')['ok']
+    bitmask = request(
+        bridge, "read_rows", rows=[{"address": 0, "bitmask": True, "value_names": {"2": "Alarm"}}]
+    )
+    assert bitmask["ok"] and "Alarm" in bitmask["result"]["rows"][0]["display"]
+    exported = request(bridge, "csv_export", rows=[row])["result"]["text"]
+    parsed = request(bridge, "csv_parse", text=exported)["result"]["rows"][0]
+    assert parsed["name"] == "Temperature" and parsed["order"] == "CDAB"
+    assert parsed["scale"] == 0.1
+    assert request(
+        bridge,
+        "csv_parse",
+        text="n,t,a\nX,coils,0\n",
+        mapping={"n": "name", "t": "kind", "a": "address"},
+    )["ok"]
+    assert not request(bridge, "read_rows", rows=[row, {"address": -1}])["ok"]
+    assert not request(bridge, "encode_values", row=row, text="nan")["ok"]
 
 
 def test_logger_wide_csv_jsonl_and_disconnect(bridge: Bridge, tmp_path) -> None:
-    rows = [{'name': 'Speed', 'address': 0, 'scale': 0.1}, {'name': 'State', 'address': 1}]
-    path = tmp_path / 'samples.csv'
-    assert request(bridge, 'logger_start', rows=rows, path=str(path), interval_ms=100)['ok']
-    assert request(bridge, 'logger_sample', values=[[100], [3]])['result']['rows_written'] == 1
-    assert request(bridge, 'logger_sample', values=[[200], [4]])['result']['rows_written'] == 1
-    assert '10' in path.read_text() and 'Speed@0/u1' in path.read_text()
-    assert not request(bridge, 'logger_sample', values=[[100]])['ok']
-    assert request(bridge, 'disconnect')['ok']
-    assert not request(bridge, 'logger_status')['result']['active']
-    path = tmp_path / 'samples.jsonl'
-    assert request(bridge, 'logger_start', rows=rows, path=str(path), format='jsonl')['ok']
-    assert request(bridge, 'logger_sample', values=[[100], [3]])['ok']
+    rows = [{"name": "Speed", "address": 0, "scale": 0.1}, {"name": "State", "address": 1}]
+    path = tmp_path / "samples.csv"
+    assert request(bridge, "logger_start", rows=rows, path=str(path), interval_ms=100)["ok"]
+    assert request(bridge, "logger_sample", values=[[100], [3]])["result"]["rows_written"] == 1
+    assert request(bridge, "logger_sample", values=[[200], [4]])["result"]["rows_written"] == 1
+    assert "10" in path.read_text() and "Speed@0/u1" in path.read_text()
+    assert not request(bridge, "logger_sample", values=[[100]])["ok"]
+    assert request(bridge, "disconnect")["ok"]
+    assert not request(bridge, "logger_status")["result"]["active"]
+    path = tmp_path / "samples.jsonl"
+    assert request(bridge, "logger_start", rows=rows, path=str(path), format="jsonl")["ok"]
+    assert request(bridge, "logger_sample", values=[[100], [3]])["ok"]
     records = [json.loads(line) for line in path.read_text().splitlines()]
-    assert records[0]['name'] == 'Speed' and records[0]['value'] == '10'
-    assert records[1]['name'] == 'State'
+    assert records[0]["name"] == "Speed" and records[0]["value"] == "10"
+    assert records[1]["name"] == "State"
 
 
 def test_alarm_priority_and_scaling(bridge: Bridge, modbus_server: int) -> None:
-    assert request(bridge, 'connect', transport='tcp', host='127.0.0.1', port=modbus_server)['ok']
-    row = {'address': 0, 'scale': 0.1, 'alarms': [
-        {'condition': 'in_range', 'value': 9, 'value2': 11, 'color': 'yellow', 'sound': True},
-        {'condition': 'gt', 'value': 1, 'color': 'red'},
-    ]}
-    alarm = request(bridge, 'read_rows', rows=[row])['result']['rows'][0]['alarm']
-    assert alarm['color'] == 'yellow' and alarm['sound']
+    assert request(bridge, "connect", transport="tcp", host="127.0.0.1", port=modbus_server)["ok"]
+    row = {
+        "address": 0,
+        "scale": 0.1,
+        "alarms": [
+            {"condition": "in_range", "value": 9, "value2": 11, "color": "yellow", "sound": True},
+            {"condition": "gt", "value": 1, "color": "red"},
+        ],
+    }
+    alarm = request(bridge, "read_rows", rows=[row])["result"]["rows"][0]["alarm"]
+    assert alarm["color"] == "yellow" and alarm["sound"]
 
 
 def free_port() -> int:
     import socket
+
     with socket.socket() as sock:
-        sock.bind(('127.0.0.1', 0))
+        sock.bind(("127.0.0.1", 0))
         return sock.getsockname()[1]
 
 
@@ -231,47 +254,59 @@ def test_simulator_panel_commands_rules_and_external_master(bridge: Bridge) -> N
 
     from modbus_connector.backend import ModbusBackend
     from modbus_connector.models import TcpParams
+
     port = free_port()
-    rows = [{'name': 'Counter', 'address': 0, 'count': 1, 'values': [5], 'rule_text': 'prev+1'}]
-    assert request(bridge, 'sim_configure', rows=rows)['ok']
-    assert request(bridge, 'device_start', mode='simulator', tick_ms=100,
-                   listen={'transport': 'tcp', 'host': '127.0.0.1', 'port': port})['ok']
+    rows = [{"name": "Counter", "address": 0, "count": 1, "values": [5], "rule_text": "prev+1"}]
+    assert request(bridge, "sim_configure", rows=rows)["ok"]
+    assert request(
+        bridge,
+        "device_start",
+        mode="simulator",
+        tick_ms=100,
+        listen={"transport": "tcp", "host": "127.0.0.1", "port": port},
+    )["ok"]
     master = ModbusBackend()
     try:
-        master.connect(TcpParams('127.0.0.1', port))
-        assert master.read(1, 'holding_registers', 0, 1)[0] >= 5
+        master.connect(TcpParams("127.0.0.1", port))
+        assert master.read(1, "holding_registers", 0, 1)[0] >= 5
         deadline = time.monotonic() + 2
-        while master.read(1, 'holding_registers', 0, 1)[0] <= 5:
+        while master.read(1, "holding_registers", 0, 1)[0] <= 5:
             assert time.monotonic() < deadline
             time.sleep(0.02)
-        assert request(bridge, 'sim_set', row={'address': 1}, values=[321])['ok']
-        assert master.read(1, 'holding_registers', 1, 1) == [321]
-        status = request(bridge, 'device_status')['result']
-        assert status['simulator'] and status['events']
-        assert not request(bridge, 'sim_configure', rows=[{'address': 10000}])['ok']
-        assert not request(bridge, 'sim_configure', rows=[{'rule_text': '__import__("os")'}])['ok']
+        assert request(bridge, "sim_set", row={"address": 1}, values=[321])["ok"]
+        assert master.read(1, "holding_registers", 1, 1) == [321]
+        status = request(bridge, "device_status")["result"]
+        assert status["simulator"] and status["events"]
+        assert not request(bridge, "sim_configure", rows=[{"address": 10000}])["ok"]
+        assert not request(bridge, "sim_configure", rows=[{"rule_text": '__import__("os")'}])["ok"]
     finally:
         master.disconnect()
-    assert request(bridge, 'device_stop')['ok']
-    assert not request(bridge, 'device_status')['result']['simulator']
+    assert request(bridge, "device_stop")["ok"]
+    assert not request(bridge, "device_status")["result"]["simulator"]
 
 
 def test_gateway_panel_commands_forward_real_tcp(bridge: Bridge, modbus_server: int) -> None:
     from modbus_connector.backend import ModbusBackend
     from modbus_connector.models import TcpParams
+
     port = free_port()
-    assert request(bridge, 'device_start', mode='gateway', units=[1],
-                   listen={'transport': 'tcp', 'host': '127.0.0.1', 'port': port},
-                   target={'transport': 'tcp', 'host': '127.0.0.1', 'port': modbus_server})['ok']
+    assert request(
+        bridge,
+        "device_start",
+        mode="gateway",
+        units=[1],
+        listen={"transport": "tcp", "host": "127.0.0.1", "port": port},
+        target={"transport": "tcp", "host": "127.0.0.1", "port": modbus_server},
+    )["ok"]
     master = ModbusBackend()
     try:
-        master.connect(TcpParams('127.0.0.1', port))
-        assert master.read(1, 'holding_registers', 0, 2) == [100, 101]
-        master.write(1, 'holding_registers', 0, [555])
-        assert master.read(1, 'holding_registers', 0, 1) == [555]
+        master.connect(TcpParams("127.0.0.1", port))
+        assert master.read(1, "holding_registers", 0, 2) == [100, 101]
+        master.write(1, "holding_registers", 0, [555])
+        assert master.read(1, "holding_registers", 0, 1) == [555]
     finally:
         master.disconnect()
-    assert request(bridge, 'device_status')['result']['gateway']
+    assert request(bridge, "device_status")["result"]["gateway"]
     bridge.close()
     assert not bridge.devices.gateway.running
 
@@ -280,26 +315,57 @@ def test_sniffer_panel_commands_with_real_serial_pty(bridge: Bridge) -> None:
     import time
 
     from modbus_connector.sniffer_backend import crc16
-    if sys.platform == 'win32':
-        pytest.skip('POSIX pseudo terminal')
+
+    if sys.platform == "win32":
+        pytest.skip("POSIX pseudo terminal")
     master_fd, slave_fd = os.openpty()
     try:
         port = os.ttyname(slave_fd)
-        assert request(bridge, 'device_start', mode='sniffer',
-                       listen={'transport': 'rtu', 'port': port})['ok']
+        assert request(
+            bridge, "device_start", mode="sniffer", listen={"transport": "rtu", "port": port}
+        )["ok"]
         body = bytes([1, 6, 0, 5, 0, 77])
-        os.write(master_fd, body + crc16(body).to_bytes(2, 'little'))
+        os.write(master_fd, body + crc16(body).to_bytes(2, "little"))
         deadline = time.monotonic() + 2
         while True:
-            result = request(bridge, 'sniffer_snapshot', unit=1)['result']
-            if result['areas'].get('holding_registers', {}).get(5) == 77:
+            result = request(bridge, "sniffer_snapshot", unit=1)["result"]
+            if result["areas"].get("holding_registers", {}).get(5) == 77:
                 break
             assert time.monotonic() < deadline
             time.sleep(0.02)
-        status = request(bridge, 'device_status')['result']
-        assert status['sniffer'] and any(e['event'] == 'values' for e in status['events'])
-        assert request(bridge, 'device_stop')['ok']
+        status = request(bridge, "device_status")["result"]
+        assert status["sniffer"] and any(e["event"] == "values" for e in status["events"])
+        assert request(bridge, "device_stop")["ok"]
         assert not bridge.devices.sniffer.running
     finally:
         os.close(master_fd)
         os.close(slave_fd)
+
+
+def test_templates_public_and_isolated_custom_history(
+    bridge: Bridge, tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setenv("MODBUS_FLUTTER_HOME", str(tmp_path))
+    catalog = request(bridge, "template_list")["result"]
+    assert catalog["public"] and catalog["custom"] == []
+    state = request(bridge, "template_load", resource="Eastron/SDM120")["result"]["state"]
+    assert state["connection"]["baudrate"] == 2400 and len(state["registers"]) > 3
+    state["query"] = {"kind": "holding_registers", "address": 5, "count": 10}
+    saved = request(bridge, "template_save", state=state, name="My meter")["result"]
+    template_id = saved["id"]
+    assert request(bridge, "template_save", state=state, template_id=template_id)["ok"]
+    versions = request(bridge, "template_versions", template_id=template_id)["result"]["versions"]
+    assert len(versions) == 2
+    loaded = request(
+        bridge, "template_load", template_id=template_id, version_id=versions[-1]["id"]
+    )["result"]["state"]
+    assert loaded["query"]["address"] == 5
+    assert request(bridge, "template_rename", template_id=template_id, name="Renamed")["ok"]
+    assert request(
+        bridge, "template_delete_version", template_id=template_id, version_id=versions[0]["id"]
+    )["ok"]
+    assert not request(
+        bridge, "template_delete_version", template_id=template_id, version_id=versions[-1]["id"]
+    )["ok"]
+    assert request(bridge, "template_delete", template_id=template_id)["ok"]
+    assert request(bridge, "template_list")["result"]["custom"] == []

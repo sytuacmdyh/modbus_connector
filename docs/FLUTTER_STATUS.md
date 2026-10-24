@@ -189,3 +189,20 @@ read and left unchanged, including its pre-existing untracked Git state.
   900×650. Session state serialization groundwork also landed for the next chunk.
 - Remaining: persistence/templates; help/i18n; cloud/update. Charts are dialogs
   within the native window; detached native graph windows and image export remain.
+
+## Parity push — chunk 7: templates and persistence
+
+- Flutter-owned atomic workspace store, autosave and manual export/import. Restores
+  tabs, active tab, connection drafts, ranges/maps, simulator/device configuration,
+  logger settings and sniffer names/values in disconnected sessions. Invalid import
+  preserves current sessions; corrupt startup state disables automatic overwrites.
+- Public template catalog loads full maps and serial defaults into new tabs.
+  Custom save/new-version, history/open-old-version, rename, template/version
+  deletion with confirmation and final-version protection reuse the Python store.
+- Flutter settings/custom histories live under `~/.modbus_connector/flutter` (or
+  `MODBUS_FLUTTER_HOME`), separate from all Qt settings/personal templates.
+  Bundling now collects public template package data.
+- Linux: 32 Python bridge tests passed; analyze clean and 21 Flutter tests passed,
+  including independent storage, disconnected restore and invalid import retention.
+- Remaining: help/i18n; cloud/update. Native file chooser, scheduled per-row
+  polling, master expression rows, detached graph windows remain below Qt parity.
