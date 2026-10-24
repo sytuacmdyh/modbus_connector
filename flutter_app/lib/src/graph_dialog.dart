@@ -45,6 +45,7 @@ class _GraphDialogState extends State<GraphDialog> {
   Map<String, List<Sample>>? frozen;
   double? hover;
   bool pinned = false;
+  DateTime? pinnedTime;
   final chartKey = GlobalKey();
   final transform = TransformationController();
   @override
@@ -76,7 +77,11 @@ class _GraphDialogState extends State<GraphDialog> {
       }
       if (mounted) setState(() => message = '${tr('Saved')} $path');
     } catch (e) {
-      if (mounted) setState(() => message = '${tr('Image export failed')}: $e');
+      if (mounted) {
+        setState(
+          () => message = '${tr('Image export failed')}: ${userError(e)}',
+        );
+      }
     }
   }
 
@@ -130,7 +135,7 @@ class _GraphDialogState extends State<GraphDialog> {
       await File(path).writeAsString(buffer.toString(), flush: true);
       if (mounted) setState(() => message = '${tr('Saved')} $path');
     } catch (e) {
-      if (mounted) setState(() => message = '$e');
+      if (mounted) setState(() => message = userError(e));
     }
   }
 
@@ -146,6 +151,16 @@ class _GraphDialogState extends State<GraphDialog> {
       final last = points.isEmpty
           ? first
           : points.map((p) => p.time).reduce((a, b) => a.isAfter(b) ? a : b);
+      final cursor = pinnedTime == null
+          ? hover
+          : ((pinnedTime!.microsecondsSinceEpoch -
+                        first.microsecondsSinceEpoch) /
+                    math.max(
+                      1,
+                      last.microsecondsSinceEpoch -
+                          first.microsecondsSinceEpoch,
+                    ))
+                .clamp(0.0, 1.0);
       return AlertDialog(
         title: const LText('Multi-series graph'),
         content: SizedBox(
@@ -263,6 +278,16 @@ class _GraphDialogState extends State<GraphDialog> {
                                                           .dx /
                                                       bounds.maxWidth)
                                                   .clamp(0, 1);
+                                          pinnedTime = pinned
+                                              ? DateTime.fromMicrosecondsSinceEpoch(
+                                                  first.microsecondsSinceEpoch +
+                                                      ((last.microsecondsSinceEpoch -
+                                                                  first
+                                                                      .microsecondsSinceEpoch) *
+                                                              cursor!)
+                                                          .round(),
+                                                )
+                                              : null;
                                         }),
                                         child: InteractiveViewer(
                                           transformationController: transform,
@@ -273,7 +298,7 @@ class _GraphDialogState extends State<GraphDialog> {
                                               curves.values.toList(),
                                               normalized,
                                               Theme.of(context).colorScheme,
-                                              hover,
+                                              cursor,
                                             ),
                                             size: Size.infinite,
                                           ),
@@ -313,7 +338,7 @@ class _GraphDialogState extends State<GraphDialog> {
                                                     ((last.microsecondsSinceEpoch -
                                                                 first
                                                                     .microsecondsSinceEpoch) *
-                                                            (hover ?? 1))
+                                                            (cursor ?? 1))
                                                         .round(),
                                               );
                                           final sample = nearestGraphSample(
@@ -343,13 +368,13 @@ class _GraphDialogState extends State<GraphDialog> {
                   ),
                 ),
               ),
-              if (hover != null)
+              if (cursor != null)
                 LText(
                   DateTime.fromMicrosecondsSinceEpoch(
                     first.microsecondsSinceEpoch +
                         ((last.microsecondsSinceEpoch -
                                     first.microsecondsSinceEpoch) *
-                                hover!)
+                                cursor)
                             .round(),
                   ).toIso8601String(),
                 ),

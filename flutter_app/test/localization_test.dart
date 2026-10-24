@@ -8,6 +8,27 @@ import 'package:modbus_desktop/src/translations.dart';
 import 'fake_bridge.dart';
 
 void main() {
+  test(
+    'dynamic prompts and technical validation errors translate in Chinese',
+    () {
+      appLanguage.value = 'zh_CN';
+      expect(tr('count must be an integer in 1..125'), '数量 必须是 1 到 125 之间的整数');
+      expect(tr('Snapshot baseline differences'), '快照 baseline 的差异');
+      expect(
+        tr('Write Voltage (f32, engineering units)'),
+        '写入 Voltage（f32，工程单位）',
+      );
+      expect(tr('Logging · 12 samples written'), '记录中 · 已写入 12 个样本');
+      expect(tr('Unknown register area or display format'), '未知的寄存器区域或显示格式');
+      expect(tr('Invalid rule syntax'), '规则语法无效');
+      appLanguage.value = 'en';
+      expect(
+        tr('count must be an integer in 1..125'),
+        'count must be an integer in 1..125',
+      );
+    },
+  );
+
   testWidgets('live Chinese UI and help use centralized translations', (
     tester,
   ) async {

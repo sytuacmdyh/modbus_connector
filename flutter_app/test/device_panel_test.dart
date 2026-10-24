@@ -46,7 +46,7 @@ class CatalogBridge extends DeviceBridge {
     Map<String, dynamic> command, {
     Duration? timeout,
   }) async {
-    if (command['command'] == 'template_list')
+    if (command['command'] == 'template_list') {
       return const BridgeReply({
         'public': [
           {
@@ -58,7 +58,8 @@ class CatalogBridge extends DeviceBridge {
         ],
         'custom': [],
       }, false);
-    if (command['command'] == 'template_load')
+    }
+    if (command['command'] == 'template_load') {
       return const BridgeReply({
         'state': {
           'mode': 'master',
@@ -82,11 +83,123 @@ class CatalogBridge extends DeviceBridge {
         },
         'template_id': null,
       }, false);
+    }
+    return super.request(command, timeout: timeout);
+  }
+}
+
+class SniffBridge extends DeviceBridge {
+  List<Map<String, dynamic>> pending = [
+    {
+      'mode': 'sniffer',
+      'event': 'traffic',
+      'unit': 1,
+      'line': 'unit-one-frame',
+    },
+    {
+      'mode': 'sniffer',
+      'event': 'traffic',
+      'unit': 2,
+      'line': 'unit-two-frame',
+    },
+  ];
+  @override
+  Future<BridgeReply> request(
+    Map<String, dynamic> command, {
+    Duration? timeout,
+  }) async {
+    if (command['command'] == 'device_status') {
+      final events = pending;
+      pending = [];
+      return BridgeReply({
+        'simulator': false,
+        'sniffer': true,
+        'gateway': false,
+        'rows': [],
+        'events': events,
+        'dropped': 0,
+        'units': [1, 2],
+      }, false);
+    }
+    if (command['command'] == 'render_rows') {
+      return BridgeReply({
+        'rows': [
+          for (final row in command['rows'] as List)
+            {
+              'values': row['values'],
+              'display': (row['values'] as List).join(','),
+              'numeric': (row['values'] as List).first,
+              'alarm': null,
+            },
+        ],
+      }, false);
+    }
     return super.request(command, timeout: timeout);
   }
 }
 
 void main() {
+  testWidgets(
+    'sniffer filters units and preserves view edits during new traffic',
+    (tester) async {
+      tester.view.physicalSize = const Size(900, 650);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final bridge = SniffBridge();
+      final session = SessionController(bridge)..mode = 'sniffer';
+      session.sniffed[1] = {
+        for (var i = 0; i < 2; i++)
+          'holding_registers/$i': {
+            'name': '',
+            'unit_id': 1,
+            'kind': 'holding_registers',
+            'address': i,
+            'count': 1,
+            'format': 'dec',
+            'value': i + 1,
+          },
+      };
+      await tester.pumpWidget(MaterialApp(home: DevicePanel(session: session)));
+      await tester.pump(const Duration(milliseconds: 450));
+      await tester.pump();
+      await tester.ensureVisible(find.text('unit-one-frame'));
+      expect(find.text('unit-two-frame'), findsNothing);
+      await tester.tap(find.text('Selected unit only'));
+      await tester.pump();
+      expect(find.text('unit-two-frame'), findsOneWidget);
+      final tile = find.textContaining('holding_registers @0');
+      await tester.ensureVisible(tile);
+      await tester.tap(tile);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Wide');
+      await tester.tap(find.text('dec'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('u32').last);
+      await tester.pumpAndSettle();
+      bridge.pending = [
+        {
+          'mode': 'sniffer',
+          'event': 'values',
+          'unit': 1,
+          'kind': 'holding_registers',
+          'address': 0,
+          'values': [3, 4],
+        },
+      ];
+      await tester.pump(const Duration(milliseconds: 450));
+      await tester.pump();
+      await tester.tap(find.text('Apply'));
+      await tester.pumpAndSettle();
+      expect(session.sniffed[1]!['holding_registers/0']!['name'], 'Wide');
+      expect(session.sniffed[1]!['holding_registers/0']!['count'], 2);
+      expect(session.sniffed[1]!['holding_registers/0']!['value'], 3);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      session.dispose();
+    },
+  );
+
   testWidgets('simulator imports template rows without duplicate addresses', (
     tester,
   ) async {

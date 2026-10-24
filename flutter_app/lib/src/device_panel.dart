@@ -237,6 +237,7 @@ class _DevicePanelState extends State<DevicePanel> {
     if (session.busy || session.disconnecting) return;
     final status = await session.command({'command': 'device_status'});
     if (!mounted || status == null) return;
+    var receivedValues = false;
     setState(() {
       session.deviceRunning = status[session.mode] == true;
       results = (status['rows'] as List).cast<Map<String, dynamic>>();
@@ -247,6 +248,7 @@ class _DevicePanelState extends State<DevicePanel> {
         logs.add(e);
         if (logs.length > 1000) logs.removeAt(0);
         if (e['mode'] == 'sniffer' && e['event'] == 'values') {
+          receivedValues = true;
           final unit = e['unit'] as int;
           final map = session.sniffed.putIfAbsent(unit, () => {});
           final values = e['values'] as List;
@@ -276,14 +278,19 @@ class _DevicePanelState extends State<DevicePanel> {
         }
       }
       if ((status['dropped'] as int) > 0) {
-        localError =
-            'Event buffer overflow (${status['dropped']} events); use Refresh map.';
+        localError = trf(
+          'Event buffer overflow ({count} events); use Refresh map.',
+          {'count': status['dropped']},
+        );
       }
     });
-    if (session.mode == 'sniffer') await renderSniffer();
+    if (session.mode == 'sniffer' &&
+        (receivedValues || sniffDisplays.isEmpty)) {
+      await renderSniffer(record: receivedValues);
+    }
   }
 
-  Future<void> renderSniffer() async {
+  Future<void> renderSniffer({bool record = false}) async {
     final unit = selectedUnit;
     final views = snifferViews(session.sniffed[unit] ?? {});
     final complete = views.where((v) => v['values'] != null).toList();
@@ -300,7 +307,7 @@ class _DevicePanelState extends State<DevicePanel> {
         final row = batch[i];
         final key = '${row['kind']}/${row['address']}';
         displays[key] = rendered[i];
-        if (rendered[i]['numeric'] is num) {
+        if (record && rendered[i]['numeric'] is num) {
           session.recordPoint(
             'sniff-view/$unit/$key',
             row['name'] as String? ?? key,
@@ -319,6 +326,8 @@ class _DevicePanelState extends State<DevicePanel> {
   }
 
   Future<void> editSniffer(Map<String, dynamic> row) async {
+    final editingUnit = selectedUnit;
+    final editingKey = "${row['kind']}/${row['address']}";
     var format = row['format'] as String? ?? 'dec';
     var order = row['order'] as String? ?? 'ABCD';
     final name = TextEditingController(text: row['name'] as String? ?? '');
@@ -365,12 +374,13 @@ class _DevicePanelState extends State<DevicePanel> {
         ),
       ),
     );
-    if (accepted == true && mounted) {
+    final current = session.sniffed[editingUnit]?[editingKey];
+    if (accepted == true && mounted && current != null) {
       setState(() {
-        row['name'] = name.text;
-        row['format'] = format;
-        row['order'] = order;
-        row['count'] = ['u64', 's64', 'f64'].contains(format)
+        current['name'] = name.text;
+        current['format'] = format;
+        current['order'] = order;
+        current['count'] = ['u64', 's64', 'f64'].contains(format)
             ? 4
             : ['u32', 's32', 'f32'].contains(format)
             ? 2
@@ -565,6 +575,7 @@ class _DevicePanelState extends State<DevicePanel> {
       }
       localError = null;
     });
+    await renderSniffer(record: true);
   }
 
   Future<void> exportSniffer() async {
@@ -589,7 +600,7 @@ class _DevicePanelState extends State<DevicePanel> {
         await File(path).writeAsString(result['text'] as String, flush: true);
       }
     } catch (e) {
-      if (mounted) setState(() => localError = '$e');
+      if (mounted) setState(() => localError = userError(e));
     }
   }
 
@@ -614,7 +625,7 @@ class _DevicePanelState extends State<DevicePanel> {
             Row(
               children: [
                 LText(
-                  '${session.mode[0].toUpperCase()}${session.mode.substring(1)} session',
+                  trf('{mode} session', {'mode': tr(session.mode)}),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const Spacer(),
@@ -735,7 +746,7 @@ class _DevicePanelState extends State<DevicePanel> {
                       return ListTile(
                         dense: true,
                         title: LText(
-                          '${row['name']} · ${row['kind']} @${row['address']} ×${row['count']}',
+                          '${row['name']} · ${tr(row['kind'] as String)} @${row['address']} ×${row['count']}',
                         ),
                         subtitle: LText(
                           '${i < results.length ? results[i]['display'] : '—'} · ${row['rule_text'] ?? tr('manual')}${ruleErrors['$i'] == null ? '' : ' · ${tr(const {'invalid_rule': 'Invalid rule syntax', 'nonfinite_rule': 'Rule result is not finite', 'missing_reference': 'Rule reference is unavailable', 'rule_evaluation_failed': 'Rule evaluation or encoding failed'}[ruleErrors['$i']['code']] ?? 'Rule evaluation or encoding failed')}'}',
@@ -749,17 +760,38 @@ class _DevicePanelState extends State<DevicePanel> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            IconButton(
-                              tooltip: tr('Set value'),
-                              onPressed:
-                                  session.busy ||
-                                      (row['rule_text'] as String? ?? '')
-                                          .trim()
-                                          .isNotEmpty
-                                  ? null
-                                  : () => setValue(i),
-                              icon: const Icon(Icons.edit_note),
-                            ),
+                            if (hasInlineEnum(row))
+                              inlineEnumEditor(
+                                row,
+                                i < results.length
+                                    ? results[i]['values'] as List? ?? []
+                                    : [],
+                                session.busy ||
+                                        (row['rule_text'] as String? ?? '')
+                                            .trim()
+                                            .isNotEmpty
+                                    ? null
+                                    : (v) async {
+                                        await session.command({
+                                          'command': 'sim_set',
+                                          'row': row,
+                                          'values': [v],
+                                        });
+                                        await refresh();
+                                      },
+                              )
+                            else
+                              IconButton(
+                                tooltip: tr('Set value'),
+                                onPressed:
+                                    session.busy ||
+                                        (row['rule_text'] as String? ?? '')
+                                            .trim()
+                                            .isNotEmpty
+                                    ? null
+                                    : () => setValue(i),
+                                icon: const Icon(Icons.edit_note),
+                              ),
                             IconButton(
                               tooltip: tr('Expression rule'),
                               onPressed: session.busy
@@ -886,7 +918,8 @@ class _DevicePanelState extends State<DevicePanel> {
                         vertical: 3,
                       ),
                       child: SelectableText(
-                        e['line'] as String? ?? '${e['event']}: $e',
+                        e['line'] as String? ??
+                            '${e['event']}: ${userError(e)}',
                         style: TextStyle(
                           fontFamily: 'monospace',
                           fontSize: 12,

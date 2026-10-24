@@ -1,3 +1,5 @@
+import 'translations.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -19,7 +21,7 @@ class RegisterMapController extends ChangeNotifier {
   List<Map<String, dynamic>> get results => session.registerResults;
   final Map<Map<String, dynamic>, DateTime> _lastRead = {};
   int _interval = 500;
-  Future<void> read({bool dueOnly = false}) async {
+  Future<void> read({bool dueOnly = false, Set<int>? onlyIndices}) async {
     if (reading ||
         session.busy ||
         session.toolActive ||
@@ -30,7 +32,9 @@ class RegisterMapController extends ChangeNotifier {
     final now = clock();
     final indices = [
       for (var i = 0; i < rows.length; i++)
-        if (rows[i]['poll_enabled'] != false &&
+        if ((onlyIndices == null
+                ? rows[i]['poll_enabled'] != false
+                : onlyIndices.contains(i)) &&
             (!dueOnly ||
                 !_lastRead.containsKey(rows[i]) ||
                 now.difference(_lastRead[rows[i]]!).inMilliseconds >=
@@ -88,7 +92,7 @@ class RegisterMapController extends ChangeNotifier {
       results
         ..clear()
         ..addAll(next);
-      await session.evaluateExpressions();
+      await session.evaluateExpressions(accept: accept);
     } finally {
       reading = false;
       session.endTool();
@@ -153,14 +157,16 @@ class RegisterMapController extends ChangeNotifier {
       final after = i < results.length ? results[i]['values'] : null;
       if (old == null) {
         changes.add(
-          '${rows[i]['name']} @${rows[i]['address']}: (added) $after',
+          '${rows[i]['name']} @${rows[i]['address']}: (${tr('added')}) $after',
         );
       } else if (jsonEncode(old['values']) != jsonEncode(after)) {
         changes.add('${old['name']}: ${old['values']} → $after');
       }
     }
     changes.addAll(
-      before.values.map((e) => '${e['name']}: (removed) ${e['values']}'),
+      before.values.map(
+        (e) => '${e['name']}: (${tr('removed')}) ${e['values']}',
+      ),
     );
     return changes;
   }

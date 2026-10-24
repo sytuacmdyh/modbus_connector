@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:modbus_desktop/src/graph_dialog.dart';
@@ -6,6 +9,47 @@ import 'package:modbus_desktop/src/session_controller.dart';
 import 'fake_bridge.dart';
 
 void main() {
+  testWidgets('graph exports a real PNG with native save selection', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 650);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final temporary = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('graph-png-test'),
+    ))!;
+    final output = File('${temporary.path}/graph.png');
+    const channel = MethodChannel('plugins.flutter.io/file_selector');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      channel,
+      (_) async => output.path,
+    );
+    final session = SessionController(FakeBridge());
+    session.recordPoint('v', 'Voltage', 230);
+    await tester.pumpWidget(MaterialApp(home: GraphDialog(session: session)));
+    await tester.tap(find.text('Export PNG'));
+    for (var i = 0; i < 50; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+      final exists = await tester.runAsync(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        return output.exists();
+      });
+      if (exists == true) break;
+    }
+    final bytes = (await tester.runAsync(output.readAsBytes))!;
+    expect(bytes.take(8), [137, 80, 78, 71, 13, 10, 26, 10]);
+    expect(bytes.length, greaterThan(100));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    session.dispose();
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      channel,
+      null,
+    );
+    await tester.runAsync(() => temporary.delete(recursive: true));
+  });
+
   test('nearest sample uses timestamps across uneven sample intervals', () {
     final origin = DateTime(2026);
     final samples = [

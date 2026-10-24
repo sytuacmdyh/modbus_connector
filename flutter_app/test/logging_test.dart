@@ -25,7 +25,66 @@ class LoggingBridge extends FakeBridge {
   }
 }
 
+class ExpressionLogBridge extends FakeBridge {
+  @override
+  Future<BridgeReply> request(
+    Map<String, dynamic> command, {
+    Duration? timeout,
+  }) async {
+    if (command['command'] == 'read_rows') {
+      calls.add(command);
+      return const BridgeReply({
+        'rows': [
+          {
+            'values': [10],
+            'numeric': 25,
+            'display': '25',
+            'alarm': null,
+          },
+        ],
+      }, true);
+    }
+    if ((command['command'] as String).startsWith('logger_')) {
+      calls.add(command);
+      return const BridgeReply({
+        'active': true,
+        'rows_written': 1,
+        'expressions': [],
+      }, true);
+    }
+    return super.request(command, timeout: timeout);
+  }
+}
+
 void main() {
+  test('expression-only logger reads fresh scaled map dependencies while map is closed', () async {
+    final bridge = ExpressionLogBridge();
+    final session = SessionController(bridge);
+    await session.connect({'timeout': 0.1}, 1);
+    session.registers.add({'name': 'Voltage', 'address': 0, 'scale': 2.5});
+    await session.startLogging(
+      {'path': 'test.csv', 'interval_ms': 1000},
+      [],
+      expressionRows: [
+        {'name': 'Double', 'text': '[Voltage]*2'},
+      ],
+    );
+    await Future<void>.delayed(Duration.zero);
+    final start = bridge.calls.firstWhere(
+      (c) => c['command'] == 'logger_start',
+    );
+    expect(start['rows'], isEmpty);
+    expect((start['expressions'] as List).single['text'], '[Voltage]*2');
+    final sample = bridge.calls.firstWhere(
+      (c) => c['command'] == 'logger_sample',
+    );
+    expect(sample['values'], isEmpty);
+    expect(sample['expression_values'], {'Voltage': 25});
+    expect(session.registerMap.polling, isFalse);
+    await session.stopLogging();
+    session.dispose();
+  });
+
   test(
     'stop logger waits for sampling I/O and prevents a late file write',
     () async {

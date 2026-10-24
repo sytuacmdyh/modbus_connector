@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:modbus_desktop/src/register_map.dart';
 import 'package:modbus_desktop/src/settings_store.dart';
 import 'package:modbus_desktop/src/workspace.dart';
 
@@ -87,7 +86,7 @@ void main() {
       });
       master.expressions.add({'name': 'Double counter', 'text': '[Counter]*2'});
       master.mapGrouped = true;
-      final map = RegisterMapController(master);
+      final map = master.registerMap;
       await map.read();
       expect(master.registerResults, hasLength(2));
       expect(
@@ -99,19 +98,23 @@ void main() {
       await map.read();
       expect(map.diff('before'), isNotEmpty);
       expect(master.histories, isNotEmpty);
-      await master.startLogging({
-        'path': '${temporary.path}/log.csv',
-        'format': 'csv',
-        'append': true,
-        'interval_ms': 100,
-      }, master.registers);
+      await master.startLogging(
+        {
+          'path': '${temporary.path}/log.csv',
+          'format': 'csv',
+          'append': true,
+          'interval_ms': 100,
+        },
+        master.registers,
+        expressionRows: master.expressions,
+      );
       for (var i = 0; i < 50 && master.loggedSamples == 0; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
       await master.stopLogging();
       expect(
         await File('${temporary.path}/log.csv').readAsString(),
-        contains('Counter@0/u1'),
+        contains('fx Double counter'),
       );
       final catalog = await master.command({'command': 'template_list'});
       expect(catalog!['public'], isNotEmpty);
@@ -129,12 +132,23 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Register map'), findsOneWidget);
       expect(tester.takeException(), isNull);
+      await tester.tap(find.text('Poll map'));
+      await tester.pump(const Duration(milliseconds: 200));
       await tester.tap(find.text('Close').last);
       await tester.pumpAndSettle();
+      expect(map.polling, isTrue);
+      final beforeClose = master.registerResults.first['numeric'] as num;
+      for (
+        var i = 0;
+        i < 30 && master.registerResults.first['numeric'] == beforeClose;
+        i++
+      ) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(master.registerResults.first['numeric'], greaterThan(beforeClose));
       await workspace.remove(master);
       expect(sim.deviceRunning, isTrue);
       expect(workspace.sessions, hasLength(1));
-      map.dispose();
       await workspace.shutdown();
       await tester.pumpWidget(const SizedBox());
       workspace.dispose();

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'register_map_controller.dart';
 
 import 'dart:async';
@@ -415,18 +417,30 @@ class SessionController extends ChangeNotifier {
 
   Future<void> startLogging(
     Map<String, dynamic> settings,
-    List<Map<String, dynamic>> rows,
-  ) async {
+    List<Map<String, dynamic>> rows, {
+    List<Map<String, dynamic>> expressionRows = const [],
+  }) async {
     if (logging || busy || !connected) return;
     final frozen = rows
         .map(
           (row) => <String, dynamic>{...row, 'unit_id': row['unit_id'] ?? unit},
         )
         .toList();
+    final frozenExpressions = (jsonDecode(jsonEncode(expressionRows)) as List)
+        .cast<Map<String, dynamic>>();
+    final dependencies = frozenExpressions.isEmpty
+        ? <Map<String, dynamic>>[]
+        : registers
+              .where((r) => !rows.contains(r))
+              .map(
+                (r) => <String, dynamic>{...r, 'unit_id': r['unit_id'] ?? unit},
+              )
+              .toList();
     final result = await command({
       'command': 'logger_start',
       ...settings,
       'rows': frozen,
+      'expressions': frozenExpressions,
     });
     if (result == null) return;
     loggingSettings = Map.of(settings);
@@ -437,7 +451,10 @@ class SessionController extends ChangeNotifier {
       if (!logging || busy || disconnecting || toolActive || _closing) return;
       await _run((epoch) async {
         final samples = <List>[];
-        for (final row in frozen) {
+        final expressionValues = <String, num>{};
+        final acquisition = [...frozen, ...dependencies];
+        for (var index = 0; index < acquisition.length; index++) {
+          final row = acquisition[index];
           final reply = await bridge.request({
             'command': 'read_rows',
             'unit': unit,
@@ -449,12 +466,34 @@ class SessionController extends ChangeNotifier {
           final results = (reply.result['rows'] as List)
               .cast<Map<String, dynamic>>();
           observeAlarms(results, [row]);
-          samples.add(results.single['values'] as List);
+          if (index < frozen.length) {
+            samples.add(results.single['values'] as List);
+          }
+          final numeric = results.single['numeric'];
+          if (numeric is num) {
+            expressionValues[row['name'] as String? ?? ''] = numeric;
+          }
         }
         final reply = await bridge.request({
           'command': 'logger_sample',
           'values': samples,
+          'expression_values': expressionValues,
         });
+        if (generation != _loggerGeneration || epoch != _epoch || _closing) {
+          return;
+        }
+        final expressionResults = (reply.result['expressions'] as List? ?? [])
+            .cast<Map<String, dynamic>>();
+        if (expressionResults.isNotEmpty) {
+          observeAlarms(expressionResults, [
+            for (var i = 0; i < frozenExpressions.length; i++)
+              {
+                'name': 'fx ${frozenExpressions[i]['name']}',
+                'kind': 'expression',
+                'address': i,
+              },
+          ]);
+        }
         loggedSamples = reply.result['rows_written'] as int;
       }, accept: () => generation == _loggerGeneration);
       if (error != null && !_closing && logging) await stopLogging();
@@ -481,7 +520,7 @@ class SessionController extends ChangeNotifier {
     if (!_closing && !disconnecting) await command({'command': 'logger_stop'});
   }
 
-  Future<void> evaluateExpressions() async {
+  Future<void> evaluateExpressions({bool Function()? accept}) async {
     if (expressions.isEmpty) return;
     final values = <String, num>{};
     for (var i = 0; i < registers.length && i < registerResults.length; i++) {
@@ -493,7 +532,7 @@ class SessionController extends ChangeNotifier {
       'expressions': expressions,
       'map_grouped': mapGrouped,
       'values': values,
-    });
+    }, accept: accept);
     if (reply != null) {
       expressionResults = (reply['rows'] as List).cast<Map<String, dynamic>>();
       observeAlarms(

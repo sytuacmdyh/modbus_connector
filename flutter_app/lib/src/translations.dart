@@ -1,12 +1,68 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import 'qt_translations.dart';
 
 final appLanguage = ValueNotifier<String>('en');
 final appTheme = ValueNotifier<ThemeMode>(ThemeMode.system);
-String tr(String value) => appLanguage.value == 'zh_CN'
-    ? (flutterChinese[value] ?? qtChinese[value] ?? value)
-    : value;
+String tr(String value) =>
+    appLanguage.value == 'zh_CN' ? _translate(value, 0) : value;
+
+final _dynamicChinese = <(RegExp, String, List<String>)>[
+  for (final entry in {...qtChinese, ...flutterChinese}.entries)
+    if (RegExp(r'\{\w+\}').hasMatch(entry.key))
+      _translationPattern(entry.key, entry.value),
+];
+
+(RegExp, String, List<String>) _translationPattern(
+  String key,
+  String translation,
+) {
+  final pattern = StringBuffer('^');
+  final names = <String>[];
+  var offset = 0;
+  for (final match in RegExp(r'\{(\w+)\}').allMatches(key)) {
+    pattern.write(RegExp.escape(key.substring(offset, match.start)));
+    pattern.write('(.*?)');
+    names.add(match.group(1)!);
+    offset = match.end;
+  }
+  pattern.write(RegExp.escape(key.substring(offset)));
+  pattern.write(r'$');
+  return (RegExp(pattern.toString(), dotAll: true), translation, names);
+}
+
+String _translate(String value, int depth) {
+  final exact = flutterChinese[value] ?? qtChinese[value];
+  if (exact != null) return exact;
+  if (depth > 2) return value;
+  for (final (pattern, translation, names) in _dynamicChinese) {
+    final match = pattern.firstMatch(value);
+    if (match == null) continue;
+    var result = translation;
+    for (var i = 0; i < names.length; i++) {
+      result = result.replaceAll(
+        '{${names[i]}}',
+        _translate(match.group(i + 1)!, depth + 1),
+      );
+    }
+    return result;
+  }
+  return value;
+}
+
+String userError(Object error) {
+  if (error is FileSystemException) {
+    return trf('File operation failed: {path} (OS error {code})', {
+      'path': error.path ?? '',
+      'code': error.osError?.errorCode ?? '—',
+    });
+  }
+  if (error is FormatException) return tr(error.message);
+  return tr(error.toString());
+}
+
 String trf(String key, Map<String, Object?> values) {
   var text = tr(key);
   for (final e in values.entries) {
@@ -63,6 +119,65 @@ const flutterChinese = <String, String>{
   'Rule reference is unavailable': '规则引用的行不可用',
   'Rule evaluation or encoding failed': '规则求值或编码失败',
   'Set {name} ({format})': '设置 {name}（{format}）',
+  'Read selected rows': '读取选中行',
+  'Enable selected polling': '启用选中行轮询',
+  'Disable selected polling': '禁用选中行轮询',
+  'Duplicate selected rows': '复制选中行',
+  'Delete selected rows': '删除选中行',
+  'Selected rows': '选中行',
+  'Poll enabled': '启用轮询',
+  'Move up': '上移',
+  'Move down': '下移',
+  'copy': '副本',
+  'Expressions read fresh map dependencies at each logging tick.':
+      '记录表达式时，每次采样都会重新读取映射中的依赖项。',
+  'Snapshot name': '快照名称',
+  'Snapshot {name} differences': '快照 {name} 的差异',
+  'No differences': '无差异',
+  'Write {name} ({format}, engineering units)': '写入 {name}（{format}，工程单位）',
+  'File operation failed: {path} (OS error {code})':
+      '文件操作失败：{path}（系统错误 {code}）',
+  'Could not save workspace: {error}': '无法保存工作区：{error}',
+  'Could not restore workspace: {error}': '无法恢复工作区：{error}',
+  'Check address/count, format width, unit (1–247), and finite scale/offset.':
+      '请检查地址、数量、站号、格式宽度及倍率与偏移。',
+  'Choose a path and interval 100–86400000 ms': '请选择路径及 100–86400000 毫秒的间隔',
+  'Choose a file path and csv/jsonl format': '请选择文件路径及 csv/jsonl 格式',
+  'Select 1..512 rows to log': '请选择 1–512 行进行记录',
+  'Invalid logger settings': '无效的记录设置',
+  'Logger is not running': '记录器未运行',
+  'Sample does not match logger columns': '采样与记录器列不一致',
+  'Invalid raw sample': '无效的原始采样',
+  '{name} must be an integer in {low}..{high}':
+      '{name} 必须是 {low} 到 {high} 之间的整数',
+  '{name} must be finite': '{name} 必须是有限数值',
+  'Unknown register area or display format': '未知的寄存器区域或显示格式',
+  'Unknown byte order': '未知的字节顺序',
+  'Invalid row range or count smaller than display width': '行地址范围无效或数量小于格式宽度',
+  'Simulator unit: blank for any, or one unit 1–247':
+      '模拟器站号：留空为任意，或输入 1–247 的站号',
+  'Event buffer overflow ({count} events); use Refresh map.':
+      '事件缓冲区溢出（{count} 个事件）；请刷新映射。',
+  'Probe: area,address,count': '探测项：区域,地址,数量',
+  'Unit {unit} identification': '站号 {unit} 的设备标识',
+  'Unit {unit}': '站号 {unit}',
+  '{mode} session': '{mode}会话',
+  'Value: {value}': '数值：{value}',
+  'Logging · {count} samples written': '记录中 · 已写入 {count} 个样本',
+  'Alarm rules ({count})': '报警规则（{count}）',
+  'Bits · 0x{value}': '位 · 0x{value}',
+  'Saved {path}': '已保存 {path}',
+  'poll_ms': '轮询间隔（毫秒）',
+  'format': '格式',
+  'kind': '区域',
+  'name': '名称',
+  'value': '数值',
+  'order': '字节顺序',
+  'timestamp': '时间戳',
+  'manual': '手动',
+  'added': '已添加',
+  'removed': '已移除',
+  'Unit {unit} · probes {probes}': '站号 {unit} · 探测项 {probes}',
   'Workspace': '工作区',
   'New session': '新建会话',
   'Session mode': '会话模式',

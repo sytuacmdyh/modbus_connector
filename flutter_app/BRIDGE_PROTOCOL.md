@@ -238,3 +238,21 @@ Display and simulator parity additions:
 
 Native file choosers, snapshot JSON exchange and graph PNG export are handled
 locally by Flutter; they introduce no bridge commands or Qt CSV schema changes.
+
+Expression logger extension (canonical register-map CSV is unchanged):
+
+- `logger_start` additionally accepts `expressions:[{name,text,alarms?}]`. The
+  total selected register and expression columns must be 1..512; `rows:[]` is
+  allowed for expression-only logging. CSV columns append `fx <name>` after the
+  register columns and participate in the existing append-header check.
+- `logger_sample` accepts `expression_values:{name:scaled_number}`, evaluated
+  through the same safe AST engine as map expressions. Flutter freezes selected
+  descriptors and acquires fresh map dependencies during each sampling cycle,
+  independently of the map dialog/timer. Cancellation is checked after each read.
+  Missing/nonfinite/invalid expressions produce `—`, with per-expression error
+  results in the returned `expressions` array; successful results drive graphs
+  and alarms. Raw register samples retain their existing schema.
+- JSONL expression samples reuse LogSample fields: name = expression name,
+  kind = `expression`, address = zero-based index among selected expressions,
+  value = formatted result. This kind identifies calculated values, not a Modbus
+  address. Qt's writer and register-map CSV parser/exporter are unchanged.

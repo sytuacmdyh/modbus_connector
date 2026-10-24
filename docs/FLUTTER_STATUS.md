@@ -11,16 +11,16 @@ workflows below. It still has the explicit parity gaps listed later in this file
 | --- | --- |
 | Sessions | Independent Master/Simulator/Sniffer/Gateway tabs and owned bridge processes; inactive tabs keep working; tab/window shutdown waits for active I/O and releases services. |
 | Master connections | TCP, serial RTU with discovery/manual port entry, RTU over TCP/UDP, timeout/unit/serial parameters, real loopback demo. Quick reads/writes in all four areas; read-only areas cannot write. |
-| Scanner | Unit and address scans, editable probe list, range/area controls, progress, Stop, identification, alternate decoded formats, selected unit/range application and insertion of disjoint checked hits into the register map. |
+| Scanner | Persisted/recalled latest scan results/progress/selection; unit and address scans, editable probe list, range/area controls, progress, Stop, identification, alternate decoded formats, selected unit/range application and insertion of disjoint checked hits into the register map. |
 | Register map | Named rows across units/areas; counts, all Qt display formats/byte orders, scaling/units, engineering-value writes, enum/bit labels, 16-bit editor, checked rows, per-row polling intervals, adjacent/overlap grouped reads with individual fallback. |
 | CSV / snapshots | CSV import preview and column mapping using the shared parser; selectable export columns including current formatted values; named raw snapshots and differences retaining added/removed row identities. |
 | Expressions / advanced master | Safe AST expressions over latest scaled map values, individual errors, alarms/graph curves; device identification, diagnostics, FC 0x16 masks and FC 0x17 combined read/write. |
-| Data logger | Selected register rows, CSV wide snapshots or JSONL, metadata selection, interval, append/replace confirmation, incompatible-header rejection, flush/close. Samples can be acquired independently of map polling. |
+| Data logger | Selected register/expression rows, CSV wide snapshots or JSONL, metadata selection, interval, append/replace confirmation, incompatible-header rejection, flush/close. Fresh map dependencies for expressions can be acquired independently of map polling. |
 | Alarms | Shared ordered conditions/ranges and red/yellow colors, entry/recovery logging, reentry and best-effort system alert sound. Scaled primary values drive evaluation. |
 | Simulator | TCP, RTU over TCP and serial listeners; any/specific unit, editable map, datastore writes while stopped, external-master updates, tick interval, t/prev/[name]/rand/randint expression rules running in the bridge. |
-| Sniffer | Passive serial capture, per-unit recovered maps, editable register names, traffic, graph values, CSV with values and explicit map recovery after event overflow. |
+| Sniffer | Passive serial capture, per-unit recovered maps, editable names/formats/order, consecutive multiword decoding, sparklines, filtered traffic, graphs, CSV and overflow recovery. |
 | Gateway | TCP, RTU over TCP or serial listener; TCP/RTU/RTU over TCP/UDP target; unit allowlist, traffic/status and clean stop. Reuses GatewayBackend. |
-| Graphs | Multiple selectable curves from reads/maps/logging/sniffer/expressions; min/max/mean/latest/hover values, shared or normalized scale, time window, pause, pan/zoom, clear, timestamped sample CSV. |
+| Graphs | PNG export, nearest-timestamp hover/pinning, multiple selectable curves from reads/maps/logging/sniffer/expressions; min/max/mean/latest/hover values, shared or normalized scale, time window, pause, pan/zoom, clear, timestamped sample CSV. |
 | Templates | Shared read-only public catalog; separate custom save/new-version/history/open-old-version/rename/delete with confirmation and final-version protection. Opens disconnected tabs. |
 | Settings | Separate atomic Flutter workspace autosave and manual export/import; tabs/active tab, drafts, maps/expressions, mode configuration, logger/scanner preferences, recovered sniffer state, theme and language. Invalid import preserves sessions; corrupt startup state disables automatic overwrite. |
 | Help / language / appearance | English/Chinese picker and current-feature guide; centralized text widgets/dictionaries, generated Qt Chinese dictionary without importing Qt; system/light/dark theme. |
@@ -28,8 +28,8 @@ workflows below. It still has the explicit parity gaps listed later in this file
 | Updates | Manual stable-release check, notes/current/latest, explicit errors and releases-page launch. UI/API explicitly report automatic Flutter installation as unsupported. |
 
 The 900×650 Material 3 workspace retains independent scrolling panes. Most tools
-are dialogs with wrapping controls and scrollable content. File operations use native desktop choosers with editable-path fallback when
-the plugin/host is unavailable. All addresses are zero-based PDU addresses.
+are dialogs with wrapping controls and scrollable content. File operations use native desktop choosers
+with editable-path fallback when the plugin/host is unavailable. All addresses are zero-based PDU addresses.
 
 ## Architecture and storage
 
@@ -67,66 +67,59 @@ Python 3.11.17 frozen bridge; x64 Linux, GTK 3, Xvfb.
 | Check | Result |
 | --- | --- |
 | `flutter analyze` | Clean. |
-| `flutter test` | 26 tests passed. Controllers/widgets cover independent tabs, cancellation, scanner, maps/scheduling/snapshots/bits, logging/alarms, modes, graphs, persistence, Chinese/help and cloud task cancellation. Existing minimum-size/large-table/text-scale tests retained. |
-| Broad Python regression | 524 passed across bridge/online, backend/serial/models, simulator/gateway/sniffer, logger, custom templates, WebDAV, updates/install and Qt runtime tests. |
-| Existing PySide6 GUI regression | 33 passed in separate offscreen processes (`test_main_window_tabs.py`, `test_session_widget.py`) with settings isolated in temporary storage. Qt 6.10.3 runtime check also passed in the broad suite. |
-| Latest bridge/online regression | 39 passed after final CSV, frame-capacity and custom-sniffer-state refinements. Includes real TCP/gateway, pseudo-terminal sniffer, WebDAV HTTP fixture, invalid requests, grouped slicing/fallback, files and shutdown. |
+| `flutter test` | 38 tests passed in the remaining-gap follow-up. Controllers/widgets cover independent tabs, cancellation, scanner, maps/scheduling/snapshots/bits, logging/alarms, modes, graphs, persistence, Chinese/help and cloud task cancellation. Existing minimum-size/large-table/text-scale tests retained. |
+| Broad Python regression | Current follow-up: 430 passed across bridge/online, backend/serial/models, simulator/gateway/sniffer, logger and Qt runtime tests. The prior broader 524-test run additionally covered custom templates, WebDAV and updates/install. |
+| Existing PySide6 GUI regression | 33 passed again in separate offscreen processes (`test_main_window_tabs.py`, `test_session_widget.py`) with settings isolated in temporary storage. Qt 6.10.3 runtime check also passed in the broad suite. |
+| Latest bridge/online regression | 43 passed, including display-only multiword rendering, per-row simulator rule failures and expression CSV/JSONL output. Includes real TCP/gateway, pseudo-terminal sniffer, WebDAV HTTP fixture, invalid requests, grouped slicing/fallback, files and shutdown. |
 | Ruff | New/changed Python adapters and tests clean. |
 | Native desktop integration | Both `desktop_test.dart` and `parity_test.dart` passed independently under Xvfb, using real bridge processes. |
-| `flutter build linux --release` | Passed; executable under `flutter_app/build/linux/x64/release/bundle/`. |
-| Native bridge freeze | PyInstaller build passed, including public template data and excluding Qt/numpy. |
-| Frozen bridge from `/tmp` | Independent simulator/master, grouped reads, expressions, logger, bundled/custom templates, cloud settings and EOF cleanup passed without `MODBUS_PYTHON`. |
-| Packaged release from `/tmp` | Found adjacent frozen bridge without Python override; demo connected/read; master, named map/scaled/bitmask values and scanner visually inspected at 900×650. |
+| `flutter build linux --release` | Passed with the native file-selector plugin; executable under `flutter_app/build/linux/x64/release/bundle/`. |
+| Baseline native bridge freeze | PyInstaller build passed, including public template data and excluding Qt/numpy. |
+| Baseline frozen bridge from `/tmp` | Independent simulator/master, grouped reads, expressions, logger, bundled/custom templates, cloud settings and EOF cleanup passed without `MODBUS_PYTHON`. |
+| Baseline packaged release from `/tmp` | Found adjacent frozen bridge without Python override; demo connected/read; master, named map/scaled/bitmask values and scanner visually inspected at 900×650. |
 
 `desktop_test.dart` covers four areas, writes, 10 Hz polling, chart, protocol
 errors, refused connections, disconnect/reconnect, bridge exit/restart and cleanup.
 `parity_test.dart` covers separate simulator/master tabs, simulator expressions,
 grouped map reads, scaled master expressions, snapshots, CSV logger/templates,
-workspace save and closing one tab while the other remains running.
+workspace save and closing one tab while the other remains running. The follow-up
+also verifies expression logger columns and polling after closing the map dialog.
 
 Run the native integration files separately. A combined invocation failed when
 launching its second native app (debug connection/log reader); both standalone
 commands passed. Xvfb desktop checks emitted GTK accessibility/window-teardown
 warnings; there were no Flutter layout failures in the verified scenarios.
-Desktop sound audibility was not verified. WebDAV uses a local fixture, not an
+Baseline frozen-bridge/package checks above predate these follow-up commands;
+the current release UI build was verified with the source Python bridge in native
+integration tests. Desktop sound audibility was not verified. WebDAV uses a local fixture, not an
 external account. No physical Modbus/serial device was available.
 
 ## Remaining parity and validation gaps
 
-- The register map remains a dialog rather than Qt's permanently visible table.
-  Polling now belongs to the session, survives closing/reopening the dialog and
-  stops on disconnect, bridge exit, mode change or session shutdown. A main-view
-  Stop map polling control remains available. Quick reads and logging share the
-  serialized bus and skip busy ticks without cancelling map polling.
-- Table column sizing/reordering, batch/context-menu actions, extensive shortcuts,
-  inline enum editors and some editing/validation polish remain below the Qt UI.
-  Scanner results/progress/selection now restore on reopen and workspace restart;
-  there is no archive of multiple previous scans.
-- Sniffer now supports per-row format/order editing, consecutive multiword views,
-  sparklines, per-unit traffic filtering and formatted CSV export. Incomplete
-  multiword views remain unavailable until all words are observed. Device-mode
-  forms still accept manually typed serial ports; advanced view management differs
-  from Qt.
-- Simulator now appends public/custom template rows into its map (duplicate
-  area/address pairs skipped), offers enum/bit editors, reference/function insertion
-  chips and per-row syntax/runtime rule errors. Prefix-driven expression
-  autocomplete and Qt's manufacturer submenu layout remain different.
-- Expression rows use latest register-map values; expression selection/output is
-  not integrated into the logger. Some Qt row/display options are not exported
-  by the shared canonical CSV schema.
-- Graphs remain in-window dialogs; detached native graph windows are deferred.
-  PNG export includes curves, labels and statistics. Hover uses nearest timestamps
-  and transformed coordinates after zoom/pan; click pins the sample cursor.
-- Some dynamic technical errors, freeform prompts and tool captions still fall
-  back to English; English/Chinese localization is substantial, not complete.
-- Automatic Flutter install/update, a Flutter-specific installer/product identity,
-  code signing and release workflow remain. Existing NSIS assets install the Qt
-  product and are deliberately not launched by Flutter on Linux or Windows.
-- Windows compilation/runtime, copied release bundle without Python, DPI/audio,
-  COM hardware and shutdown remain user-verified later. Existing Windows runner
-  and setup/package instructions are retained; no Windows binary is claimed.
-- Physical RTU, USB timing, multi-client load and a broad Linux distribution/perf
-  matrix require validation beyond loopback/pseudo-terminal tests on this box.
+- The named map is still a dialog rather than a permanently visible table. Its
+  polling now survives close/reopen; batch/context-menu actions, inline enums/bits,
+  row movement and common shortcuts work. Column sizing/reordering, additional
+  Qt table/display options and extensive keyboard coverage remain.
+- Device-mode serial forms still take manually typed ports. Sniffer's advanced
+  view management differs from Qt, though formats/order, consecutive multiword
+  views, sparklines, per-unit traffic, CSV and graphs now work.
+- Simulator public/custom templates append rows to its map with duplicate
+  area/address checks; enum/bit editing, insertion chips and per-row syntax/runtime
+  rule errors work. Prefix-based expression autocomplete and Qt's manufacturer
+  submenu layout remain different.
+- Graphs export PNG and use timestamp-based, zoom-aware hover/pinned inspection;
+  detached native graph windows remain deferred. A separate native window/plugin
+  lifecycle was not introduced in this run.
+- Dynamic message templates and touched prompts/tool captions now translate in
+  English/Chinese, including common validation/file failures and rule errors.
+  Unrecognized third-party/system diagnostics and some untouched captions can
+  still appear in English. Canonical register-map CSV stays Qt-compatible and
+  therefore omits some Qt row/display metadata; expression logger columns are
+  supported without extending that schema (JSONL kind `expression` is documented).
+- Flutter automatic install/update, installer identity, code signing and release
+  workflow remain outside this run. Existing NSIS assets install Qt. Windows
+  compilation/runtime/COM/DPI/audio, physical RTU/USB timing, multi-client load and
+  the broader distro/performance matrix remain user/hardware verification work.
 
 ## Local implementation commits
 
@@ -158,3 +151,16 @@ Setup, running, native packaging and exact standalone integration commands:
   Added display-only `render_rows` and documented simulator rule error payloads.
   Python bridge/online: 41 passed; Flutter analyzer clean and device/template/
   sniffer tests pass. Qt backends/UI and canonical CSV schema remain unchanged.
+
+- Map editing/logger/localization follow-up: separate row selection, batch/context
+  menus, raw inline enum writes, Ctrl+A/Ctrl+R/Ctrl+Shift+R/Ctrl+Up/Down/Delete/
+  Ctrl+N, selected expression logging with fresh dependencies, unchanged canonical
+  CSV schema, parameterized Chinese technical errors/prompts. Focused tests cover
+  raw enum writes versus scaling, shortcut actions, expression-only acquisition,
+  safe CSV/JSONL expression output and dynamic Chinese messages.
+
+Final follow-up checks: analyzer clean; 38 Flutter tests, 43 bridge/online tests
+(included in 430 Python regressions), 33 isolated Qt GUI tests; both native
+integration files passed separately under Xvfb. Linux release build includes
+the file-selector plugin. PNG bytes, chooser cancellation/fallback, inline raw
+enums, sniffer edits during traffic and late-expression cancellation are covered.

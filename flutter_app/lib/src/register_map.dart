@@ -5,6 +5,7 @@ import 'dart:io';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'session_controller.dart';
 export 'register_map_controller.dart';
@@ -50,7 +51,98 @@ class RegisterMapDialog extends StatefulWidget {
 class _RegisterMapDialogState extends State<RegisterMapDialog> {
   late final model = widget.session.registerMap;
   int interval = 500;
+  final selectedRows = <int>{};
   String? message;
+
+  void batch(String action) {
+    if (model.reading || widget.session.busy) return;
+    final indices =
+        selectedRows.where((i) => i >= 0 && i < model.rows.length).toList()
+          ..sort();
+    if (action == 'all') {
+      setState(() {
+        if (selectedRows.length == model.rows.length) {
+          selectedRows.clear();
+        } else {
+          selectedRows.addAll(List.generate(model.rows.length, (i) => i));
+        }
+      });
+      return;
+    }
+    if (indices.isEmpty) return;
+    if (action == 'read') {
+      model.read(onlyIndices: indices.toSet());
+      return;
+    }
+    model.stop();
+    setState(() {
+      if (action == 'delete') {
+        for (final i in indices.reversed) {
+          model.rows.removeAt(i);
+        }
+        selectedRows.clear();
+      } else if (action == 'duplicate') {
+        for (final i in indices) {
+          if (model.rows.length >= 512) break;
+          final copy =
+              jsonDecode(jsonEncode(model.rows[i])) as Map<String, dynamic>;
+          copy['name'] = '${copy['name']} ${tr('copy')}';
+          model.rows.add(copy);
+        }
+      } else if (action == 'up' || action == 'down') {
+        final step = action == 'up' ? -1 : 1;
+        for (final i in step < 0 ? indices : indices.reversed) {
+          final next = i + step;
+          if (next < 0 ||
+              next >= model.rows.length ||
+              selectedRows.contains(next)) {
+            continue;
+          }
+          final row = model.rows.removeAt(i);
+          model.rows.insert(next, row);
+          selectedRows
+            ..remove(i)
+            ..add(next);
+        }
+      } else {
+        for (final i in indices) {
+          model.rows[i]['poll_enabled'] = action == 'enable';
+        }
+      }
+    });
+    model.changed();
+  }
+
+  List<PopupMenuEntry<String>> rowActions() => const [
+    PopupMenuItem(value: 'read', child: LText('Read selected rows')),
+    PopupMenuItem(value: 'enable', child: LText('Enable selected polling')),
+    PopupMenuItem(value: 'disable', child: LText('Disable selected polling')),
+    PopupMenuItem(value: 'duplicate', child: LText('Duplicate selected rows')),
+    PopupMenuItem(value: 'up', child: LText('Move up')),
+    PopupMenuItem(value: 'down', child: LText('Move down')),
+    PopupMenuItem(value: 'delete', child: LText('Delete selected rows')),
+  ];
+
+  Future<void> rowMenu(int i, Offset position) async {
+    if (model.reading) return;
+    setState(() {
+      if (!selectedRows.contains(i)) {
+        selectedRows
+          ..clear()
+          ..add(i);
+      }
+    });
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(position.dx, position.dy, 0, 0),
+        Offset.zero & overlay.size,
+      ),
+      items: rowActions(),
+    );
+    if (mounted && action != null) batch(action);
+  }
 
   Future<void> edit([int? index]) async {
     model.stop();
@@ -104,7 +196,7 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
         model.changed();
       }
     } catch (e) {
-      if (mounted) setState(() => message = '$e');
+      if (mounted) setState(() => message = userError(e));
     }
   }
 
@@ -174,8 +266,22 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
       await File(path).writeAsString(result['text'] as String, flush: true);
       if (mounted) setState(() => message = 'Saved $path');
     } catch (e) {
-      if (mounted) setState(() => message = '$e');
+      if (mounted) setState(() => message = userError(e));
     }
+  }
+
+  Future<void> writeRaw(int i, List<dynamic> values) async {
+    model.stop();
+    if (model.reading || widget.session.busy) return;
+    final row = model.rows[i];
+    await widget.session.command({
+      'command': 'write',
+      'unit': row['unit_id'] ?? widget.session.unit,
+      'kind': row['kind'],
+      'address': row['address'],
+      'values': values,
+    });
+    await model.read();
   }
 
   Future<void> write(int i, {bool bits = false}) async {
@@ -201,7 +307,10 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
     } else {
       final content = await textPrompt(
         context,
-        'Write ${row['name']} (${row['format']}, engineering units)',
+        trf('Write {name} ({format}, engineering units)', {
+          'name': row['name'],
+          'format': row['format'],
+        }),
         value: '',
       );
       if (content == null) return;
@@ -268,7 +377,9 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => message = '${tr('Snapshot file failed')}: $e');
+        setState(
+          () => message = '${tr('Snapshot file failed')}: ${userError(e)}',
+        );
       }
     }
   }
@@ -283,206 +394,290 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: Listenable.merge([model, widget.session]),
-    builder: (context, _) => AlertDialog(
-      title: const LText('Register map'),
-      content: SizedBox(
-        width: 800,
-        height: 470,
-        child: Column(
-          children: [
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
+    builder: (context, _) => CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyA, control: true): () =>
+            batch('all'),
+        const SingleActivator(LogicalKeyboardKey.keyR, control: true): () {
+          if (selectedRows.isEmpty) {
+            model.read();
+          } else {
+            batch('read');
+          }
+        },
+        const SingleActivator(
+          LogicalKeyboardKey.keyR,
+          control: true,
+          shift: true,
+        ): () =>
+            model.read(),
+        const SingleActivator(LogicalKeyboardKey.arrowUp, control: true): () =>
+            batch('up'),
+        const SingleActivator(
+          LogicalKeyboardKey.arrowDown,
+          control: true,
+        ): () =>
+            batch('down'),
+        const SingleActivator(LogicalKeyboardKey.delete): () => batch('delete'),
+        const SingleActivator(LogicalKeyboardKey.keyN, control: true): () {
+          if (!model.reading) edit();
+        },
+      },
+      child: Focus(
+        autofocus: true,
+        child: AlertDialog(
+          title: const LText('Register map'),
+          content: SizedBox(
+            width: 800,
+            height: 470,
+            child: Column(
               children: [
-                FilterChip(
-                  label: const LText('Group reads'),
-                  selected: widget.session.mapGrouped,
-                  onSelected: model.reading
-                      ? null
-                      : (v) => setState(() => widget.session.mapGrouped = v),
-                ),
-                IconButton(
-                  tooltip: 'Expressions',
-                  icon: const Icon(Icons.functions),
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => ExpressionsDialog(session: widget.session),
-                  ),
-                ),
-                IconButton(
-                  tooltip: tr('Graph map'),
-                  icon: const Icon(Icons.multiline_chart),
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => GraphDialog(session: widget.session),
-                  ),
-                ),
-                OutlinedButton(
-                  onPressed: model.reading || model.rows.length >= 512
-                      ? null
-                      : edit,
-                  child: const LText('Add row'),
-                ),
-                OutlinedButton(
-                  onPressed: model.reading ? null : csvImport,
-                  child: const LText('Import CSV'),
-                ),
-                OutlinedButton(
-                  onPressed: model.reading ? null : csvExport,
-                  child: const LText('Export CSV'),
-                ),
-                OutlinedButton(
-                  onPressed: model.reading ? null : snapshot,
-                  child: const LText('Snapshot'),
-                ),
-                PopupMenuButton<bool>(
-                  tooltip: tr('Snapshot files'),
-                  icon: const Icon(Icons.folder_copy_outlined),
-                  onSelected: snapshotFile,
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: false,
-                      child: LText('Import snapshots'),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    TextButton(
+                      onPressed: () => batch('all'),
+                      child: const LText('Select all / clear'),
                     ),
-                    PopupMenuItem(
-                      value: true,
-                      child: LText('Export snapshots'),
+                    PopupMenuButton<String>(
+                      tooltip: tr('Selected rows'),
+                      enabled: !model.reading && selectedRows.isNotEmpty,
+                      onSelected: batch,
+                      itemBuilder: (_) => rowActions(),
+                      icon: const Icon(Icons.playlist_add_check),
                     ),
-                  ],
-                ),
-                PopupMenuButton<String>(
-                  tooltip: tr('Compare snapshot'),
-                  onSelected: (name) => showText(
-                    context,
-                    'Snapshot $name differences',
-                    model.diff(name).join('\n').isEmpty
-                        ? 'No differences'
-                        : model.diff(name).join('\n'),
-                  ),
-                  itemBuilder: (_) => widget.session.snapshots.keys
-                      .map((n) => PopupMenuItem(value: n, child: LText(n)))
-                      .toList(),
-                  icon: const Icon(Icons.compare),
-                ),
-                OutlinedButton(
-                  onPressed: !widget.session.connected || model.reading
-                      ? null
-                      : model.read,
-                  child: const LText('Read map'),
-                ),
-                FilledButton.tonal(
-                  onPressed: model.polling
-                      ? model.stop
-                      : !widget.session.connected
-                      ? null
-                      : () => model.start(interval),
-                  child: LText(model.polling ? 'Stop' : 'Poll map'),
-                ),
-                toolChoice(
-                  'Interval, ms',
-                  '$interval',
-                  ['100', '500', '1000', '5000'],
-                  model.polling
-                      ? null
-                      : (v) => setState(() => interval = int.parse(v)),
-                  width: 125,
-                ),
-              ],
-            ),
-            if (model.reading) const LinearProgressIndicator(),
-            if (message != null) LText(message!),
-            if (widget.session.error != null)
-              LText(widget.session.error!, maxLines: 2),
-            const SizedBox(height: 8),
-            Expanded(
-              child: ListView.builder(
-                itemCount: model.rows.length,
-                itemBuilder: (context, i) {
-                  final row = model.rows[i];
-                  final result = i < model.results.length
-                      ? model.results[i]
-                      : null;
-                  final writable =
-                      row['kind'] == 'holding_registers' ||
-                      row['kind'] == 'coils';
-                  return ListTile(
-                    dense: true,
-                    leading: Checkbox(
-                      value: row['poll_enabled'] != false,
-                      onChanged: model.reading
+                    FilterChip(
+                      label: const LText('Group reads'),
+                      selected: widget.session.mapGrouped,
+                      onSelected: model.reading
                           ? null
-                          : (v) {
-                              model.stop();
-                              setState(() => row['poll_enabled'] = v);
-                            },
+                          : (v) =>
+                                setState(() => widget.session.mapGrouped = v),
                     ),
-                    title: LText(
-                      '${row['name']} · ${row['kind']} @${row['address']} ×${row['count']} · unit ${row['unit_id'] ?? widget.session.unit}',
-                    ),
-                    subtitle: LText(
-                      '${row['format']} · ${result?['display'] ?? '—'}',
-                      style: TextStyle(
-                        color: result?['alarm'] == null
-                            ? null
-                            : (result!['alarm']['color'] == 'yellow'
-                                  ? Colors.amber.shade800
-                                  : Colors.red),
+                    IconButton(
+                      tooltip: tr('Expressions'),
+                      icon: const Icon(Icons.functions),
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (_) =>
+                            ExpressionsDialog(session: widget.session),
                       ),
                     ),
-                    onTap: model.reading ? null : () => edit(i),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (row['kind'] == 'holding_registers' &&
-                            row['count'] == 1)
-                          IconButton(
-                            tooltip: tr('Edit bits'),
-                            onPressed: !widget.session.canRead || model.reading
-                                ? null
-                                : () => write(i, bits: true),
-                            icon: const Icon(Icons.grid_4x4, size: 18),
-                          ),
-                        IconButton(
-                          tooltip: tr('Write row'),
-                          onPressed:
-                              !writable ||
-                                  !widget.session.canRead ||
-                                  model.reading
-                              ? null
-                              : () => write(i),
-                          icon: const Icon(Icons.edit_note),
+                    IconButton(
+                      tooltip: tr('Graph map'),
+                      icon: const Icon(Icons.multiline_chart),
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => GraphDialog(session: widget.session),
+                      ),
+                    ),
+                    OutlinedButton(
+                      onPressed: model.reading || model.rows.length >= 512
+                          ? null
+                          : edit,
+                      child: const LText('Add row'),
+                    ),
+                    OutlinedButton(
+                      onPressed: model.reading ? null : csvImport,
+                      child: const LText('Import CSV'),
+                    ),
+                    OutlinedButton(
+                      onPressed: model.reading ? null : csvExport,
+                      child: const LText('Export CSV'),
+                    ),
+                    OutlinedButton(
+                      onPressed: model.reading ? null : snapshot,
+                      child: const LText('Snapshot'),
+                    ),
+                    PopupMenuButton<bool>(
+                      tooltip: tr('Snapshot files'),
+                      icon: const Icon(Icons.folder_copy_outlined),
+                      onSelected: snapshotFile,
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: false,
+                          child: LText('Import snapshots'),
                         ),
-                        IconButton(
-                          tooltip: tr('Delete row'),
-                          onPressed: model.reading
-                              ? null
-                              : () {
-                                  model.rows.removeAt(i);
-                                  model.changed();
-                                },
-                          icon: const Icon(Icons.close, size: 18),
+                        PopupMenuItem(
+                          value: true,
+                          child: LText('Export snapshots'),
                         ),
                       ],
                     ),
-                  );
-                },
-              ),
+                    PopupMenuButton<String>(
+                      tooltip: tr('Compare snapshot'),
+                      onSelected: (name) => showText(
+                        context,
+                        trf('Snapshot {name} differences', {'name': name}),
+                        model.diff(name).join('\n').isEmpty
+                            ? 'No differences'
+                            : model.diff(name).join('\n'),
+                      ),
+                      itemBuilder: (_) => widget.session.snapshots.keys
+                          .map((n) => PopupMenuItem(value: n, child: LText(n)))
+                          .toList(),
+                      icon: const Icon(Icons.compare),
+                    ),
+                    OutlinedButton(
+                      onPressed: !widget.session.connected || model.reading
+                          ? null
+                          : model.read,
+                      child: const LText('Read map'),
+                    ),
+                    FilledButton.tonal(
+                      onPressed: model.polling
+                          ? model.stop
+                          : !widget.session.connected
+                          ? null
+                          : () => model.start(interval),
+                      child: LText(model.polling ? 'Stop' : 'Poll map'),
+                    ),
+                    toolChoice(
+                      'Interval, ms',
+                      '$interval',
+                      ['100', '500', '1000', '5000'],
+                      model.polling
+                          ? null
+                          : (v) => setState(() => interval = int.parse(v)),
+                      width: 125,
+                    ),
+                  ],
+                ),
+                if (model.reading) const LinearProgressIndicator(),
+                if (message != null) LText(message!),
+                if (widget.session.error != null)
+                  LText(widget.session.error!, maxLines: 2),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: model.rows.length,
+                    itemBuilder: (context, i) {
+                      final row = model.rows[i];
+                      final result = i < model.results.length
+                          ? model.results[i]
+                          : null;
+                      final writable =
+                          row['kind'] == 'holding_registers' ||
+                          row['kind'] == 'coils';
+                      return GestureDetector(
+                        onSecondaryTapDown: (event) =>
+                            rowMenu(i, event.globalPosition),
+                        child: ListTile(
+                          dense: true,
+                          selected: selectedRows.contains(i),
+                          leading: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Checkbox(
+                                value: selectedRows.contains(i),
+                                onChanged: (v) => setState(() {
+                                  if (v!) {
+                                    selectedRows.add(i);
+                                  } else {
+                                    selectedRows.remove(i);
+                                  }
+                                }),
+                              ),
+                              Tooltip(
+                                message: tr('Poll enabled'),
+                                child: Checkbox(
+                                  value: row['poll_enabled'] != false,
+                                  onChanged: model.reading
+                                      ? null
+                                      : (v) {
+                                          model.stop();
+                                          setState(
+                                            () => row['poll_enabled'] = v,
+                                          );
+                                        },
+                                ),
+                              ),
+                            ],
+                          ),
+                          title: LText(
+                            '${row['name']} · ${tr(row['kind'] as String)} @${row['address']} ×${row['count']} · ${tr('Unit')} ${row['unit_id'] ?? widget.session.unit}',
+                          ),
+                          subtitle: LText(
+                            '${row['format']} · ${result?['display'] ?? '—'}',
+                            style: TextStyle(
+                              color: result?['alarm'] == null
+                                  ? null
+                                  : (result!['alarm']['color'] == 'yellow'
+                                        ? Colors.amber.shade800
+                                        : Colors.red),
+                            ),
+                          ),
+                          onTap: model.reading ? null : () => edit(i),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (row['kind'] == 'holding_registers' &&
+                                  row['count'] == 1)
+                                IconButton(
+                                  tooltip: tr('Edit bits'),
+                                  onPressed:
+                                      !widget.session.canRead || model.reading
+                                      ? null
+                                      : () => write(i, bits: true),
+                                  icon: const Icon(Icons.grid_4x4, size: 18),
+                                ),
+                              if (hasInlineEnum(row))
+                                inlineEnumEditor(
+                                  row,
+                                  result?['values'] as List? ?? [],
+                                  !writable ||
+                                          !widget.session.canRead ||
+                                          model.reading
+                                      ? null
+                                      : (v) => writeRaw(i, [v]),
+                                )
+                              else
+                                IconButton(
+                                  tooltip: tr('Write row'),
+                                  onPressed:
+                                      !writable ||
+                                          !widget.session.canRead ||
+                                          model.reading
+                                      ? null
+                                      : () => write(i),
+                                  icon: const Icon(Icons.edit_note),
+                                ),
+                              IconButton(
+                                tooltip: tr('Delete row'),
+                                onPressed: model.reading
+                                    ? null
+                                    : () {
+                                        model.rows.removeAt(i);
+                                        selectedRows.clear();
+                                        model.changed();
+                                      },
+                                icon: const Icon(Icons.close, size: 18),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                if (model.rows.isEmpty)
+                  const LText(
+                    'Add named rows at any unit/address, or import a CSV/template.',
+                  ),
+              ],
             ),
-            if (model.rows.isEmpty)
-              const LText(
-                'Add named rows at any unit/address, or import a CSV/template.',
-              ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const LText('Close'),
+            ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          child: const LText('Close'),
-        ),
-      ],
     ),
   );
 }
@@ -823,4 +1018,55 @@ Future<List<dynamic>?> rawValuePrompt(
     ),
   );
   return value == null ? null : [value];
+}
+
+bool hasInlineEnum(Map<String, dynamic> row) =>
+    hasRawEditor(row) && row['bitmask'] != true;
+
+Widget inlineEnumEditor(
+  Map<String, dynamic> row,
+  List raw,
+  ValueChanged<int>? changed,
+) {
+  final names = (row['value_names'] as Map).cast<String, dynamic>();
+  final keys = names.keys
+      .map(int.tryParse)
+      .whereType<int>()
+      .where(
+        (v) =>
+            v >= 0 &&
+            v <=
+                (['coils', 'discrete_inputs'].contains(row['kind'])
+                    ? 1
+                    : 65535),
+      )
+      .toList();
+  final current = raw.isEmpty
+      ? null
+      : raw.first is bool
+      ? (raw.first == true ? 1 : 0)
+      : (raw.first as num).toInt();
+  return SizedBox(
+    width: 135,
+    child: DropdownButton<int>(
+      isExpanded: true,
+      value: keys.contains(current) ? current : null,
+      hint: const LText('Set value'),
+      items: [
+        for (final key in keys)
+          DropdownMenuItem(
+            value: key,
+            child: Text(
+              '$key = ${names['$key']}',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+      onChanged: changed == null
+          ? null
+          : (v) {
+              if (v != null) changed(v);
+            },
+    ),
+  );
 }

@@ -22,6 +22,7 @@ class _LoggingDialogState extends State<LoggingDialog> {
   bool append = true;
   final fields = <String>{'timestamp', 'name', 'address', 'kind'};
   final selected = <int>{};
+  final selectedExpressions = <int>{};
   String? error;
   @override
   void initState() {
@@ -118,11 +119,36 @@ class _LoggingDialogState extends State<LoggingDialog> {
             const LText(
               'CSV: timestamp + one column per selected row. Logging reads at this interval; busy ticks are skipped.',
             ),
-            if (widget.session.registers.isEmpty)
+            if (widget.session.expressions.isNotEmpty)
+              const LText(
+                'Expressions read fresh map dependencies at each logging tick.',
+              ),
+            if (widget.session.registers.isEmpty &&
+                widget.session.expressions.isEmpty)
               const LText('Add rows in Register map before starting.'),
             Expanded(
               child: ListView(
                 children: [
+                  for (var i = 0; i < widget.session.expressions.length; i++)
+                    CheckboxListTile(
+                      dense: true,
+                      title: Text(
+                        'fx ${widget.session.expressions[i]['name']}',
+                      ),
+                      subtitle: Text(
+                        widget.session.expressions[i]['text'] as String,
+                      ),
+                      value: selectedExpressions.contains(i),
+                      onChanged: widget.session.logging
+                          ? null
+                          : (v) => setState(() {
+                              if (v!) {
+                                selectedExpressions.add(i);
+                              } else {
+                                selectedExpressions.remove(i);
+                              }
+                            }),
+                    ),
                   for (var i = 0; i < widget.session.registers.length; i++)
                     CheckboxListTile(
                       dense: true,
@@ -168,7 +194,7 @@ class _LoggingDialogState extends State<LoggingDialog> {
             onPressed:
                 widget.session.busy ||
                     !widget.session.connected ||
-                    selected.isEmpty
+                    (selected.isEmpty && selectedExpressions.isEmpty)
                 ? null
                 : () async {
                     final ms = int.tryParse(interval.text);
@@ -211,6 +237,9 @@ class _LoggingDialogState extends State<LoggingDialog> {
                         'fields': fields.toList(),
                       },
                       selected.map((i) => widget.session.registers[i]).toList(),
+                      expressionRows: selectedExpressions
+                          .map((i) => widget.session.expressions[i])
+                          .toList(),
                     );
                   },
             child: const LText('Start logging'),

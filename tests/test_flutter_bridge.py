@@ -531,3 +531,47 @@ def test_simulator_invalid_rule_is_per_row_and_valid_rules_continue(bridge: Brid
     assert status["rule_errors"]["2"]["code"] == "missing_reference"
     assert status["rows"][1]["values"] == [0]
     assert request(bridge, "device_stop")["ok"]
+
+
+@pytest.mark.parametrize("fmt", ["csv", "jsonl"])
+def test_logger_expressions_share_safe_engine_without_changing_map_csv(
+    bridge: Bridge, tmp_path, fmt
+) -> None:
+    path = tmp_path / f"expressions.{fmt}"
+    expressions = [
+        {"name": "Double", "text": "[Voltage]*2"},
+        {"name": "Missing", "text": "[Absent]"},
+    ]
+    assert request(
+        bridge,
+        "logger_start",
+        path=str(path),
+        format=fmt,
+        rows=[],
+        expressions=expressions,
+        append=False,
+    )["ok"]
+    reply = request(bridge, "logger_sample", values=[], expression_values={"Voltage": 12.5})
+    assert reply["ok"] and reply["result"]["expressions"][0]["numeric"] == 25
+    assert reply["result"]["expressions"][1]["error"]
+    assert request(bridge, "logger_stop")["ok"]
+    content = path.read_text()
+    if fmt == "csv":
+        import csv
+
+        rows = list(csv.reader(io.StringIO(content)))
+        assert rows[0] == ["timestamp", "fx Double", "fx Missing"]
+        assert rows[1][1:] == ["25", "—"]
+        # Expression columns take part in the existing incompatible-header check.
+        assert not request(
+            bridge,
+            "logger_start",
+            path=str(path),
+            rows=[],
+            expressions=[expressions[0]],
+            append=True,
+        )["ok"]
+    else:
+        rows = [json.loads(line) for line in content.splitlines()]
+        assert rows[0]["name"] == "Double" and rows[0]["kind"] == "expression"
+        assert rows[0]["value"] == "25" and rows[1]["value"] == "—"

@@ -208,7 +208,9 @@ class FlutterDevices:
         command = data["command"]
         if command == "sim_configure":
             self._configure(data)
-            return {"rule_errors": {str(i): e for i, e in self._rule_errors.items()}}
+            with self.lock:
+                errors = {str(i): dict(e) for i, e in self._rule_errors.items()}
+            return {"rule_errors": errors}
         if command == "device_start":
             mode = data.get("mode")
             # Validate everything before replacing a running service.

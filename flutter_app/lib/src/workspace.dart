@@ -53,7 +53,7 @@ class WorkspaceController extends ChangeNotifier {
       await store?.save(exportState(), path: path);
       stateError = null;
     } catch (e) {
-      stateError = 'Could not save workspace: $e';
+      stateError = 'Could not save workspace: ${userError(e)}';
       notifyListeners();
     }
   }
@@ -96,7 +96,7 @@ class WorkspaceController extends ChangeNotifier {
       stateError = null;
       _allowAutoSave = true;
     } catch (e) {
-      stateError = 'Could not restore workspace: $e';
+      stateError = 'Could not restore workspace: ${userError(e)}';
       _allowAutoSave = false;
     }
     loading = false;
