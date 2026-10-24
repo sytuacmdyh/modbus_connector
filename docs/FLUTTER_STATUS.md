@@ -236,3 +236,18 @@ read and left unchanged, including its pre-existing untracked Git state.
 - Linux Python: 34 bridge/online tests passed, including a real WebDAV fixture,
   consumer write rejection before network, publication/history/download, password
   omission and cancellation. Dialog/widget and final native validation follow.
+
+## Additional parity: expressions and advanced master tools
+
+- Master expression rows over the latest scaled register-map values, with shared
+  safe AST parsing, visible per-expression errors, alarms, graph curves and state.
+- Advanced master dialog for device identification, diagnostics, FC 0x16 mask
+  writes and FC 0x17 combined read/write with protocol range validation.
+- Scanner shows alternate decoded formats and inserts disjoint checked hits into
+  the named map. Snapshot comparison now retains added/removed row identities.
+- Cancellation also suppresses late map alarm/graph/error side effects.
+- Native Linux release built; original and parity integration tests passed under
+  Xvfb when launched separately. One combined invocation failed while launching
+  its second app (debug connection); separate commands are the verified route.
+- Broad Qt-free Python regression: 512 passed before these additional commands;
+  bridge/online now 36 passed. Additional validation continues below.

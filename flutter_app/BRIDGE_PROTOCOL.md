@@ -184,3 +184,21 @@ Cloud/update commands (manual only):
 
 Workspace templates/cloud/update dialogs own a separate utility bridge so bus
 transactions and polling in session tabs continue independently.
+
+Advanced master commands:
+
+- `mask_write`: `{unit,address,and_mask,or_mask}` invokes FC 0x16 with unsigned
+  masks; `read_write`: `{unit,read_address,read_count,write_address,values}` invokes
+  FC 0x17 (read 1..125, write 1..121 registers; both ranges validated).
+- `diagnostics`: `{unit,action:"loopback"|"counters"|"clear",data?}` reuses FC 0x08
+  backend functions. Missing/unsupported diagnostic counters are omitted.
+- `evaluate_expressions`: `{expressions:[{name,text,alarms?}],values:{name:number}}`
+  uses the shared safe AST engine without I/O. Returns `{rows:[{numeric,display,
+  alarm,error}]}`; missing refs, nonfinite/math/parse errors produce a null numeric
+  and per-expression error. Map polling reevaluates expressions and collects
+  alarm/graph transitions. Persisted under session `expressions`.
+- `scan_address` additionally returns `formats` (dec/hex/s16/u32/s32/f32/ascii).
+  Checked scan hits can be inserted as independent register-map rows.
+
+Cancellation acceptance checks cover map reads, alarm/graph side effects and late
+errors, in addition to the master quick-range and logger generation checks.

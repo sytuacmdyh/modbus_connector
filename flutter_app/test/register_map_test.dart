@@ -67,6 +67,34 @@ void main() {
       session.dispose();
     },
   );
+  test('stopped map discards late alarm/error side effects and removed snapshots stay visible', () async {
+    final bridge = MapBridge();
+    final session = SessionController(bridge);
+    session.registers.add({
+      'name': 'X',
+      'kind': 'holding_registers',
+      'address': 0,
+      'count': 1,
+    });
+    await session.connect({'timeout': 0.1}, 1);
+    final model = RegisterMapController(session);
+    await model.read();
+    model.capture('old');
+    bridge.held = Completer<BridgeReply>();
+    final reading = model.read();
+    model.stop();
+    bridge.held!.completeError(const BridgeException('late error'));
+    await reading;
+    expect(session.error, isNull);
+    expect(
+      session.logs.where((l) => l.message.contains('late error')),
+      isEmpty,
+    );
+    session.registers.clear();
+    expect(model.diff('old').single, contains('(removed)'));
+    model.dispose();
+    session.dispose();
+  });
   testWidgets(
     'row editor validates width and bits editor toggles all 16 bits',
     (tester) async {

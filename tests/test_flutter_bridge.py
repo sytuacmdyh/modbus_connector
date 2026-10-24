@@ -369,3 +369,36 @@ def test_templates_public_and_isolated_custom_history(
     )["ok"]
     assert request(bridge, "template_delete", template_id=template_id)["ok"]
     assert request(bridge, "template_list")["result"]["custom"] == []
+
+
+def test_advanced_functions_and_invalid_ranges(bridge: Bridge, modbus_server: int) -> None:
+    assert request(bridge, "connect", transport="tcp", host="127.0.0.1", port=modbus_server)["ok"]
+    assert request(bridge, "mask_write", address=0, and_mask=0, or_mask=17)["ok"]
+    assert request(bridge, "read", address=0)["result"]["values"] == [17]
+    result = request(
+        bridge, "read_write", read_address=0, read_count=2, write_address=1, values=[123]
+    )
+    assert result["result"]["values"] == [17, 123]
+    assert not request(bridge, "read_write", write_address=65535, values=[1, 2])["ok"]
+    assert not request(bridge, "mask_write", and_mask=True)["ok"]
+    assert not request(bridge, "diagnostics", action="unknown")["ok"]
+
+
+def test_expressions_safe_engine_and_alarm_results(bridge: Bridge) -> None:
+    result = request(
+        bridge,
+        "evaluate_expressions",
+        values={"Voltage": 230, "Current": 5},
+        expressions=[
+            {
+                "name": "Power",
+                "text": "[Voltage]*[Current]",
+                "alarms": [{"condition": "gt", "value": 1000}],
+            },
+            {"text": "[missing]"},
+            {"text": "1/0"},
+            {"text": '__import__("os").system("false")'},
+        ],
+    )["result"]["rows"]
+    assert result[0]["numeric"] == 1150 and result[0]["alarm"]
+    assert all(r["numeric"] is None and r["error"] for r in result[1:])

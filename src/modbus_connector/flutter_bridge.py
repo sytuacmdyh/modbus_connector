@@ -125,6 +125,49 @@ class Bridge:
         if command in ("disconnect", "shutdown"):
             self.close()
             return {}
+        if command in ("mask_write", "read_write", "diagnostics"):
+            unit = integer(data, "unit", 1, 247, 1)
+            if command == "mask_write":
+                address = integer(data, "address", 0, 65535, 0)
+                and_mask = integer(data, "and_mask", 0, 65535, 65535)
+                or_mask = integer(data, "or_mask", 0, 65535, 0)
+                self.backend.mask_write_register(unit, address, and_mask, or_mask)
+                return {}
+            if command == "read_write":
+                read_address = integer(data, "read_address", 0, 65535, 0)
+                read_count = integer(data, "read_count", 1, 125, 1)
+                write_address = integer(data, "write_address", 0, 65535, 0)
+                values = data.get("values")
+                if (
+                    not isinstance(values, list)
+                    or not 1 <= len(values) <= 121
+                    or any(type(v) is not int or not 0 <= v <= 65535 for v in values)
+                ):
+                    raise ValueError("values must contain 1..121 unsigned registers")
+                if read_address + read_count > 65536 or write_address + len(values) > 65536:
+                    raise ValueError("Address range exceeds 65535")
+                return {
+                    "values": self.backend.readwrite_registers(
+                        unit, read_address, read_count, write_address, values
+                    )
+                }
+            action = text(data, "action", "loopback")
+            if action == "loopback":
+                return {
+                    "loopback": self.backend.diag_loopback(
+                        unit, integer(data, "data", 0, 65535, 0xA5A5)
+                    )
+                }
+            if action == "counters":
+                return {"counters": self.backend.diag_counters(unit)}
+            if action == "clear":
+                self.backend.diag_clear_counters(unit)
+                return {}
+            raise ValueError("Unknown diagnostic action")
+        if command == "evaluate_expressions":
+            from .flutter_registers import evaluate_expressions
+
+            return evaluate_expressions(data)
         if command.startswith(("cloud_", "update_")):
             return self.online.dispatch(data)
         if command.startswith("template_"):
@@ -191,7 +234,18 @@ class Bridge:
                     unit, cast(RegisterKind, kind), address, address, lambda: False
                 )
             )
-            return {"address": address, "values": hits[0][1] if hits else []}
+            values = hits[0][1] if hits else []
+            formats = {}
+            if values and kind not in BIT_KINDS:
+                from .models import format_register_values
+
+                formats = {
+                    fmt: format_register_values(
+                        values[:1] if fmt in ("dec", "hex", "s16") else values, fmt
+                    )
+                    for fmt in ("dec", "hex", "s16", "u32", "s32", "f32", "ascii")
+                }
+            return {"address": address, "values": values, "formats": formats}
         if command not in ("read", "write"):
             raise ValueError(f"Unknown command: {command}")
         unit = integer(data, "unit", 1, 247, 1)

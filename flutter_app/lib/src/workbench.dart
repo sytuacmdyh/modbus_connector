@@ -12,6 +12,7 @@ import 'register_map.dart';
 import 'logging_dialog.dart';
 import 'device_panel.dart';
 import 'graph_dialog.dart';
+import 'advanced_dialog.dart';
 import 'session_controller.dart';
 import 'write_dialog.dart';
 
@@ -812,6 +813,19 @@ class _WorkbenchState extends State<Workbench> {
                                   overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
+                              ),
+                              IconButton(
+                                tooltip: 'Advanced Modbus',
+                                icon: const Icon(
+                                  Icons.settings_input_component,
+                                ),
+                                onPressed: session.connected && !session.busy
+                                    ? () => showDialog<void>(
+                                        context: context,
+                                        builder: (_) =>
+                                            AdvancedDialog(session: session),
+                                      )
+                                    : null,
                               ),
                               IconButton(
                                 tooltip: tr('Multi-series graph'),

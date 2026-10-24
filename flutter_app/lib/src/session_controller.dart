@@ -76,6 +76,8 @@ class SessionController extends ChangeNotifier {
   Map<String, dynamic> connectionConfig = {};
   final Map<String, dynamic> draft = {};
   final List<Map<String, dynamic>> registers = [];
+  final List<Map<String, dynamic>> expressions = [];
+  List<Map<String, dynamic>> expressionResults = [];
   final List<Map<String, dynamic>> registerResults = [];
   final Map<String, List<Object?>> snapshots = {};
   String mode = 'master';
@@ -150,6 +152,7 @@ class SessionController extends ChangeNotifier {
     'query': query.toJson(),
     'interval_ms': intervalMs,
     'registers': registers,
+    'expressions': expressions,
     'sim_rows': simRows,
     'device_config': deviceConfig,
     'logging': loggingSettings,
@@ -224,6 +227,14 @@ class SessionController extends ChangeNotifier {
       }
     }
 
+    if (data['expressions'] is List) {
+      expressions.addAll(
+        (data['expressions'] as List)
+            .whereType<Map<String, dynamic>>()
+            .where((e) => e['name'] is String && e['text'] is String)
+            .take(512),
+      );
+    }
     rowsInto(data['registers'], registers);
     rowsInto(data['sim_rows'], simRows);
     for (final entry in {
@@ -285,6 +296,7 @@ class SessionController extends ChangeNotifier {
   Future<void> _run(
     Future<void> Function(int epoch) action, {
     int? readGeneration,
+    bool Function()? accept,
   }) async {
     if (busy || disconnecting || _closing) return;
     busy = true;
@@ -297,6 +309,7 @@ class SessionController extends ChangeNotifier {
     } catch (exception) {
       if (epoch == _epoch &&
           !_closing &&
+          (accept == null || accept()) &&
           (readGeneration == null || readGeneration == _readGeneration)) {
         stopPolling();
         _setError(exception);
@@ -309,11 +322,21 @@ class SessionController extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>?> command(Map<String, dynamic> request) async {
+  Future<Map<String, dynamic>?> command(
+    Map<String, dynamic> request, {
+    bool Function()? accept,
+  }) async {
     Map<String, dynamic>? result;
     await _run((epoch) async {
-      final reply = await bridge.request(request, timeout: deadline);
-      if (epoch != _epoch || _closing) return;
+      final reply = await bridge.request(
+        request,
+        timeout:
+            request['command'] == 'diagnostics' &&
+                request['action'] == 'counters'
+            ? deadline * 10
+            : deadline,
+      );
+      if (epoch != _epoch || _closing || (accept != null && !accept())) return;
       result = reply.result;
       if (request['command'] == 'read_rows') {
         observeAlarms(
@@ -322,7 +345,7 @@ class SessionController extends ChangeNotifier {
         );
       }
       if (request['command'] != 'device_status') error = null;
-    });
+    }, accept: accept);
     return result;
   }
 
@@ -409,7 +432,7 @@ class SessionController extends ChangeNotifier {
           'values': samples,
         });
         loggedSamples = reply.result['rows_written'] as int;
-      });
+      }, accept: () => generation == _loggerGeneration);
       if (error != null && !_closing && logging) await stopLogging();
     }
 
@@ -432,6 +455,35 @@ class SessionController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
     await _operation?.future;
     if (!_closing && !disconnecting) await command({'command': 'logger_stop'});
+  }
+
+  Future<void> evaluateExpressions() async {
+    if (expressions.isEmpty) return;
+    final values = <String, num>{};
+    for (var i = 0; i < registers.length && i < registerResults.length; i++) {
+      final value = registerResults[i]['numeric'];
+      if (value is num) values[registers[i]['name'] as String? ?? ''] = value;
+    }
+    final reply = await command({
+      'command': 'evaluate_expressions',
+      'expressions': expressions,
+      'values': values,
+    });
+    if (reply != null) {
+      expressionResults = (reply['rows'] as List).cast<Map<String, dynamic>>();
+      observeAlarms(
+        expressionResults,
+        List.generate(
+          expressions.length,
+          (i) => {
+            'name': 'fx ${expressions[i]['name']}',
+            'address': i,
+            'kind': 'expression',
+          },
+        ),
+      );
+      if (!_disposed) notifyListeners();
+    }
   }
 
   Future<void> changeMode(String next) async {

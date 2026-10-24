@@ -176,3 +176,37 @@ def csv_command(data: dict[str, Any]) -> dict[str, Any]:
     ):
         raise ValueError("Unknown CSV columns")
     return {"text": rows_to_csv(rows, displays, columns)}
+
+
+def evaluate_expressions(data: dict[str, Any]) -> dict[str, Any]:
+    from .models import parse_expression
+
+    rows = data.get("expressions")
+    values = data.get("values")
+    if not isinstance(rows, list) or len(rows) > 512 or not isinstance(values, dict):
+        raise ValueError("expressions must be an array; values must be an object")
+    available = {
+        k: float(v)
+        for k, v in values.items()
+        if isinstance(k, str) and type(v) in (int, float) and math.isfinite(v)
+    }
+    results = []
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("text"), str):
+            raise ValueError("Expression requires text")
+        try:
+            value = parse_expression(row["text"]).evaluate(available)
+            if not math.isfinite(value):
+                raise ValueError("Expression result is not finite")
+            alarm = evaluate_alarm(value, alarm_rules_from_json(row.get("alarms")))
+            results.append(
+                {
+                    "numeric": value,
+                    "display": f"{value:.6g}",
+                    "error": None,
+                    "alarm": alarm_rule_to_json(alarm) if alarm else None,
+                }
+            )
+        except (ValueError, KeyError, ArithmeticError) as exc:
+            results.append({"numeric": None, "display": "—", "error": str(exc), "alarm": None})
+    return {"rows": results}

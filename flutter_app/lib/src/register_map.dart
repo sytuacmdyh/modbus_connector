@@ -10,6 +10,7 @@ import 'session_controller.dart';
 import 'tool_widgets.dart';
 import 'logging_dialog.dart';
 import 'graph_dialog.dart';
+import 'expression_dialog.dart';
 
 const displayFormats = [
   'dec',
@@ -61,7 +62,7 @@ class RegisterMapController extends ChangeNotifier {
           'command': 'read_rows',
           'unit': session.unit,
           'rows': [row],
-        });
+        }, accept: () => !_disposed && generation == _generation);
         if (_disposed || generation != _generation) return;
         if (reply == null) {
           stop();
@@ -72,6 +73,7 @@ class RegisterMapController extends ChangeNotifier {
       results
         ..clear()
         ..addAll(next);
+      await session.evaluateExpressions();
     } finally {
       reading = false;
       session.endTool();
@@ -103,26 +105,45 @@ class RegisterMapController extends ChangeNotifier {
     notifyListeners();
   }
 
+  String _rowKey(Map<String, dynamic> row) => jsonEncode([
+    row['unit_id'] ?? session.unit,
+    row['kind'],
+    row['address'],
+    row['count'],
+    row['name'],
+  ]);
   void capture(String name) {
     session.snapshots[name] = List.generate(
       rows.length,
-      (i) => i < results.length ? List.of(results[i]['values'] as List) : null,
+      (i) => {
+        'key': _rowKey(rows[i]),
+        'name': '${rows[i]['name']} @${rows[i]['address']}',
+        'values': i < results.length ? results[i]['values'] : null,
+      },
     );
     notifyListeners();
   }
 
   List<String> diff(String name) {
-    final old = session.snapshots[name] ?? [];
+    final before = {
+      for (final e in session.snapshots[name] ?? [])
+        if (e is Map) e['key']: e,
+    };
     final changes = <String>[];
     for (var i = 0; i < rows.length; i++) {
-      final before = i < old.length ? old[i] : null;
+      final old = before.remove(_rowKey(rows[i]));
       final after = i < results.length ? results[i]['values'] : null;
-      if (jsonEncode(before) != jsonEncode(after)) {
+      if (old == null) {
         changes.add(
-          '${rows[i]['name']} @${rows[i]['address']}: $before → $after',
+          '${rows[i]['name']} @${rows[i]['address']}: (added) $after',
         );
+      } else if (jsonEncode(old['values']) != jsonEncode(after)) {
+        changes.add('${old['name']}: ${old['values']} → $after');
       }
     }
+    changes.addAll(
+      before.values.map((e) => '${e['name']}: (removed) ${e['values']}'),
+    );
     return changes;
   }
 
@@ -324,6 +345,14 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
               spacing: 6,
               runSpacing: 6,
               children: [
+                IconButton(
+                  tooltip: 'Expressions',
+                  icon: const Icon(Icons.functions),
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => ExpressionsDialog(session: widget.session),
+                  ),
+                ),
                 IconButton(
                   tooltip: tr('Graph map'),
                   icon: const Icon(Icons.multiline_chart),

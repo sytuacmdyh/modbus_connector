@@ -309,6 +309,13 @@ class _ScannerDialogState extends State<ScannerDialog> {
                             ? '@$n · ${(hit['values'] as List).join(', ')}'
                             : 'Unit $n · probes ${hit['hits']}',
                       ),
+                      subtitle: addresses && hit['formats'] is Map
+                          ? Text(
+                              (hit['formats'] as Map).entries
+                                  .map((e) => '${e.key}: ${e.value}')
+                                  .join(' · '),
+                            )
+                          : null,
                       secondary: addresses
                           ? null
                           : IconButton(
@@ -348,6 +355,44 @@ class _ScannerDialogState extends State<ScannerDialog> {
             onPressed: scanner.running ? null : () => Navigator.pop(context),
             child: const LText('Close'),
           ),
+          if (addresses && !scanner.running && scanner.hits.isNotEmpty)
+            TextButton(
+              onPressed: () => setState(() {
+                if (selected.length == scanner.hits.length) {
+                  selected.clear();
+                } else {
+                  selected.addAll(scanner.hits.map((h) => h['address'] as int));
+                }
+              }),
+              child: const LText('Select all / clear'),
+            ),
+          if (addresses && !scanner.running && selected.isNotEmpty)
+            TextButton(
+              onPressed: () {
+                for (final hit in scanner.hits.where(
+                  (h) => selected.contains(h['address']),
+                )) {
+                  final row = {
+                    'name': '$kind @${hit['address']}',
+                    'kind': kind,
+                    'address': hit['address'],
+                    'count': 1,
+                    'format': 'dec',
+                    'unit_id': int.tryParse(unit.text) ?? 1,
+                  };
+                  if (!widget.session.registers.any(
+                    (r) =>
+                        r['kind'] == kind &&
+                        r['address'] == hit['address'] &&
+                        r['unit_id'] == row['unit_id'],
+                  )) {
+                    widget.session.registers.add(row);
+                  }
+                }
+                Navigator.pop(context);
+              },
+              child: const LText('Add selected to register map'),
+            ),
           if (scanner.running)
             FilledButton(onPressed: scanner.stop, child: const LText('Stop'))
           else ...[
