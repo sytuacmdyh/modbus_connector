@@ -185,8 +185,15 @@ class Bridge:
             return self.devices.dispatch(data)
         if command.startswith("logger_"):
             return self.logger.dispatch(data)
-        if command in ("csv_parse", "csv_export", "encode_values", "read_rows"):
-            from .flutter_registers import bounded, csv_command, encode, render, row_from_json
+        if command in ("csv_parse", "csv_export", "encode_values", "read_rows", "plan_reads"):
+            from .flutter_registers import (
+                bounded,
+                csv_command,
+                encode,
+                planned_groups,
+                render,
+                row_from_json,
+            )
 
             if command.startswith("csv_"):
                 return csv_command(data)
@@ -197,11 +204,34 @@ class Bridge:
                 raise ValueError("rows must contain 1..512 rows")
             unit = bounded(data.get("unit", 1), "unit", 1, 247)
             rows = [row_from_json(row, unit) for row in raw_rows]
+            groups = (
+                planned_groups(rows) if data.get("grouped") else [[i] for i in range(len(rows))]
+            )
+            if command == "plan_reads":
+                return {"groups": planned_groups(rows)}
             started = time.monotonic()
-            results = []
-            for row, options in zip(rows, raw_rows, strict=True):
-                raw = self.backend.read(row.unit_id or unit, row.kind, row.address, row.count)
-                results.append(render(row, raw, options))
+            raw_results: list[list[int | bool]] = [[] for _ in rows]
+            for indices in groups:
+                first = rows[indices[0]]
+                start = min(rows[i].address for i in indices)
+                end = max(rows[i].address + rows[i].count for i in indices)
+                try:
+                    raw = self.backend.read(first.unit_id or unit, first.kind, start, end - start)
+                    for i in indices:
+                        offset = rows[i].address - start
+                        raw_results[i] = raw[offset : offset + rows[i].count]
+                except Exception:
+                    if len(indices) == 1:
+                        raise
+                    for i in indices:
+                        row = rows[i]
+                        raw_results[i] = self.backend.read(
+                            row.unit_id or unit, row.kind, row.address, row.count
+                        )
+            results = [
+                render(row, raw, options)
+                for row, raw, options in zip(rows, raw_results, raw_rows, strict=True)
+            ]
             return {"rows": results, "elapsed_ms": (time.monotonic() - started) * 1000}
         if command in ("scan_unit", "scan_address", "device_id"):
             unit = integer(data, "unit", 1, 247, 1)

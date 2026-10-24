@@ -40,7 +40,9 @@ const csvColumns = [
 ];
 
 class RegisterMapController extends ChangeNotifier {
-  RegisterMapController(this.session);
+  RegisterMapController(this.session, {DateTime Function()? clock})
+    : clock = clock ?? DateTime.now;
+  final DateTime Function() clock;
   final SessionController session;
   bool reading = false;
   bool polling = false;
@@ -49,26 +51,67 @@ class RegisterMapController extends ChangeNotifier {
   Timer? _timer;
   List<Map<String, dynamic>> get rows => session.registers;
   List<Map<String, dynamic>> get results => session.registerResults;
-  Future<void> read() async {
+  final Map<Map<String, dynamic>, DateTime> _lastRead = {};
+  int _interval = 500;
+  Future<void> read({bool dueOnly = false}) async {
     if (reading || session.busy || !session.connected || rows.isEmpty) return;
+    final now = clock();
+    final indices = [
+      for (var i = 0; i < rows.length; i++)
+        if (rows[i]['poll_enabled'] != false &&
+            (!dueOnly ||
+                !_lastRead.containsKey(rows[i]) ||
+                now.difference(_lastRead[rows[i]]!).inMilliseconds >=
+                    (rows[i]['poll_ms'] as int? ?? _interval)))
+          i,
+    ];
+    if (indices.isEmpty) return;
     reading = true;
     final generation = _generation;
     session.beginTool();
     notifyListeners();
+    bool accept() => !_disposed && generation == _generation;
     try {
-      final next = <Map<String, dynamic>>[];
-      for (final row in List.of(rows)) {
+      final next = List<Map<String, dynamic>>.generate(
+        rows.length,
+        (i) => i < results.length
+            ? results[i]
+            : {'values': null, 'display': '—', 'numeric': null, 'alarm': null},
+      );
+      List<List<int>> groups = List.generate(indices.length, (i) => [i]);
+      if (session.mapGrouped) {
+        final plan = await session.command({
+          'command': 'plan_reads',
+          'rows': indices.map((i) => rows[i]).toList(),
+          'unit': session.unit,
+        }, accept: accept);
+        if (!accept()) return;
+        if (plan == null) {
+          stop();
+          return;
+        }
+        groups = (plan['groups'] as List)
+            .map((g) => (g as List).cast<int>())
+            .toList();
+      }
+      for (final group in groups) {
         final reply = await session.command({
           'command': 'read_rows',
           'unit': session.unit,
-          'rows': [row],
-        }, accept: () => !_disposed && generation == _generation);
-        if (_disposed || generation != _generation) return;
+          'grouped': session.mapGrouped,
+          'rows': group.map((i) => rows[indices[i]]).toList(),
+        }, accept: accept);
+        if (!accept()) return;
         if (reply == null) {
           stop();
           return;
         }
-        next.add((reply['rows'] as List).single as Map<String, dynamic>);
+        final values = (reply['rows'] as List).cast<Map<String, dynamic>>();
+        for (var n = 0; n < group.length; n++) {
+          final index = indices[group[n]];
+          next[index] = values[n];
+          _lastRead[rows[index]] = now;
+        }
       }
       results
         ..clear()
@@ -83,10 +126,12 @@ class RegisterMapController extends ChangeNotifier {
 
   void start(int interval) {
     if (polling) return;
+    _interval = interval;
+    _lastRead.clear();
     polling = true;
     _timer = Timer.periodic(
-      Duration(milliseconds: interval),
-      (_) => unawaited(read()),
+      const Duration(milliseconds: 100),
+      (_) => unawaited(read(dueOnly: true)),
     );
     unawaited(read());
     notifyListeners();
@@ -102,6 +147,7 @@ class RegisterMapController extends ChangeNotifier {
   void changed() {
     stop();
     results.clear();
+    _lastRead.clear();
     notifyListeners();
   }
 
@@ -286,7 +332,7 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
     if (model.reading || widget.session.busy) return;
     final row = model.rows[i];
     final raw = i < model.results.length
-        ? model.results[i]['values'] as List
+        ? model.results[i]['values'] as List? ?? []
         : [];
     List<dynamic>? values;
     if (bits) {
@@ -345,6 +391,13 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
               spacing: 6,
               runSpacing: 6,
               children: [
+                FilterChip(
+                  label: const LText('Group reads'),
+                  selected: widget.session.mapGrouped,
+                  onSelected: model.reading
+                      ? null
+                      : (v) => setState(() => widget.session.mapGrouped = v),
+                ),
                 IconButton(
                   tooltip: 'Expressions',
                   icon: const Icon(Icons.functions),
@@ -436,6 +489,15 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
                       row['kind'] == 'coils';
                   return ListTile(
                     dense: true,
+                    leading: Checkbox(
+                      value: row['poll_enabled'] != false,
+                      onChanged: model.reading
+                          ? null
+                          : (v) {
+                              model.stop();
+                              setState(() => row['poll_enabled'] = v);
+                            },
+                    ),
                     title: LText(
                       '${row['name']} · ${row['kind']} @${row['address']} ×${row['count']} · unit ${row['unit_id'] ?? widget.session.unit}',
                     ),
@@ -532,6 +594,7 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
       'address': 0,
       'count': 1,
       'unit_id': '',
+      'poll_ms': '',
       'scale': 1,
       'offset': 0,
       'unit': '',
@@ -560,6 +623,9 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
     final unit = fields['unit_id']!.text.isEmpty
         ? null
         : int.tryParse(fields['unit_id']!.text);
+    final pollMs = fields['poll_ms']!.text.trim().isEmpty
+        ? null
+        : int.tryParse(fields['poll_ms']!.text);
     final scale = double.tryParse(fields['scale']!.text);
     final offset = double.tryParse(fields['offset']!.text);
     final width = ['u64', 's64', 'f64'].contains(format)
@@ -576,6 +642,8 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
         address + count > 65536 ||
         (fields['unit_id']!.text.isNotEmpty &&
             (unit == null || unit < 1 || unit > 247)) ||
+        (fields['poll_ms']!.text.isNotEmpty &&
+            (pollMs == null || pollMs < 100 || pollMs > 86400000)) ||
         scale == null ||
         !scale.isFinite ||
         offset == null ||
@@ -599,6 +667,7 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
       'address': address,
       'count': count,
       'unit_id': unit,
+      'poll_ms': pollMs,
       'format': format,
       'order': order,
       'scale': scale,
@@ -630,7 +699,7 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
                   (v) => setState(() => kind = v),
                   width: 260,
                 ),
-                for (final key in ['address', 'count', 'unit_id'])
+                for (final key in ['address', 'count', 'unit_id', 'poll_ms'])
                   toolField(key, fields[key]!, width: 160),
                 toolChoice(
                   'Format',

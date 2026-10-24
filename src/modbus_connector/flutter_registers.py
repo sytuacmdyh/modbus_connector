@@ -60,6 +60,9 @@ def row_from_json(data: object, unit: int = 1) -> RegisterRow:
     if address + count > 65536 or (not bit and count < register_width(fmt)):
         raise ValueError("Invalid row range or count smaller than display width")
     unit_id = bounded(unit if data.get("unit_id") is None else data["unit_id"], "unit_id", 1, 247)
+    poll_ms = data.get("poll_ms")
+    if poll_ms is not None:
+        bounded(poll_ms, "poll_ms", 100, 86400000)
     return RegisterRow(
         name=str(data.get("name", "")),
         kind=cast(RegisterKind, kind),
@@ -71,7 +74,21 @@ def row_from_json(data: object, unit: int = 1) -> RegisterRow:
         offset=finite(data.get("offset", 0), "offset"),
         unit=str(data.get("unit", "")),
         unit_id=unit_id,
+        poll_ms=poll_ms,
     )
+
+
+def planned_groups(rows: list[RegisterRow]) -> list[list[int]]:
+    from .models import ReadSpec, plan_grouped_reads
+
+    specs = [
+        ReadSpec(i, r.unit_id, r.kind, r.address, r.count)
+        for i, r in enumerate(rows)
+        if r.poll_ms is None
+    ]
+    return [[member.token for member in plan.members] for plan in plan_grouped_reads(specs)] + [
+        [i] for i, row in enumerate(rows) if row.poll_ms is not None
+    ]
 
 
 def render(row: RegisterRow, raw: list[int | bool], options: dict[str, Any]) -> dict[str, Any]:

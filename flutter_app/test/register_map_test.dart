@@ -16,6 +16,7 @@ class MapBridge extends FakeBridge {
     Duration? timeout,
   }) async {
     if (command['command'] == 'read_rows') {
+      calls.add(command);
       return held?.future ??
           Future.value(
             BridgeReply({
@@ -95,6 +96,50 @@ void main() {
     model.dispose();
     session.dispose();
   });
+  test(
+    'map scheduler skips disabled rows and honors per-row intervals',
+    () async {
+      var now = DateTime(2026);
+      final bridge = MapBridge();
+      final session = SessionController(bridge);
+      await session.connect({'timeout': 0.1}, 1);
+      session.registers.addAll([
+        {
+          'name': 'fast',
+          'kind': 'holding_registers',
+          'address': 0,
+          'count': 1,
+          'poll_ms': 100,
+        },
+        {
+          'name': 'slow',
+          'kind': 'holding_registers',
+          'address': 1,
+          'count': 1,
+          'poll_ms': 1000,
+        },
+        {
+          'name': 'disabled',
+          'kind': 'holding_registers',
+          'address': 2,
+          'count': 1,
+          'poll_enabled': false,
+        },
+      ]);
+      final model = RegisterMapController(session, clock: () => now);
+      await model.read(dueOnly: true);
+      expect(bridge.calls.where((c) => c['command'] == 'read_rows').length, 2);
+      now = now.add(const Duration(milliseconds: 200));
+      await model.read(dueOnly: true);
+      expect(bridge.calls.where((c) => c['command'] == 'read_rows').length, 3);
+      now = now.add(const Duration(milliseconds: 800));
+      await model.read(dueOnly: true);
+      expect(bridge.calls.where((c) => c['command'] == 'read_rows').length, 5);
+      expect(session.registerResults.last['values'], isNull);
+      model.dispose();
+      session.dispose();
+    },
+  );
   testWidgets(
     'row editor validates width and bits editor toggles all 16 bits',
     (tester) async {

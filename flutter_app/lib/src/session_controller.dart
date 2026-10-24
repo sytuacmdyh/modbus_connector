@@ -91,6 +91,7 @@ class SessionController extends ChangeNotifier {
   bool polling = false;
   bool toolActive = false;
   bool logging = false;
+  bool mapGrouped = false;
   int loggedSamples = 0;
   Timer? _loggerTimer;
   int _loggerGeneration = 0;
@@ -153,6 +154,7 @@ class SessionController extends ChangeNotifier {
     'interval_ms': intervalMs,
     'registers': registers,
     'expressions': expressions,
+    'map_grouped': mapGrouped,
     'sim_rows': simRows,
     'device_config': deviceConfig,
     'logging': loggingSettings,
@@ -227,6 +229,7 @@ class SessionController extends ChangeNotifier {
       }
     }
 
+    mapGrouped = data['map_grouped'] == true;
     if (data['expressions'] is List) {
       expressions.addAll(
         (data['expressions'] as List)
@@ -398,7 +401,11 @@ class SessionController extends ChangeNotifier {
     List<Map<String, dynamic>> rows,
   ) async {
     if (logging || busy || !connected) return;
-    final frozen = rows.map((row) => Map<String, dynamic>.of(row)).toList();
+    final frozen = rows
+        .map(
+          (row) => <String, dynamic>{...row, 'unit_id': row['unit_id'] ?? unit},
+        )
+        .toList();
     final result = await command({
       'command': 'logger_start',
       ...settings,
@@ -467,6 +474,7 @@ class SessionController extends ChangeNotifier {
     final reply = await command({
       'command': 'evaluate_expressions',
       'expressions': expressions,
+      'map_grouped': mapGrouped,
       'values': values,
     });
     if (reply != null) {

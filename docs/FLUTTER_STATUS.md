@@ -251,3 +251,14 @@ read and left unchanged, including its pre-existing untracked Git state.
   its second app (debug connection); separate commands are the verified route.
 - Broad Qt-free Python regression: 512 passed before these additional commands;
   bridge/online now 36 passed. Additional validation continues below.
+
+## Additional parity: grouped reads and per-row scheduling
+
+- Map checkboxes include/exclude rows from Read/Poll; optional per-row polling
+  intervals run on a single scheduler without overlapping I/O or queued ticks.
+- Optional adjacent/overlap grouping reuses the Python planner, preserves each
+  row's decoding, isolates explicit per-row intervals and retries failed groups
+  individually. Flutter checks cancellation between planned groups.
+- Logger column labels now freeze the effective session unit correctly.
+- Linux: analyze clean; 26 Flutter tests and 37 bridge/online tests passed,
+  including scheduling, grouped slicing/fallback and cancelled late errors.

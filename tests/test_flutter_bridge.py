@@ -402,3 +402,34 @@ def test_expressions_safe_engine_and_alarm_results(bridge: Bridge) -> None:
     )["result"]["rows"]
     assert result[0]["numeric"] == 1150 and result[0]["alarm"]
     assert all(r["numeric"] is None and r["error"] for r in result[1:])
+
+
+def test_grouped_reads_reuse_planner_and_fall_back_per_row(
+    bridge: Bridge, modbus_server: int, monkeypatch
+) -> None:
+    assert request(bridge, "connect", transport="tcp", host="127.0.0.1", port=modbus_server)["ok"]
+    rows = [
+        {"name": "Pair", "address": 0, "count": 2, "format": "u32"},
+        {"name": "Next", "address": 2},
+        {"name": "Timed", "address": 3, "poll_ms": 1000},
+    ]
+    assert request(bridge, "plan_reads", rows=rows)["result"]["groups"] == [[0, 1], [2]]
+    calls = []
+    original = bridge.backend.read
+
+    def read(unit, kind, address, count):
+        calls.append((address, count))
+        return original(unit, kind, address, count)
+
+    monkeypatch.setattr(bridge.backend, "read", read)
+    result = request(bridge, "read_rows", rows=rows, grouped=True)["result"]["rows"]
+    assert calls == [(0, 3), (3, 1)]
+    assert result[0]["values"] == [100, 101] and result[1]["values"] == [102]
+
+    def fail_group(unit, kind, address, count):
+        if count == 3:
+            raise ValueError("group rejected")
+        return original(unit, kind, address, count)
+
+    monkeypatch.setattr(bridge.backend, "read", fail_group)
+    assert request(bridge, "read_rows", rows=rows, grouped=True)["result"]["rows"] == result

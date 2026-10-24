@@ -202,3 +202,16 @@ Advanced master commands:
 
 Cancellation acceptance checks cover map reads, alarm/graph side effects and late
 errors, in addition to the master quick-range and logger generation checks.
+
+Grouped and scheduled map reads:
+
+- `plan_reads`: `{rows,unit}` → `{groups:[[row_index,...],...]}` uses the existing
+  `plan_grouped_reads`, grouped by effective unit/area and adjacent/overlapping
+  addresses, capped at protocol limits. Rows with `poll_ms` stay individual.
+- `read_rows` accepts `grouped:true`; executes shared plans, slices raw results
+  back into the original row order and renders each row's settings independently.
+  Failed merged requests retry the member rows individually.
+- Flutter submits one planned group at a time so cancellation is checked between
+  transactions. Per-row `poll_enabled` gates manual/map polling; optional `poll_ms`
+  100..86400000 overrides the map interval. Busy ticks are skipped. Group choice
+  and row scheduling preferences persist in Flutter state/custom snapshots.

@@ -117,7 +117,15 @@ def catalog_command(data: dict[str, Any]) -> dict[str, Any]:
             "registers_options": {
                 "flutter": {
                     k: state[k]
-                    for k in ("query", "draft", "unit", "interval_ms", "device_config", "sim_rows")
+                    for k in (
+                        "query",
+                        "draft",
+                        "unit",
+                        "interval_ms",
+                        "device_config",
+                        "sim_rows",
+                        "map_grouped",
+                    )
                     if k in state
                 }
             },
