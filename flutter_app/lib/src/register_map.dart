@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'session_controller.dart';
 import 'tool_widgets.dart';
 import 'logging_dialog.dart';
+import 'graph_dialog.dart';
 
 const displayFormats = [
   'dec',
@@ -321,6 +322,14 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
               spacing: 6,
               runSpacing: 6,
               children: [
+                IconButton(
+                  tooltip: 'Graph map',
+                  icon: const Icon(Icons.multiline_chart),
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => GraphDialog(session: widget.session),
+                  ),
+                ),
                 OutlinedButton(
                   onPressed: model.reading || model.rows.length >= 512
                       ? null

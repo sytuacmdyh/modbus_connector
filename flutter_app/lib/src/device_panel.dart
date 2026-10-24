@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'register_map.dart';
+import 'graph_dialog.dart';
 import 'session_controller.dart';
 import 'tool_widgets.dart';
 
@@ -233,6 +234,13 @@ class _DevicePanelState extends State<DevicePanel> {
           for (var i = 0; i < values.length; i++) {
             final address = (e['address'] as int) + i;
             final key = '${e['kind']}/$address';
+            session.recordPoint(
+              'sniff/$unit/$key',
+              'unit $unit ${e['kind']} @$address',
+              values[i] is bool
+                  ? (values[i] == true ? 1 : 0)
+                  : (values[i] as num).toDouble(),
+            );
             final old = map[key];
             map[key] = {
               ...?old,
@@ -411,6 +419,14 @@ class _DevicePanelState extends State<DevicePanel> {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const Spacer(),
+                IconButton(
+                  tooltip: 'Graph',
+                  icon: const Icon(Icons.multiline_chart),
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => GraphDialog(session: session),
+                  ),
+                ),
                 Text(session.deviceRunning ? 'Running' : 'Stopped'),
                 const SizedBox(width: 12),
                 FilledButton.icon(

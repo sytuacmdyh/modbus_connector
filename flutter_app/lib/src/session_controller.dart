@@ -104,6 +104,34 @@ class SessionController extends ChangeNotifier {
   int selected = 0;
   double? elapsedMs;
   final Queue<Sample> samples = Queue();
+  final Map<String, Queue<Sample>> histories = {};
+  final Map<String, String> historyLabels = {};
+  void recordPoint(String key, String label, double value) {
+    if (!value.isFinite) return;
+    if (!histories.containsKey(key) && histories.length >= 2048) {
+      historyLabels.remove(histories.keys.first);
+      histories.remove(histories.keys.first);
+    }
+    final points = histories.putIfAbsent(key, Queue<Sample>.new);
+    final now = DateTime.now();
+    if (points.isNotEmpty &&
+        now.difference(points.last.time).inMilliseconds < 100) {
+      return;
+    }
+    points.add(Sample(now, value));
+    historyLabels[key] = label;
+    while (points.length > 1000) {
+      points.removeFirst();
+    }
+  }
+
+  void clearHistory() {
+    histories.clear();
+    historyLabels.clear();
+    samples.clear();
+    notifyListeners();
+  }
+
   final Queue<LogEntry> logs = Queue();
   Timer? _timer;
   Completer<void>? _operation;
@@ -113,6 +141,109 @@ class SessionController extends ChangeNotifier {
   bool _closing = false;
   Future<void>? _shutdown;
   DateTime? _lastSample;
+
+  Map<String, dynamic> state() => {
+    'mode': mode,
+    'connection': connectionConfig,
+    'draft': draft,
+    'unit': unit,
+    'query': query.toJson(),
+    'interval_ms': intervalMs,
+    'registers': registers,
+    'sim_rows': simRows,
+    'device_config': deviceConfig,
+    'logging': loggingSettings,
+    'scanner': scannerState,
+    'custom_template_id': customTemplateId,
+    'sniffed': {for (final e in sniffed.entries) '${e.key}': e.value},
+  };
+  final Map<String, dynamic> scannerState = {};
+  String? customTemplateId;
+  void restore(Map<String, dynamic> data) {
+    if (connected || busy || deviceRunning)
+      throw StateError('Restore requires a disconnected session');
+    mode = ['master', 'simulator', 'sniffer', 'gateway'].contains(data['mode'])
+        ? data['mode'] as String
+        : 'master';
+    if (data['connection'] is Map)
+      connectionConfig = Map<String, dynamic>.from(data['connection'] as Map);
+    if (data['draft'] is Map)
+      draft.addAll(Map<String, dynamic>.from(data['draft'] as Map));
+    unit =
+        (data['unit'] is int &&
+            (data['unit'] as int) >= 1 &&
+            (data['unit'] as int) <= 247)
+        ? data['unit'] as int
+        : 1;
+    final q = data['query'];
+    if (q is Map) {
+      try {
+        final restored = ReadQuery(
+          kind: q['kind'] as String,
+          address: q['address'] as int,
+          count: q['count'] as int,
+        );
+        restored.validate();
+        query = restored;
+      } catch (_) {
+        query = const ReadQuery();
+      }
+    }
+    if (data['interval_ms'] is int)
+      intervalMs = (data['interval_ms'] as int).clamp(100, 60000);
+    void rowsInto(Object? raw, List<Map<String, dynamic>> target) {
+      if (raw is! List) return;
+      for (final r in raw.take(512)) {
+        if (r is Map<String, dynamic> &&
+            areas.containsKey(r['kind']) &&
+            r['address'] is int &&
+            r['count'] is int &&
+            (r['address'] as int) >= 0 &&
+            (r['count'] as int) > 0 &&
+            (r['address'] as int) + (r['count'] as int) <= 65536 &&
+            [
+              'dec',
+              'hex',
+              's16',
+              'u32',
+              's32',
+              'f32',
+              'u64',
+              's64',
+              'f64',
+              'ascii',
+              'ascii1',
+            ].contains(r['format'] ?? 'dec') &&
+            ['ABCD', 'CDAB', 'BADC', 'DCBA'].contains(r['order'] ?? 'ABCD'))
+          target.add(Map.of(r));
+      }
+    }
+
+    rowsInto(data['registers'], registers);
+    rowsInto(data['sim_rows'], simRows);
+    for (final entry in {
+      'device_config': deviceConfig,
+      'logging': loggingSettings,
+      'scanner': scannerState,
+    }.entries) {
+      if (data[entry.key] is Map)
+        entry.value.addAll(Map<String, dynamic>.from(data[entry.key] as Map));
+    }
+    if (data['custom_template_id'] is String)
+      customTemplateId = data['custom_template_id'] as String;
+    if (data['sniffed'] is Map) {
+      for (final e in (data['sniffed'] as Map).entries) {
+        final id = int.tryParse('${e.key}');
+        if (id != null && id >= 1 && id <= 247 && e.value is Map) {
+          sniffed[id] = {
+            for (final cell in (e.value as Map).entries)
+              if (cell.value is Map)
+                '${cell.key}': Map<String, dynamic>.from(cell.value as Map),
+          };
+        }
+      }
+    }
+  }
 
   bool get canRead => connected && !busy && !disconnecting && !toolActive;
   Duration get deadline =>
@@ -207,6 +338,14 @@ class SessionController extends ChangeNotifier {
       final row = rows[i];
       final key =
           '${row['unit_id'] ?? unit}/${row['kind']}/${row['address']}/${row['name']}';
+      final numeric = results[i]['numeric'];
+      if (numeric is num) {
+        recordPoint(
+          key,
+          '${row['name'] ?? row['kind']} @${row['address']}',
+          numeric.toDouble(),
+        );
+      }
       final alarm = results[i]['alarm'] as Map?;
       final signature = alarm?.toString();
       if (_activeAlarms[key] != signature && alarm != null) {
@@ -367,6 +506,14 @@ class SessionController extends ChangeNotifier {
       elapsedMs = (reply.result['elapsed_ms'] as num).toDouble();
       error = null;
       _sample();
+      for (var i = 0; i < values.length; i++) {
+        final raw = values[i];
+        recordPoint(
+          '$unit/${query.kind}/${query.address + i}',
+          '${query.kind} @${query.address + i}',
+          raw is bool ? (raw ? 1 : 0) : (raw as num).toDouble(),
+        );
+      }
       if (!polling) {
         _log(
           'Read ${query.count} ${query.kind} @${query.address} · ${elapsedMs!.toStringAsFixed(1)} ms',

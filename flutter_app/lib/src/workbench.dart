@@ -9,6 +9,7 @@ import 'scanner.dart';
 import 'register_map.dart';
 import 'logging_dialog.dart';
 import 'device_panel.dart';
+import 'graph_dialog.dart';
 import 'session_controller.dart';
 import 'write_dialog.dart';
 
@@ -61,6 +62,37 @@ class _WorkbenchState extends State<Workbench> {
   @override
   void initState() {
     super.initState();
+    final saved = session.draft;
+    for (final e in {
+      'host': _host,
+      'port': _port,
+      'serial': _serial,
+      'baud': _baud,
+      'unit': _unit,
+      'timeout': _timeout,
+      'address': _address,
+      'count': _count,
+      'interval': _interval,
+    }.entries) {
+      if (saved[e.key] is String) e.value.text = saved[e.key] as String;
+      e.value.addListener(_saveDraft);
+    }
+    _transport =
+        saved['transport'] as String? ??
+        session.connectionConfig['transport'] as String? ??
+        'rtu';
+    if (!['tcp', 'rtu', 'rtu_tcp', 'rtu_udp', 'demo'].contains(_transport))
+      _transport = 'rtu';
+    _parity = ['N', 'E', 'O'].contains(saved['parity'])
+        ? saved['parity'] as String
+        : 'N';
+    _bits = saved['bits'] == 7 ? 7 : 8;
+    _stop = saved['stop'] == 2 ? 2 : 1;
+    _kind = session.query.kind;
+    _address.text = '${session.query.address}';
+    _count.text = '${session.query.count}';
+    _unit.text = '${session.unit}';
+    _interval.text = '${session.intervalMs}';
     _address.addListener(_rangeEdited);
     _count.addListener(_rangeEdited);
     if (widget.manageLifecycle) {
@@ -71,6 +103,27 @@ class _WorkbenchState extends State<Workbench> {
         },
       );
     }
+  }
+
+  void _saveDraft() {
+    session.draft.addAll({
+      'transport': _transport,
+      'parity': _parity,
+      'bits': _bits,
+      'stop': _stop,
+      for (final e in {
+        'host': _host,
+        'port': _port,
+        'serial': _serial,
+        'baud': _baud,
+        'unit': _unit,
+        'timeout': _timeout,
+        'address': _address,
+        'count': _count,
+        'interval': _interval,
+      }.entries)
+        e.key: e.value.text,
+    });
   }
 
   void _rangeEdited() => setState(() {});
@@ -279,7 +332,12 @@ class _WorkbenchState extends State<Workbench> {
                   'rtu_udp': 'RTU over UDP',
                   'demo': 'Local demo',
                 },
-                locked ? null : (v) => setState(() => _transport = v),
+                locked
+                    ? null
+                    : (v) => setState(() {
+                        _transport = v;
+                        _saveDraft();
+                      }),
                 150,
               ),
               if (['tcp', 'rtu_tcp', 'rtu_udp'].contains(_transport)) ...[
@@ -334,21 +392,36 @@ class _WorkbenchState extends State<Workbench> {
                   'Bits',
                   _bits,
                   const {8: '8', 7: '7'},
-                  locked ? null : (v) => setState(() => _bits = v),
+                  locked
+                      ? null
+                      : (v) => setState(() {
+                          _bits = v;
+                          _saveDraft();
+                        }),
                   75,
                 ),
                 _dropdown<String>(
                   'Parity',
                   _parity,
                   const {'N': 'None', 'E': 'Even', 'O': 'Odd'},
-                  locked ? null : (v) => setState(() => _parity = v),
+                  locked
+                      ? null
+                      : (v) => setState(() {
+                          _parity = v;
+                          _saveDraft();
+                        }),
                   95,
                 ),
                 _dropdown<int>(
                   'Stop',
                   _stop,
                   const {1: '1', 2: '2'},
-                  locked ? null : (v) => setState(() => _stop = v),
+                  locked
+                      ? null
+                      : (v) => setState(() {
+                          _stop = v;
+                          _saveDraft();
+                        }),
                   75,
                 ),
               ],
@@ -728,6 +801,14 @@ class _WorkbenchState extends State<Workbench> {
                                   session.description,
                                   overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Multi-series graph',
+                                icon: const Icon(Icons.multiline_chart),
+                                onPressed: () => showDialog<void>(
+                                  context: context,
+                                  builder: (_) => GraphDialog(session: session),
                                 ),
                               ),
                               IconButton(

@@ -176,3 +176,16 @@ read and left unchanged, including its pre-existing untracked Git state.
   mode start/stop/minimum-window widget verification added. Physical RTU remains
   hardware validation; sniffer formatted multiword views/trends still need polish.
 - Remaining: richer graphs; templates/state; help/i18n; cloud/update surfaces.
+
+## Parity push — chunk 6: graphs
+
+- Multi-series graph for quick-range reads, named register maps, logger sampling
+  and sniffer traffic. Select curves, inspect min/max/mean/latest or hovered value,
+  normalize individual curves, pause chart updates, choose time window, pan/zoom,
+  clear history and export timestamped samples as CSV.
+- History is bounded (1000 samples per curve, at most 2048 curves, at most 10 Hz).
+  The compact selected-register chart remains in the master workspace.
+- Linux: analyze clean; 20 Flutter tests passed, including graph controls at
+  900×650. Session state serialization groundwork also landed for the next chunk.
+- Remaining: persistence/templates; help/i18n; cloud/update. Charts are dialogs
+  within the native window; detached native graph windows and image export remain.
