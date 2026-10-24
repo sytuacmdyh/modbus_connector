@@ -73,6 +73,9 @@ class SessionController extends ChangeNotifier {
   final BridgeTransport bridge;
   Map<String, dynamic> connectionConfig = {};
   final Map<String, dynamic> draft = {};
+  final List<Map<String, dynamic>> registers = [];
+  final List<Map<String, dynamic>> registerResults = [];
+  final Map<String, List<Object?>> snapshots = {};
   bool connected = false;
   bool busy = false;
   bool disconnecting = false;

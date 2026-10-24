@@ -65,3 +65,25 @@ Scanner commands (v1 additive):
 Scanner owns that tab's bus while running. Polling stops before a scan. Progress
 and hits remain visible after Stop; applying a result updates the session's unit
 or selected contiguous address range. Other tabs remain usable.
+
+Register map commands (additive v1):
+
+- `read_rows`: `{unit, rows:[row,...]}` (1..512). Each row accepts `name`, `kind`,
+  `address`, `count`, `unit_id` (null inherits unit), `format`, `order`, `scale`,
+  `offset`, `unit`, `value_names` (string integer keys), `bitmask`, `alarms`.
+  Formats: dec/hex/s16/u32/s32/f32/u64/s64/f64/ascii/ascii1; byte orders
+  ABCD/CDAB/BADC/DCBA. All rows validate before I/O, including format width.
+  Returns `{rows:[{values,display,numeric,alarm}],elapsed_ms}`. Nonfinite numeric
+  values become null. Flutter reads one row per request for cancellation.
+- `encode_values`: `{row,text}` converts engineering values to raw values using
+  the same byte order and inverse scaling. Returns `{values}`; zero scale,
+  wrong count, nonfinite values and invalid rows fail. Does not write hardware.
+- `csv_parse`: `{text,preview:true}` returns `{header,mapping}`. With optional
+  `mapping` (source column → canonical field), returns `{rows}`. Uses Qt's shared
+  CSV parser. Essential fields: name/kind/address.
+- `csv_export`: `{rows,columns?}` returns `{text}` using canonical CSV fields.
+  Columns can be selected; no filesystem access in these commands.
+
+Flutter reads/writes CSV files, retains raw named snapshots in the session, and
+compares snapshots without issuing writes. The register map has independent named
+rows and polling; the quick contiguous range remains available in the master view.

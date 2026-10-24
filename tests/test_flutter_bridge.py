@@ -168,3 +168,24 @@ def test_scanner_real_backend(bridge: Bridge, modbus_server: int) -> None:
     assert request(bridge, 'scan_address', address=60000)['result']['values'] == []
     assert not request(bridge, 'scan_unit', probes=[{'address': 65535, 'count': 2}])['ok']
     assert not request(bridge, 'scan_unit', probes=[])['ok']
+
+
+def test_register_tools_scaling_csv_and_nonfinite(bridge: Bridge, modbus_server: int) -> None:
+    assert request(bridge, 'connect', transport='tcp', host='127.0.0.1', port=modbus_server)['ok']
+    row = {'name': 'Temperature', 'address': 0, 'count': 2, 'format': 'u32',
+           'scale': 0.1, 'offset': -10, 'unit': 'C', 'order': 'CDAB'}
+    result = request(bridge, 'read_rows', rows=[row])['result']['rows'][0]
+    assert result['numeric'] == (101 * 65536 + 100) * 0.1 - 10
+    encoded = request(bridge, 'encode_values', row=row, text='10')['result']['values']
+    assert encoded == [200, 0]
+    bitmask = request(bridge, 'read_rows', rows=[{'address': 0, 'bitmask': True,
+                                               'value_names': {'2': 'Alarm'}}])
+    assert bitmask['ok'] and 'Alarm' in bitmask['result']['rows'][0]['display']
+    exported = request(bridge, 'csv_export', rows=[row])['result']['text']
+    parsed = request(bridge, 'csv_parse', text=exported)['result']['rows'][0]
+    assert parsed['name'] == 'Temperature' and parsed['order'] == 'CDAB'
+    assert parsed['scale'] == 0.1
+    assert request(bridge, 'csv_parse', text='n,t,a\nX,coils,0\n',
+                   mapping={'n': 'name', 't': 'kind', 'a': 'address'})['ok']
+    assert not request(bridge, 'read_rows', rows=[row, {'address': -1}])['ok']
+    assert not request(bridge, 'encode_values', row=row, text='nan')['ok']

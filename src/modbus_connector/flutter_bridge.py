@@ -114,6 +114,23 @@ class Bridge:
         if command in ("disconnect", "shutdown"):
             self.close()
             return {}
+        if command in ("csv_parse", "csv_export", "encode_values", "read_rows"):
+            from .flutter_registers import bounded, csv_command, encode, render, row_from_json
+            if command.startswith("csv_"):
+                return csv_command(data)
+            if command == "encode_values":
+                return {"values": encode(data)}
+            raw_rows = data.get("rows")
+            if not isinstance(raw_rows, list) or not 1 <= len(raw_rows) <= 512:
+                raise ValueError("rows must contain 1..512 rows")
+            unit = bounded(data.get("unit", 1), "unit", 1, 247)
+            rows = [row_from_json(row, unit) for row in raw_rows]
+            started = time.monotonic()
+            results = []
+            for row, options in zip(rows, raw_rows, strict=True):
+                raw = self.backend.read(row.unit_id or unit, row.kind, row.address, row.count)
+                results.append(render(row, raw, options))
+            return {"rows": results, "elapsed_ms": (time.monotonic() - started) * 1000}
         if command in ("scan_unit", "scan_address", "device_id"):
             unit = integer(data, "unit", 1, 247, 1)
             if command == "device_id":

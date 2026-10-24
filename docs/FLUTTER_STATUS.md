@@ -130,3 +130,19 @@ read and left unchanged, including its pre-existing untracked Git state.
 - Remaining: register tools; logger/alarms; mode panels; graph; templates/state;
   help/i18n; cloud/update. Scanner hit CSV/multiple disjoint-row insertion awaits
   the richer register map.
+
+## Parity push — chunk 3: register map, CSV and snapshots
+
+- Register-map tool alongside the quick range: named rows across independent
+  areas/units, editable counts, all Qt display formats and byte orders, scaling,
+  engineering-unit writes, enum/bit labels, 16-bit editor, and cancellable map poll.
+- CSV file import with explicit column mapping and export with column selection,
+  using the existing Python CSV model. Files use editable paths in Flutter.
+- Named raw-value snapshots and difference viewer; comparison never writes.
+- Python decoding/encoding stays shared with Qt. All rows validate before I/O;
+  nonfinite decoded primary values are represented as null on the wire.
+- Linux: analyze clean; 16 Flutter tests passed, including cancellation/snapshot
+  and row-width/bit-editor checks; 26 Python bridge tests passed; Ruff clean.
+- Remaining: logging/alarm editor; mode panels; richer graphs; templates/state;
+  help/i18n; cloud/update. Native file chooser, per-row poll scheduling and
+  expression rows remain below full Qt parity.

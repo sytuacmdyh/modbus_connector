@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'live_chart.dart';
 import 'scanner.dart';
+import 'register_map.dart';
 import 'session_controller.dart';
 import 'write_dialog.dart';
 
@@ -717,6 +718,21 @@ class _WorkbenchState extends State<Workbench> {
                                   overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
+                              ),
+                              IconButton(
+                                tooltip: 'Register map / CSV / snapshots',
+                                icon: const Icon(Icons.table_view),
+                                onPressed: session.busy
+                                    ? null
+                                    : () {
+                                        session.stopPolling();
+                                        showDialog<void>(
+                                          context: context,
+                                          builder: (_) => RegisterMapDialog(
+                                            session: session,
+                                          ),
+                                        );
+                                      },
                               ),
                               IconButton(
                                 tooltip: 'Scanner',
