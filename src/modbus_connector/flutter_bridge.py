@@ -18,6 +18,7 @@ from typing import Any, TextIO, cast, get_args
 from serial.tools import list_ports
 
 from .backend import ModbusBackend, ModbusExceptionError
+from .flutter_devices import FlutterDevices, connection_params
 from .flutter_logging import FlutterLogger
 from .models import RegisterKind, RtuParams, ScanProbe, TcpParams, describe_connection
 from .sim_backend import SimBackend, SimTcpParams
@@ -45,10 +46,12 @@ class Bridge:
     def __init__(self) -> None:
         self.backend = ModbusBackend()
         self.logger = FlutterLogger()
+        self.devices = FlutterDevices()
         self.demo: SimBackend | None = None
         self._demo_started = 0.0
 
     def close(self) -> None:
+        self.devices.close()
         self.logger.close()
         self.backend.disconnect()
         if self.demo is not None:
@@ -75,6 +78,8 @@ class Bridge:
                 stopbits=integer(data, "stopbits", 1, 2, 1),
                 timeout=timeout,
             )
+        elif transport in ("rtu_tcp", "rtu_udp"):
+            params = connection_params(data)
         elif transport == "demo":
             # Use the same simulator/backend path as real hardware, on loopback only.
             with socket.socket() as reservation:
@@ -117,10 +122,20 @@ class Bridge:
         if command in ("disconnect", "shutdown"):
             self.close()
             return {}
+        if command in (
+            "device_start",
+            "device_stop",
+            "device_status",
+            "sim_configure",
+            "sim_set",
+            "sniffer_snapshot",
+        ):
+            return self.devices.dispatch(data)
         if command.startswith("logger_"):
             return self.logger.dispatch(data)
         if command in ("csv_parse", "csv_export", "encode_values", "read_rows"):
             from .flutter_registers import bounded, csv_command, encode, render, row_from_json
+
             if command.startswith("csv_"):
                 return csv_command(data)
             if command == "encode_values":
@@ -162,9 +177,11 @@ class Bridge:
             if kind not in get_args(RegisterKind):
                 raise ValueError("Unknown register area")
             address = integer(data, "address", 0, 65535, 0)
-            hits = list(self.backend.scan_addresses(
-                unit, cast(RegisterKind, kind), address, address, lambda: False
-            ))
+            hits = list(
+                self.backend.scan_addresses(
+                    unit, cast(RegisterKind, kind), address, address, lambda: False
+                )
+            )
             return {"address": address, "values": hits[0][1] if hits else []}
         if command not in ("read", "write"):
             raise ValueError(f"Unknown command: {command}")

@@ -160,3 +160,19 @@ read and left unchanged, including its pre-existing untracked Git state.
   alarm transitions); 28 Python bridge tests passed (CSV/JSONL/throttling/alarms).
 - Remaining: mode panels; graph enhancements; templates/state; help/i18n;
   cloud/update. Sound playback still depends on desktop audio configuration.
+
+## Parity push — chunk 5: simulator, sniffer, gateway
+
+- Session-mode picker (next to New session); mode changes release owned services.
+- Simulator TCP/RTU-over-TCP/serial listen forms, unit/tick controls, editable map,
+  engineering-value edits and expression rules (t/prev/[name]/rand/randint). Rules
+  run in the bridge while other tabs are active; external master writes update UI.
+- Passive serial sniffer with per-unit recovered maps, register names, traffic,
+  CSV export and explicit map recovery after bounded-event overflow.
+- Gateway listen/target forms, TCP/RTU-over-TCP/serial, RTU-over-UDP target,
+  unit filters, live events and clean stop. Master gained RTU TCP/UDP transports.
+- Linux Python bridge: 31 tests passed, including external TCP simulator/rules,
+  real gateway read/write and a real pseudo-terminal serial sniffer. Analyze clean;
+  mode start/stop/minimum-window widget verification added. Physical RTU remains
+  hardware validation; sniffer formatted multiword views/trends still need polish.
+- Remaining: richer graphs; templates/state; help/i18n; cloud/update surfaces.

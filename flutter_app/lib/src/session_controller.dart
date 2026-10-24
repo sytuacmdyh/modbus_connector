@@ -78,6 +78,11 @@ class SessionController extends ChangeNotifier {
   final List<Map<String, dynamic>> registers = [];
   final List<Map<String, dynamic>> registerResults = [];
   final Map<String, List<Object?>> snapshots = {};
+  String mode = 'master';
+  bool deviceRunning = false;
+  final Map<String, dynamic> deviceConfig = {};
+  final List<Map<String, dynamic>> simRows = [];
+  final Map<int, Map<String, Map<String, dynamic>>> sniffed = {};
   bool connected = false;
   bool busy = false;
   bool disconnecting = false;
@@ -178,7 +183,7 @@ class SessionController extends ChangeNotifier {
           (request['rows'] as List).cast<Map<String, dynamic>>(),
         );
       }
-      error = null;
+      if (request['command'] != 'device_status') error = null;
     });
     return result;
   }
@@ -281,6 +286,14 @@ class SessionController extends ChangeNotifier {
     notifyListeners();
     await _operation?.future;
     if (!_closing && !disconnecting) await command({'command': 'logger_stop'});
+  }
+
+  Future<void> changeMode(String next) async {
+    if (next == mode || _closing) return;
+    await disconnect();
+    deviceRunning = false;
+    mode = next;
+    notifyListeners();
   }
 
   Future<void> connect(Map<String, dynamic> config, int unitId) =>

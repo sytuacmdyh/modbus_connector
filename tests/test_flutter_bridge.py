@@ -217,3 +217,89 @@ def test_alarm_priority_and_scaling(bridge: Bridge, modbus_server: int) -> None:
     ]}
     alarm = request(bridge, 'read_rows', rows=[row])['result']['rows'][0]['alarm']
     assert alarm['color'] == 'yellow' and alarm['sound']
+
+
+def free_port() -> int:
+    import socket
+    with socket.socket() as sock:
+        sock.bind(('127.0.0.1', 0))
+        return sock.getsockname()[1]
+
+
+def test_simulator_panel_commands_rules_and_external_master(bridge: Bridge) -> None:
+    import time
+
+    from modbus_connector.backend import ModbusBackend
+    from modbus_connector.models import TcpParams
+    port = free_port()
+    rows = [{'name': 'Counter', 'address': 0, 'count': 1, 'values': [5], 'rule_text': 'prev+1'}]
+    assert request(bridge, 'sim_configure', rows=rows)['ok']
+    assert request(bridge, 'device_start', mode='simulator', tick_ms=100,
+                   listen={'transport': 'tcp', 'host': '127.0.0.1', 'port': port})['ok']
+    master = ModbusBackend()
+    try:
+        master.connect(TcpParams('127.0.0.1', port))
+        assert master.read(1, 'holding_registers', 0, 1)[0] >= 5
+        deadline = time.monotonic() + 2
+        while master.read(1, 'holding_registers', 0, 1)[0] <= 5:
+            assert time.monotonic() < deadline
+            time.sleep(0.02)
+        assert request(bridge, 'sim_set', row={'address': 1}, values=[321])['ok']
+        assert master.read(1, 'holding_registers', 1, 1) == [321]
+        status = request(bridge, 'device_status')['result']
+        assert status['simulator'] and status['events']
+        assert not request(bridge, 'sim_configure', rows=[{'address': 10000}])['ok']
+        assert not request(bridge, 'sim_configure', rows=[{'rule_text': '__import__("os")'}])['ok']
+    finally:
+        master.disconnect()
+    assert request(bridge, 'device_stop')['ok']
+    assert not request(bridge, 'device_status')['result']['simulator']
+
+
+def test_gateway_panel_commands_forward_real_tcp(bridge: Bridge, modbus_server: int) -> None:
+    from modbus_connector.backend import ModbusBackend
+    from modbus_connector.models import TcpParams
+    port = free_port()
+    assert request(bridge, 'device_start', mode='gateway', units=[1],
+                   listen={'transport': 'tcp', 'host': '127.0.0.1', 'port': port},
+                   target={'transport': 'tcp', 'host': '127.0.0.1', 'port': modbus_server})['ok']
+    master = ModbusBackend()
+    try:
+        master.connect(TcpParams('127.0.0.1', port))
+        assert master.read(1, 'holding_registers', 0, 2) == [100, 101]
+        master.write(1, 'holding_registers', 0, [555])
+        assert master.read(1, 'holding_registers', 0, 1) == [555]
+    finally:
+        master.disconnect()
+    assert request(bridge, 'device_status')['result']['gateway']
+    bridge.close()
+    assert not bridge.devices.gateway.running
+
+
+def test_sniffer_panel_commands_with_real_serial_pty(bridge: Bridge) -> None:
+    import time
+
+    from modbus_connector.sniffer_backend import crc16
+    if sys.platform == 'win32':
+        pytest.skip('POSIX pseudo terminal')
+    master_fd, slave_fd = os.openpty()
+    try:
+        port = os.ttyname(slave_fd)
+        assert request(bridge, 'device_start', mode='sniffer',
+                       listen={'transport': 'rtu', 'port': port})['ok']
+        body = bytes([1, 6, 0, 5, 0, 77])
+        os.write(master_fd, body + crc16(body).to_bytes(2, 'little'))
+        deadline = time.monotonic() + 2
+        while True:
+            result = request(bridge, 'sniffer_snapshot', unit=1)['result']
+            if result['areas'].get('holding_registers', {}).get(5) == 77:
+                break
+            assert time.monotonic() < deadline
+            time.sleep(0.02)
+        status = request(bridge, 'device_status')['result']
+        assert status['sniffer'] and any(e['event'] == 'values' for e in status['events'])
+        assert request(bridge, 'device_stop')['ok']
+        assert not bridge.devices.sniffer.running
+    finally:
+        os.close(master_fd)
+        os.close(slave_fd)

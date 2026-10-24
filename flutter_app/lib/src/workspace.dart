@@ -121,7 +121,9 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                                       : Icons.tab,
                                   size: 16,
                                 ),
-                                label: Text('Session ${i + 1}'),
+                                label: Text(
+                                  '${workspace.sessions[i].mode} ${i + 1}',
+                                ),
                                 onPressed: () => workspace.select(i),
                                 onDeleted: () => unawaited(
                                   workspace.remove(workspace.sessions[i]),
@@ -132,6 +134,17 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                       ],
                     ),
                   ),
+                ),
+                PopupMenuButton<String>(
+                  tooltip: 'Session mode',
+                  icon: const Icon(Icons.swap_horiz),
+                  onSelected: (v) => unawaited(
+                    workspace.sessions[workspace.selected].changeMode(v),
+                  ),
+                  itemBuilder: (_) =>
+                      ['master', 'simulator', 'sniffer', 'gateway']
+                          .map((m) => PopupMenuItem(value: m, child: Text(m)))
+                          .toList(),
                 ),
                 IconButton(
                   tooltip: 'New session',

@@ -8,6 +8,7 @@ import 'live_chart.dart';
 import 'scanner.dart';
 import 'register_map.dart';
 import 'logging_dialog.dart';
+import 'device_panel.dart';
 import 'session_controller.dart';
 import 'write_dialog.dart';
 
@@ -159,7 +160,7 @@ class _WorkbenchState extends State<Workbench> {
       session.connect({
         'transport': _transport,
         'timeout': double.parse(_timeout.text),
-        if (_transport == 'tcp') ...{
+        if (['tcp', 'rtu_tcp', 'rtu_udp'].contains(_transport)) ...{
           'host': _host.text.trim(),
           'port': int.parse(_port.text),
         },
@@ -271,11 +272,17 @@ class _WorkbenchState extends State<Workbench> {
               _dropdown<String>(
                 'Transport',
                 _transport,
-                const {'rtu': 'Serial RTU', 'tcp': 'TCP', 'demo': 'Local demo'},
+                const {
+                  'rtu': 'Serial RTU',
+                  'tcp': 'TCP',
+                  'rtu_tcp': 'RTU over TCP',
+                  'rtu_udp': 'RTU over UDP',
+                  'demo': 'Local demo',
+                },
                 locked ? null : (v) => setState(() => _transport = v),
                 150,
               ),
-              if (_transport == 'tcp') ...[
+              if (['tcp', 'rtu_tcp', 'rtu_udp'].contains(_transport)) ...[
                 _field(
                   'Host',
                   _host,
@@ -677,6 +684,9 @@ class _WorkbenchState extends State<Workbench> {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: session,
     builder: (context, _) {
+      if (session.mode != 'master') {
+        return DevicePanel(key: ValueKey(session.mode), session: session);
+      }
       final colors = Theme.of(context).colorScheme;
       final compact = MediaQuery.sizeOf(context).width < 1100;
       final gap = compact ? 10.0 : 16.0;

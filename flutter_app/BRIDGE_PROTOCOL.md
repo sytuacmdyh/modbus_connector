@@ -106,3 +106,31 @@ Logger commands:
 The result alarm contains condition/value/value2/color/log/sound, or null. Flutter
 colors the map row and emits log/sound only on alarm entry; recovery permits a
 subsequent entry. System sound availability depends on the Linux desktop.
+
+Device modes:
+
+- `device_start`: `{mode:"simulator"|"sniffer"|"gateway",listen,...}`. Listen
+  uses `{transport,host,port,timeout}` for TCP/RTU over TCP or the RTU serial
+  fields used by connect. Sniffer accepts RTU only. Simulator optionally accepts
+  `unit` (null = any) and `tick_ms` 100..10000. Gateway requires `target` with the
+  same connection schema (also rtu_udp), and `units` null or array 1..247.
+  Validates parameters before stopping a previous service; startup errors are
+  returned. One device service runs per process; its master backend is separate.
+- `device_stop`: stops/join services and simulator rule timer.
+- `device_status`: returns simulator/sniffer/gateway booleans, simulator rendered
+  `rows`, sniffer `units`, drained bounded `events`, and `dropped` count. Events:
+  `{mode,event:"traffic"|"values"|"client"|"error",...}` with line, unit,
+  kind/address/values or connected as appropriate. Queue capacity 2000.
+- `sim_configure`: `{rows}` replaces the simulator map descriptors/rules after
+  full validation. Rows use the register schema, optional raw `values`, and
+  `rule_text` (blank = manual). Addresses must fit 0..9999. Rules use the existing
+  AST engine, references `[name]`, t/prev, rand()/randint(a,b). Missing references,
+  nonfinite results and unrepresentable values skip writes. A process-owned
+  timer applies rules independently of UI refresh.
+- `sim_set`: `{row,values}` writes the simulator datastore, including while stopped.
+- `sniffer_snapshot`: `{unit}` returns `{unit,areas:{kind:{address:value}}}` to
+  recover values after event overflow. JSON address keys are strings.
+
+Master `connect` additionally accepts `rtu_tcp` and `rtu_udp` with host/port.
+Disconnect/EOF/shutdown stop all services, rule timers and logging. Switching a
+Flutter session mode disconnects first; inactive tabs keep their services running.
