@@ -2,18 +2,47 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
 from .custom_templates import CustomTemplateStore
-from .templates import list_templates, load_template
+from .templates import TemplateInfo, list_templates, load_template
 
 
 def flutter_directory() -> Path:
     configured = os.environ.get("MODBUS_FLUTTER_HOME")
     return Path(configured) if configured else Path.home() / ".modbus_connector" / "flutter"
+
+
+def cached_templates() -> dict[str, Any]:
+    try:
+        raw = json.loads((flutter_directory() / "cloud_templates.json").read_text())
+        from .cloud_sync import WebDavClient
+
+        WebDavClient._validate_templates(raw)
+        return raw
+    except FileNotFoundError:
+        return {}
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Ignoring invalid Flutter template cache: %s", exc)
+        return {}
+
+
+def public_catalog() -> list[TemplateInfo]:
+    found = {t.resource: t for t in list_templates()}
+    for resource, state in cached_templates().items():
+        found[resource] = TemplateInfo(
+            state["name"], resource.split("/")[0], resource, str(state.get("description", ""))
+        )
+    return sorted(found.values(), key=lambda t: (t.manufacturer.casefold(), t.name.casefold()))
+
+
+def public_template(resource: str) -> dict[str, Any]:
+    return cached_templates().get(resource) or load_template(resource)
 
 
 def flutter_state(state: dict[str, Any]) -> dict[str, Any]:
@@ -64,7 +93,7 @@ def catalog_command(data: dict[str, Any]) -> dict[str, Any]:
     command = data["command"]
     if command == "template_list":
         return {
-            "public": [asdict(t) for t in list_templates()],
+            "public": [asdict(t) for t in public_catalog()],
             "custom": [asdict(t) for t in store.list_templates()],
         }
     template_id = data.get("template_id")
@@ -72,7 +101,7 @@ def catalog_command(data: dict[str, Any]) -> dict[str, Any]:
         state = (
             store.load(template_id, data.get("version_id"))
             if template_id
-            else load_template(data.get("resource", ""))
+            else public_template(data.get("resource", ""))
         )
         return {"state": flutter_state(state), "template_id": template_id}
     if command == "template_versions":

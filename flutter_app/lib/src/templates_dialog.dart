@@ -10,8 +10,10 @@ class TemplatesDialog extends StatefulWidget {
     super.key,
     required this.session,
     required this.onOpen,
+    this.service,
   });
   final SessionController session;
+  final SessionController? service;
   final void Function(Map<String, dynamic>, String?) onOpen;
   @override
   State<TemplatesDialog> createState() => _TemplatesDialogState();
@@ -36,11 +38,14 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
     Map<String, dynamic> args = const {},
   ]) async {
     if (mounted) setState(() => busy = true);
-    final reply = await widget.session.command({'command': command, ...args});
+    final reply = await (widget.service ?? widget.session).command({
+      'command': command,
+      ...args,
+    });
     if (mounted) {
       setState(() {
         busy = false;
-        error = reply == null ? widget.session.error : null;
+        error = reply == null ? (widget.service ?? widget.session).error : null;
       });
     }
     return reply;

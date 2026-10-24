@@ -154,3 +154,33 @@ Flutter workspace files are schema 1 (`tabs`, `active_tab`) and written atomical
 by Dart to `flutter/settings.json`. They never include cloud settings/credentials,
 never auto-connect, and do not overwrite Qt settings. Import is staged before
 closing/replacing sessions. Corrupt startup state disables automatic overwrites.
+
+Cloud/update commands (manual only):
+
+- `cloud_settings_load` → `{settings}`; `cloud_settings_save`: `{settings}`.
+  Settings are URL/username/password/templates_path/timeout/mode/remember_password.
+  Separate `flutter/cloud.json`; plaintext password is omitted unless opted in.
+- `cloud_start`: `{action,settings,version?}` starts a background task; actions
+  test/download/versions/publish/activate. Publisher writes fail before network in
+  consumer mode; activation requires a selected version. Publication snapshots
+  only public templates, never sessions or personal templates. Returns started.
+- `cloud_status`: `{running,action,error,result}`; result contains message,
+  downloaded count, versions, or new version as appropriate. `cloud_cancel` sets
+  cancellation immediately; current bounded HTTP completes before final status.
+  Download/cache replacement and publication checkpoints use backend cancellation.
+  UI waits for completion before closing. EOF cancels the task.
+- Downloads validate the complete catalog before replacing
+  `flutter/cloud_templates.json`; template-list/load overlays that cache. History
+  download changes only local cache; activation appends a remote immutable version.
+- `update_check` reuses the stable GitHub release checker; returns current,
+  release (tag/notes/installer metadata) or null, URL, newer, install_supported and
+  install_reason. Network/rate-limit/invalid responses remain explicit errors.
+- `update_open_page` opens only the known releases URL (or last verified tag URL)
+  in the system browser, with child stdout/stderr detached from the protocol.
+- `update_install` returns a clear unsupported error. The existing NSIS asset
+  installs the PySide6 product; automatic Flutter upgrades require a separate
+  Flutter installer and identity. The Flutter dialog exposes this limitation and
+  offers manual download on Linux and Windows.
+
+Workspace templates/cloud/update dialogs own a separate utility bridge so bus
+transactions and polling in session tabs continue independently.

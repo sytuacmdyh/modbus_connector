@@ -194,6 +194,8 @@ class _DevicePanelState extends State<DevicePanel> {
   @override
   void initState() {
     super.initState();
+    units.addListener(saveConfig);
+    tick.addListener(saveConfig);
     timer = Timer.periodic(
       const Duration(milliseconds: 400),
       (_) => unawaited(refresh()),

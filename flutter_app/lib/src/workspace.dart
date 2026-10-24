@@ -12,6 +12,7 @@ import 'settings_store.dart';
 import 'templates_dialog.dart';
 import 'tool_widgets.dart';
 import 'help_dialog.dart';
+import 'online_dialogs.dart';
 
 class WorkspaceController extends ChangeNotifier {
   WorkspaceController({BridgeTransport Function()? bridgeFactory, this.store})
@@ -27,6 +28,7 @@ class WorkspaceController extends ChangeNotifier {
   }
   final BridgeTransport Function() bridgeFactory;
   final List<SessionController> sessions = [];
+  final List<SessionController> tools = [];
   final SettingsStore? store;
   Timer? _autosave;
   bool loading = false;
@@ -138,7 +140,7 @@ class WorkspaceController extends ChangeNotifier {
     closing = true;
     _autosave?.cancel();
     if (_allowAutoSave) await save();
-    await Future.wait(sessions.map((s) => s.shutdown()));
+    await Future.wait([...sessions, ...tools].map((s) => s.shutdown()));
   }
 
   @override
@@ -253,16 +255,29 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                   icon: const Icon(Icons.folder_open),
                   onSelected: (v) async {
                     final session = workspace.sessions[workspace.selected];
-                    if (v == 'templates') {
-                      await showDialog<void>(
-                        context: context,
-                        builder: (_) => TemplatesDialog(
-                          session: session,
-                          onOpen: (state, id) {
-                            workspace.openState(state, templateId: id);
-                          },
-                        ),
-                      );
+                    if (['templates', 'cloud', 'updates'].contains(v)) {
+                      final tool = SessionController(workspace.bridgeFactory());
+                      workspace.tools.add(tool);
+                      try {
+                        await showDialog<void>(
+                          context: context,
+                          builder: (_) => v == 'templates'
+                              ? TemplatesDialog(
+                                  session: session,
+                                  service: tool,
+                                  onOpen: (state, id) {
+                                    workspace.openState(state, templateId: id);
+                                  },
+                                )
+                              : v == 'cloud'
+                              ? CloudDialog(session: tool)
+                              : UpdateDialog(session: tool),
+                        );
+                      } finally {
+                        await tool.shutdown();
+                        tool.dispose();
+                        workspace.tools.remove(tool);
+                      }
                       return;
                     }
                     if (v == 'save') {
@@ -286,6 +301,11 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                     PopupMenuItem(
                       value: 'templates',
                       child: LText('Templates / history'),
+                    ),
+                    PopupMenuItem(value: 'cloud', child: LText('Cloud sync')),
+                    PopupMenuItem(
+                      value: 'updates',
+                      child: LText('Check for updates'),
                     ),
                     PopupMenuItem(
                       value: 'save',

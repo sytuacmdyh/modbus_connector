@@ -219,3 +219,20 @@ read and left unchanged, including its pre-existing untracked Git state.
   technical messages, freeform file prompts and some tool-specific captions still
   fall back to English; the translation dictionaries can be extended incrementally.
 - Remaining: cloud/update surfaces and final native Linux integration/build pass.
+
+## Parity push — chunk 9: cloud and updates
+
+- Cloud dialog: separate connection/password opt-in settings, consumer/publisher
+  mode, test, current/history download, public-catalog publication and version
+  activation with confirmation. Backend enforces consumer mode before network.
+- Cancellable background transfer task with status polling and bounded HTTP;
+  cancel waits for a network/checkpoint boundary before dialog close. Flutter cache
+  overlays the public catalog; downloads never replace sessions/custom templates.
+- Update dialog: manual stable-release check, plain release notes/current/latest,
+  explicit errors and releases-page launch. Automatic install is intentionally
+  unavailable: existing NSIS assets install the Qt product, not Flutter. A separate
+  Flutter installer/identity and Windows runtime verification remain required.
+- Utility dialogs own separate bridges, so master/device sessions keep running.
+- Linux Python: 34 bridge/online tests passed, including a real WebDAV fixture,
+  consumer write rejection before network, publication/history/download, password
+  omission and cancellation. Dialog/widget and final native validation follow.

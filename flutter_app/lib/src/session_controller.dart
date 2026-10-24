@@ -410,7 +410,7 @@ class SessionController extends ChangeNotifier {
         });
         loggedSamples = reply.result['rows_written'] as int;
       });
-      if (error != null) await stopLogging();
+      if (error != null && !_closing && logging) await stopLogging();
     }
 
     _loggerTimer = Timer.periodic(
@@ -429,7 +429,7 @@ class SessionController extends ChangeNotifier {
 
   Future<void> stopLogging() async {
     _cancelLogger();
-    notifyListeners();
+    if (!_disposed) notifyListeners();
     await _operation?.future;
     if (!_closing && !disconnecting) await command({'command': 'logger_stop'});
   }
@@ -437,6 +437,7 @@ class SessionController extends ChangeNotifier {
   Future<void> changeMode(String next) async {
     if (next == mode || _closing) return;
     await disconnect();
+    if (_closing || _disposed) return;
     deviceRunning = false;
     mode = next;
     notifyListeners();

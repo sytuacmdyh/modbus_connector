@@ -20,6 +20,7 @@ from serial.tools import list_ports
 from .backend import ModbusBackend, ModbusExceptionError
 from .flutter_devices import FlutterDevices, connection_params
 from .flutter_logging import FlutterLogger
+from .flutter_online import FlutterOnline
 from .models import RegisterKind, RtuParams, ScanProbe, TcpParams, describe_connection
 from .sim_backend import SimBackend, SimTcpParams
 
@@ -47,10 +48,12 @@ class Bridge:
         self.backend = ModbusBackend()
         self.logger = FlutterLogger()
         self.devices = FlutterDevices()
+        self.online = FlutterOnline()
         self.demo: SimBackend | None = None
         self._demo_started = 0.0
 
     def close(self) -> None:
+        self.online.close()
         self.devices.close()
         self.logger.close()
         self.backend.disconnect()
@@ -122,6 +125,8 @@ class Bridge:
         if command in ("disconnect", "shutdown"):
             self.close()
             return {}
+        if command.startswith(("cloud_", "update_")):
+            return self.online.dispatch(data)
         if command.startswith("template_"):
             from .flutter_catalog import catalog_command
 
