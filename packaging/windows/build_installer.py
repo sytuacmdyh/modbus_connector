@@ -18,8 +18,8 @@ def nsis_literal(value: str) -> str:
 
 
 def build(bundle: Path, version: str, output: Path, compiler: str) -> None:
-    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
-        raise ValueError("Expected MAJOR.MINOR.PATCH")
+    if not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][\w.]+)?", version):
+        raise ValueError("Expected MAJOR.MINOR.PATCH or prerelease suffix")
     bundle = bundle.resolve()
     if not (bundle / "ModbusConnector.exe").is_file():
         raise ValueError("Bundle must contain ModbusConnector.exe")
