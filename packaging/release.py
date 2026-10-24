@@ -38,9 +38,9 @@ def github_repository(remote: str) -> str:
     url = git("remote", "get-url", remote)
     if git("remote", "get-url", "--push", remote) != url:
         raise ValueError("发布 remote 的 fetch 和 push 地址必须一致。")
-    match = re.fullmatch(
-        r"(?:git@github\.com:|https://github\.com/|ssh://git@github\.com/)"
-        r"([\w.-]+/[\w.-]+?)(?:\.git)?", url,
+    match = re.search(
+        r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?/?$",
+        url,
     )
     if not match:
         raise ValueError("发布 remote 必须指向 github.com 仓库。")
