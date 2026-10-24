@@ -71,6 +71,8 @@ class SessionController extends ChangeNotifier {
     };
   }
   final BridgeTransport bridge;
+  Map<String, dynamic> connectionConfig = {};
+  final Map<String, dynamic> draft = {};
   bool connected = false;
   bool busy = false;
   bool disconnecting = false;
@@ -92,6 +94,7 @@ class SessionController extends ChangeNotifier {
   int _readGeneration = 0;
   bool _disposed = false;
   bool _closing = false;
+  Future<void>? _shutdown;
   DateTime? _lastSample;
 
   bool get canRead => connected && !busy && !disconnecting;
@@ -159,6 +162,7 @@ class SessionController extends ChangeNotifier {
         elapsedMs = null;
         samples.clear();
         _lastSample = null;
+        connectionConfig = Map.of(config);
         timeoutSeconds = (config['timeout'] as num).toDouble();
         _log('Connecting…');
         final reply = await bridge.request({
@@ -312,11 +316,13 @@ class SessionController extends ChangeNotifier {
     return result;
   }
 
-  Future<void> shutdown() async {
-    if (_closing) return;
+  Future<void> shutdown() => _shutdown ??= _shutdownOwned();
+
+  Future<void> _shutdownOwned() async {
     _closing = true;
     ++_epoch;
     stopPolling();
+    await _operation?.future;
     await bridge.close();
   }
 

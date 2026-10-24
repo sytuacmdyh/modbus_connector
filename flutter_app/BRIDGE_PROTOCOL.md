@@ -46,3 +46,7 @@ sends `disconnect`. A read error stops polling; a manual read can recover a live
 connection. The request watchdog allows five configured timeouts plus ten seconds
 for pymodbus retries/cleanup, then terminates the bridge. Window exit closes stdin,
 allows three seconds for cleanup, then terminates the child if necessary.
+
+Multi-session ownership: every tab launches its own bridge process. There is no
+shared connection or session identifier. Closing one tab waits for its active
+transaction and closes that process; other tabs continue independently.

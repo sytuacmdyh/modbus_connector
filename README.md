@@ -934,3 +934,6 @@ On Linux you get four files:
 the zip, a portable `ModbusConnector.AppImage` (chmod +x and run — no
 installation, any distro) and `modbus-connector_<version>_amd64.deb`
 (`sudo dpkg -i …` installs to /opt with an app-menu entry on Debian/Ubuntu).
+
+Flutter desktop parity work is tracked in [docs/FLUTTER_STATUS.md](docs/FLUTTER_STATUS.md).
+The Flutter UI supports independent session tabs, each owning a Python bridge.

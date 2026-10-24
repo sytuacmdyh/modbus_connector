@@ -106,3 +106,14 @@ formats/scaling, scanner, sniffer/gateway/simulator management, templates, cloud
 sync, alarms, localization, application updates, installers and code signing.
 Flutter does not modify existing Qt settings. The original migration brief was
 read and left unchanged, including its pre-existing untracked Git state.
+
+## Parity push — chunk 1: sessions
+
+- Added independent session tabs, each owning its controller and bridge process.
+  Inactive sessions keep polling; tab controls/forms remain mounted when switching.
+  Close waits for in-flight I/O and releases only that tab's process. Last-tab close
+  creates a disconnected session. Window exit awaits all sessions.
+- Linux verification: `flutter analyze` clean; `flutter test` 13 passed, including
+  independent connections and closing a tab while another tab continues reading.
+- Remaining: scanner; richer register tools; logger/alarms; mode panels; graph;
+  templates/persistence; help/localization; cloud/update surfaces.

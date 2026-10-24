@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'src/bridge_client.dart';
 import 'src/session_controller.dart';
 import 'src/workbench.dart';
+import 'src/workspace.dart';
 
 void main() => runApp(const ModbusApp());
 
@@ -16,8 +16,6 @@ class ModbusApp extends StatefulWidget {
 
 class _ModbusAppState extends State<ModbusApp> {
   ThemeMode _themeMode = ThemeMode.system;
-  late final SessionController _controller =
-      widget.controller ?? SessionController(ProcessBridge());
 
   ThemeData _theme(Brightness brightness) {
     final scheme = ColorScheme.fromSeed(
@@ -44,7 +42,6 @@ class _ModbusAppState extends State<ModbusApp> {
 
   @override
   void dispose() {
-    if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
 
@@ -55,10 +52,15 @@ class _ModbusAppState extends State<ModbusApp> {
     theme: _theme(Brightness.light),
     darkTheme: _theme(Brightness.dark),
     themeMode: _themeMode,
-    home: Workbench(
-      controller: _controller,
-      themeMode: _themeMode,
-      onThemeChanged: (mode) => setState(() => _themeMode = mode),
-    ),
+    home: widget.controller == null
+        ? SessionWorkspace(
+            themeMode: _themeMode,
+            onThemeChanged: (mode) => setState(() => _themeMode = mode),
+          )
+        : Workbench(
+            controller: widget.controller!,
+            themeMode: _themeMode,
+            onThemeChanged: (mode) => setState(() => _themeMode = mode),
+          ),
   );
 }

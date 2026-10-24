@@ -14,7 +14,9 @@ class Workbench extends StatefulWidget {
     required this.controller,
     required this.themeMode,
     required this.onThemeChanged,
+    this.manageLifecycle = true,
   });
+  final bool manageLifecycle;
   final SessionController controller;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeChanged;
@@ -50,26 +52,28 @@ class _WorkbenchState extends State<Workbench> {
       session.query.kind == _kind &&
       session.query.address == int.tryParse(_address.text) &&
       session.query.count == int.tryParse(_count.text);
-  late final AppLifecycleListener _lifecycle;
+  AppLifecycleListener? _lifecycle;
 
   @override
   void initState() {
     super.initState();
     _address.addListener(_rangeEdited);
     _count.addListener(_rangeEdited);
-    _lifecycle = AppLifecycleListener(
-      onExitRequested: () async {
-        await session.shutdown();
-        return AppExitResponse.exit;
-      },
-    );
+    if (widget.manageLifecycle) {
+      _lifecycle = AppLifecycleListener(
+        onExitRequested: () async {
+          await session.shutdown();
+          return AppExitResponse.exit;
+        },
+      );
+    }
   }
 
   void _rangeEdited() => setState(() {});
 
   @override
   void dispose() {
-    _lifecycle.dispose();
+    _lifecycle?.dispose();
     _serialFocus.dispose();
     _pageScroll.dispose();
     _tableScroll.dispose();

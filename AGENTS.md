@@ -19,7 +19,7 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
 
 ## Архитектура
 
-- Flutter desktop MVP lives in `flutter_app/` alongside the existing PySide6 GUI.
+- Flutter desktop UI lives in `flutter_app/` alongside the existing PySide6 GUI.
   Material 3 Windows/Linux runners communicate with `flutter_bridge.py` using
   request/reply NDJSON over an owned subprocess's stdio. The bridge imports only
   Qt-free backends; stdout is protocol-only. Requests validate unit/address/count
