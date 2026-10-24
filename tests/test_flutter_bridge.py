@@ -278,7 +278,8 @@ def test_simulator_panel_commands_rules_and_external_master(bridge: Bridge) -> N
         status = request(bridge, "device_status")["result"]
         assert status["simulator"] and status["events"]
         assert not request(bridge, "sim_configure", rows=[{"address": 10000}])["ok"]
-        assert not request(bridge, "sim_configure", rows=[{"rule_text": '__import__("os")'}])["ok"]
+        invalid = request(bridge, "sim_configure", rows=[{"rule_text": '__import__("os")'}])
+        assert invalid["ok"] and invalid["result"]["rule_errors"]["0"]["code"] == "invalid_rule"
     finally:
         master.disconnect()
     assert request(bridge, "device_stop")["ok"]
@@ -476,3 +477,57 @@ def test_full_register_map_fits_bounded_protocol_frames() -> None:
     result = json.loads(sink.getvalue())
     assert result["ok"]
     assert sum(len(group) for group in result["result"]["groups"]) == 512
+
+
+def test_render_rows_decodes_multiword_without_bus_io(bridge: Bridge, monkeypatch) -> None:
+    monkeypatch.setattr(bridge.backend, "read", lambda *_: pytest.fail("Display must not read bus"))
+    row = {
+        "name": "Wide",
+        "kind": "holding_registers",
+        "address": 3,
+        "count": 2,
+        "format": "u32",
+        "values": [1, 2],
+    }
+    result = request(bridge, "render_rows", rows=[row])
+    assert result["ok"] and result["result"]["rows"][0]["numeric"] == 65538
+    assert not request(bridge, "render_rows", rows=[{**row, "values": [1]}])["ok"]
+    assert not request(bridge, "render_rows", rows=[{**row, "values": [1, -1]}])["ok"]
+
+
+def test_simulator_invalid_rule_is_per_row_and_valid_rules_continue(bridge: Bridge) -> None:
+    import socket
+    import time
+
+    with socket.socket() as reservation:
+        reservation.bind(("127.0.0.1", 0))
+        port = reservation.getsockname()[1]
+    base = {"kind": "holding_registers", "count": 1, "format": "dec"}
+    configured = request(
+        bridge,
+        "sim_configure",
+        rows=[
+            {**base, "name": "Good", "address": 0, "rule_text": "prev+1"},
+            {**base, "name": "Bad", "address": 1, "rule_text": "("},
+            {**base, "name": "Missing", "address": 2, "rule_text": "[Absent]"},
+        ],
+    )
+    assert configured["ok"]
+    assert configured["result"]["rule_errors"]["1"]["code"] == "invalid_rule"
+    assert request(
+        bridge,
+        "device_start",
+        mode="simulator",
+        tick_ms=100,
+        listen={"transport": "tcp", "host": "127.0.0.1", "port": port},
+    )["ok"]
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        status = request(bridge, "device_status")["result"]
+        if status["rows"][0]["numeric"] > 0:
+            break
+        time.sleep(0.03)
+    assert status["rows"][0]["numeric"] > 0
+    assert status["rule_errors"]["2"]["code"] == "missing_reference"
+    assert status["rows"][1]["values"] == [0]
+    assert request(bridge, "device_stop")["ok"]

@@ -1,3 +1,6 @@
+import 'sniffer_views.dart';
+import 'templates_dialog.dart';
+import 'bridge_client.dart';
 import 'file_paths.dart';
 import 'translations.dart';
 
@@ -160,7 +163,12 @@ class _ConnectionFieldsState extends State<ConnectionFields> {
 }
 
 class DevicePanel extends StatefulWidget {
-  const DevicePanel({super.key, required this.session});
+  const DevicePanel({
+    super.key,
+    required this.session,
+    this.utilityBridgeFactory,
+  });
+  final BridgeTransport Function()? utilityBridgeFactory;
   final SessionController session;
   @override
   State<DevicePanel> createState() => _DevicePanelState();
@@ -189,6 +197,9 @@ class _DevicePanelState extends State<DevicePanel> {
   );
   final logs = <Map<String, dynamic>>[];
   List<Map<String, dynamic>> results = [];
+  Map<String, dynamic> ruleErrors = {};
+  final sniffDisplays = <String, Map<String, dynamic>>{};
+  bool unitLog = true;
   int selectedUnit = 1;
   String? localError;
   Timer? timer;
@@ -229,6 +240,9 @@ class _DevicePanelState extends State<DevicePanel> {
     setState(() {
       session.deviceRunning = status[session.mode] == true;
       results = (status['rows'] as List).cast<Map<String, dynamic>>();
+      ruleErrors = Map<String, dynamic>.from(
+        status['rule_errors'] as Map? ?? {},
+      );
       for (final e in (status['events'] as List).cast<Map<String, dynamic>>()) {
         logs.add(e);
         if (logs.length > 1000) logs.removeAt(0);
@@ -252,7 +266,7 @@ class _DevicePanelState extends State<DevicePanel> {
               'unit_id': unit,
               'kind': e['kind'],
               'address': address,
-              'count': 1,
+              'count': old?['count'] ?? 1,
               'format': old?['format'] ?? 'dec',
               'name': old?['name'] ?? '',
               'value': values[i],
@@ -266,6 +280,155 @@ class _DevicePanelState extends State<DevicePanel> {
             'Event buffer overflow (${status['dropped']} events); use Refresh map.';
       }
     });
+    if (session.mode == 'sniffer') await renderSniffer();
+  }
+
+  Future<void> renderSniffer() async {
+    final unit = selectedUnit;
+    final views = snifferViews(session.sniffed[unit] ?? {});
+    final complete = views.where((v) => v['values'] != null).toList();
+    final displays = <String, Map<String, dynamic>>{};
+    for (var offset = 0; offset < complete.length; offset += 512) {
+      final batch = complete.skip(offset).take(512).toList();
+      final reply = await session.command({
+        'command': 'render_rows',
+        'rows': batch,
+      });
+      if (reply == null || !mounted || unit != selectedUnit) return;
+      final rendered = (reply['rows'] as List).cast<Map<String, dynamic>>();
+      for (var i = 0; i < batch.length; i++) {
+        final row = batch[i];
+        final key = '${row['kind']}/${row['address']}';
+        displays[key] = rendered[i];
+        if (rendered[i]['numeric'] is num) {
+          session.recordPoint(
+            'sniff-view/$unit/$key',
+            row['name'] as String? ?? key,
+            (rendered[i]['numeric'] as num).toDouble(),
+          );
+        }
+      }
+    }
+    if (mounted && unit == selectedUnit) {
+      setState(() {
+        sniffDisplays
+          ..clear()
+          ..addAll(displays);
+      });
+    }
+  }
+
+  Future<void> editSniffer(Map<String, dynamic> row) async {
+    var format = row['format'] as String? ?? 'dec';
+    var order = row['order'] as String? ?? 'ABCD';
+    final name = TextEditingController(text: row['name'] as String? ?? '');
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) => AlertDialog(
+          title: const LText('Sniffer view'),
+          content: SizedBox(
+            width: 420,
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                toolField('Name', name, width: 390),
+                toolChoice(
+                  'Format',
+                  format,
+                  displayFormats,
+                  (v) => update(() => format = v),
+                ),
+                toolChoice('Byte order', order, [
+                  'ABCD',
+                  'CDAB',
+                  'BADC',
+                  'DCBA',
+                ], (v) => update(() => order = v)),
+                const LText(
+                  'Multiword views require consecutive recovered addresses.',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const LText('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const LText('Apply'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (accepted == true && mounted) {
+      setState(() {
+        row['name'] = name.text;
+        row['format'] = format;
+        row['order'] = order;
+        row['count'] = ['u64', 's64', 'f64'].contains(format)
+            ? 4
+            : ['u32', 's32', 'f32'].contains(format)
+            ? 2
+            : 1;
+      });
+      await renderSniffer();
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    name.dispose();
+  }
+
+  Future<void> templates() async {
+    final service = SessionController(
+      (widget.utilityBridgeFactory ?? ProcessBridge.new)(),
+    );
+    List<Map<String, dynamic>>? incoming;
+    try {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (_) => TemplatesDialog(
+          session: session,
+          service: service,
+          onOpen: (state, _) {
+            incoming =
+                (state[state['mode'] == 'simulator' ? 'sim_rows' : 'registers']
+                            as List? ??
+                        [])
+                    .whereType<Map<String, dynamic>>()
+                    .map(Map<String, dynamic>.of)
+                    .toList();
+          },
+          simulator: true,
+        ),
+      );
+    } finally {
+      await service.shutdown();
+      service.dispose();
+    }
+    if (!mounted || incoming == null) return;
+    final existing = {
+      for (final row in session.simRows) '${row['kind']}/${row['address']}',
+    };
+    var skipped = 0;
+    for (final row in incoming!) {
+      final key = '${row['kind']}/${row['address']}';
+      if (session.simRows.length >= 512 ||
+          (row['address'] as int) + (row['count'] as int) > 10000 ||
+          !existing.add(key)) {
+        skipped++;
+        continue;
+      }
+      session.simRows.add({...row, 'rule_text': row['rule_text'] ?? ''});
+    }
+    await configure();
+    if (mounted) {
+      setState(() => localError = '${tr('Template rows skipped')}: $skipped');
+    }
   }
 
   Future<void> start() async {
@@ -306,6 +469,11 @@ class _DevicePanelState extends State<DevicePanel> {
       'command': 'sim_configure',
       'rows': session.simRows,
     });
+    if (reply != null) {
+      ruleErrors = Map<String, dynamic>.from(
+        reply['rule_errors'] as Map? ?? {},
+      );
+    }
     return reply != null;
   }
 
@@ -328,30 +496,41 @@ class _DevicePanelState extends State<DevicePanel> {
 
   Future<void> setValue(int i) async {
     final row = session.simRows[i];
-    final content = await textPrompt(
-      context,
-      'Set ${row['name']} (${row['format']})',
-    );
-    if (content == null) return;
-    final encoded = await session.command({
-      'command': 'encode_values',
-      'row': row,
-      'text': content,
-    });
-    if (encoded == null) return;
-    await session.command({
-      'command': 'sim_set',
-      'row': row,
-      'values': encoded['values'],
-    });
+    List<dynamic>? values;
+    if (hasRawEditor(row)) {
+      values = await rawValuePrompt(
+        context,
+        row,
+        i < results.length ? results[i]['values'] as List? ?? [] : [],
+      );
+    } else {
+      final content = await textPrompt(
+        context,
+        trf('Set {name} ({format})', {
+          'name': row['name'],
+          'format': row['format'],
+        }),
+      );
+      if (content == null) return;
+      final encoded = await session.command({
+        'command': 'encode_values',
+        'row': row,
+        'text': content,
+      });
+      values = encoded?['values'] as List?;
+    }
+    if (values == null) return;
+    await session.command({'command': 'sim_set', 'row': row, 'values': values});
     await refresh();
   }
 
   Future<void> editRule(int i) async {
-    final rule = await textPrompt(
+    final rule = await expressionPrompt(
       context,
-      'Rule: t, prev, [name], sin(), rand(), randint(a,b); blank = manual',
       value: session.simRows[i]['rule_text'] as String? ?? '',
+      names: session.simRows
+          .map((r) => r['name'] as String? ?? '')
+          .where((n) => n.isNotEmpty),
     );
     if (rule == null || !mounted) return;
     final old = session.simRows[i]['rule_text'];
@@ -377,7 +556,7 @@ class _DevicePanelState extends State<DevicePanel> {
             'unit_id': selectedUnit,
             'kind': area.key,
             'address': address,
-            'count': 1,
+            'count': map[key]?['count'] ?? 1,
             'format': map[key]?['format'] ?? 'dec',
             'name': map[key]?['name'] ?? '',
             'value': cell.value,
@@ -398,8 +577,8 @@ class _DevicePanelState extends State<DevicePanel> {
     );
     if (path == null || path.isEmpty) return;
     try {
-      final rows = (session.sniffed[selectedUnit] ?? {}).values
-          .map((r) => Map<String, dynamic>.of(r))
+      final rows = snifferViews(session.sniffed[selectedUnit] ?? {})
+          .where((r) => r['values'] != null)
           .toList();
       final result = await session.command({
         'command': 'csv_export',
@@ -413,6 +592,16 @@ class _DevicePanelState extends State<DevicePanel> {
       if (mounted) setState(() => localError = '$e');
     }
   }
+
+  List<Map<String, dynamic>> get visibleLogs => logs
+      .where(
+        (e) =>
+            session.mode != 'sniffer' ||
+            !unitLog ||
+            e['unit'] == null ||
+            e['unit'] == selectedUnit,
+      )
+      .toList();
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -523,6 +712,11 @@ class _DevicePanelState extends State<DevicePanel> {
                     icon: const Icon(Icons.add),
                     label: const LText('Add row'),
                   ),
+                  TextButton.icon(
+                    onPressed: session.busy ? null : templates,
+                    icon: const Icon(Icons.library_books),
+                    label: const LText('Load template rows'),
+                  ),
                   const Padding(
                     padding: EdgeInsets.all(10),
                     child: LText(
@@ -544,7 +738,12 @@ class _DevicePanelState extends State<DevicePanel> {
                           '${row['name']} · ${row['kind']} @${row['address']} ×${row['count']}',
                         ),
                         subtitle: LText(
-                          '${i < results.length ? results[i]['display'] : '—'} · ${row['rule_text'] ?? 'manual'}',
+                          '${i < results.length ? results[i]['display'] : '—'} · ${row['rule_text'] ?? tr('manual')}${ruleErrors['$i'] == null ? '' : ' · ${tr(const {'invalid_rule': 'Invalid rule syntax', 'nonfinite_rule': 'Rule result is not finite', 'missing_reference': 'Rule reference is unavailable', 'rule_evaluation_failed': 'Rule evaluation or encoding failed'}[ruleErrors['$i']['code']] ?? 'Rule evaluation or encoding failed')}'}',
+                          style: ruleErrors['$i'] == null
+                              ? null
+                              : TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
                         ),
                         onTap: session.busy ? null : () => addRow(i),
                         trailing: Row(
@@ -596,7 +795,13 @@ class _DevicePanelState extends State<DevicePanel> {
                     ChoiceChip(
                       label: LText('Unit $unit'),
                       selected: selectedUnit == unit,
-                      onSelected: (_) => setState(() => selectedUnit = unit),
+                      onSelected: (_) {
+                        setState(() {
+                          selectedUnit = unit;
+                          sniffDisplays.clear();
+                        });
+                        unawaited(renderSniffer());
+                      },
                     ),
                   TextButton(
                     onPressed: refreshSniffer,
@@ -613,24 +818,37 @@ class _DevicePanelState extends State<DevicePanel> {
                 child: Card(
                   child: ListView(
                     children: [
-                      for (final row
-                          in (session.sniffed[selectedUnit] ?? {}).values)
+                      for (final row in snifferViews(
+                        session.sniffed[selectedUnit] ?? {},
+                      ))
                         ListTile(
                           dense: true,
                           title: LText(
-                            '${row['kind']} @${row['address']} ${row['name']}',
+                            '${tr(row['kind'] as String)} @${row['address']} ${row['name']}',
                           ),
-                          subtitle: LText('Value: ${row['value']}'),
-                          onTap: () async {
-                            final name = await textPrompt(
-                              context,
-                              'Register name',
-                              value: row['name'] as String,
-                            );
-                            if (name != null && mounted) {
-                              setState(() => row['name'] = name);
-                            }
-                          },
+                          subtitle: LText(
+                            '${row['format']} · ${sniffDisplays['${row['kind']}/${row['address']}']?['display'] ?? '—'}',
+                          ),
+                          trailing: SizedBox(
+                            width: 110,
+                            height: 26,
+                            child: CustomPaint(
+                              painter: MultiSeriesPainter(
+                                [
+                                  session.histories['sniff-view/$selectedUnit/${row['kind']}/${row['address']}']
+                                          ?.toList() ??
+                                      [],
+                                ],
+                                false,
+                                Theme.of(context).colorScheme,
+                                null,
+                              ),
+                            ),
+                          ),
+                          onTap: () => editSniffer(
+                            session
+                                .sniffed[selectedUnit]!['${row['kind']}/${row['address']}']!,
+                          ),
                         ),
                     ],
                   ),
@@ -641,6 +859,12 @@ class _DevicePanelState extends State<DevicePanel> {
             Row(
               children: [
                 const LText('Traffic / events'),
+                if (session.mode == 'sniffer')
+                  FilterChip(
+                    label: const LText('Selected unit only'),
+                    selected: unitLog,
+                    onSelected: (v) => setState(() => unitLog = v),
+                  ),
                 const Spacer(),
                 TextButton(
                   onPressed: () => setState(logs.clear),
@@ -653,9 +877,9 @@ class _DevicePanelState extends State<DevicePanel> {
               child: Card(
                 child: ListView.builder(
                   reverse: true,
-                  itemCount: logs.length,
+                  itemCount: visibleLogs.length,
                   itemBuilder: (context, i) {
-                    final e = logs[logs.length - 1 - i];
+                    final e = visibleLogs[visibleLogs.length - 1 - i];
                     return Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,

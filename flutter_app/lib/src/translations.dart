@@ -7,6 +7,14 @@ final appTheme = ValueNotifier<ThemeMode>(ThemeMode.system);
 String tr(String value) => appLanguage.value == 'zh_CN'
     ? (flutterChinese[value] ?? qtChinese[value] ?? value)
     : value;
+String trf(String key, Map<String, Object?> values) {
+  var text = tr(key);
+  for (final e in values.entries) {
+    text = text.replaceAll('{${e.key}}', '${e.value}');
+  }
+  return text;
+}
+
 const flutterChinese = <String, String>{
   'Stop map polling': '停止映射轮询',
   'Browse': '浏览',
@@ -39,6 +47,22 @@ const flutterChinese = <String, String>{
   'Last scan': '上次扫描',
   'hits': '个响应',
   'stopped': '已停止',
+  'Sniffer view': '监听数据视图',
+  'Multiword views require consecutive recovered addresses.': '多字视图需要已恢复的连续地址。',
+  'Selected unit only': '仅选中站号',
+  'Load template rows': '加载模板行',
+  'Template rows skipped': '跳过的模板行数',
+  'Add rows to simulator': '向模拟器添加行',
+  'Add selected version rows': '添加选中版本的行',
+  'Template rows append to the simulator; duplicate area/address pairs are skipped.':
+      '模板行追加到模拟器；重复的区域与地址将被跳过。',
+  'Blank rule means manual': '规则留空时手动设置',
+  'Insert a reference or function at the cursor': '在光标处插入引用或函数',
+  'Invalid rule syntax': '规则语法无效',
+  'Rule result is not finite': '规则结果不是有限数值',
+  'Rule reference is unavailable': '规则引用的行不可用',
+  'Rule evaluation or encoding failed': '规则求值或编码失败',
+  'Set {name} ({format})': '设置 {name}（{format}）',
   'Workspace': '工作区',
   'New session': '新建会话',
   'Session mode': '会话模式',

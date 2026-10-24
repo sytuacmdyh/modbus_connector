@@ -77,6 +77,7 @@ class FlutterDevices:
         self.rows: list[dict[str, Any]] = []
         self._rules: list[Any] = []
         self._prev: dict[int, float] = {}
+        self._rule_errors: dict[int, dict[str, str]] = {}
         self._stop = threading.Event()
         self._ticker: threading.Thread | None = None
         self._started = 0.0
@@ -123,6 +124,7 @@ class FlutterDevices:
             "randint": lambda a, b: float(random.randint(int(a), int(b))),
         }
         rules = []
+        errors = {}
         for row, descriptor in zip(parsed, rows, strict=True):
             if row.address + row.count > 10000:
                 raise ValueError("Simulator addresses must be below 10000")
@@ -138,14 +140,19 @@ class FlutterDevices:
             ):
                 raise ValueError("Invalid simulator raw values")
             rule = descriptor.get("rule_text", "")
-            rules.append(
-                parse_expression(rule, extra_functions=funcs, extra_names=("t", "prev"))
-                if rule
-                else None
-            )
+            try:
+                rules.append(
+                    parse_expression(rule, extra_functions=funcs, extra_names=("t", "prev"))
+                    if rule
+                    else None
+                )
+            except ValueError as exc:
+                rules.append(None)
+                errors[len(rules) - 1] = {"code": "invalid_rule", "detail": str(exc)}
         with self.lock:
             self.rows = rows
             self._rules = rules
+            self._rule_errors = errors
             self._prev.clear()
             for row, descriptor in zip(parsed, rows, strict=True):
                 if "values" in descriptor:
@@ -179,6 +186,7 @@ class FlutterDevices:
                             },
                         )
                         if not math.isfinite(value):
+                            self._rule_errors[i] = {"code": "nonfinite_rule", "detail": ""}
                             continue
                         raw = (
                             [bool(round(value))] * row.count
@@ -187,14 +195,20 @@ class FlutterDevices:
                         )
                         self.sim.set_values(row.kind, row.address, (raw * row.count)[: row.count])
                         self._prev[i] = value
-                    except (ValueError, KeyError, ArithmeticError):
-                        continue
+                        self._rule_errors.pop(i, None)
+                    except KeyError as exc:
+                        self._rule_errors[i] = {"code": "missing_reference", "detail": str(exc)}
+                    except (ValueError, ArithmeticError) as exc:
+                        self._rule_errors[i] = {
+                            "code": "rule_evaluation_failed",
+                            "detail": str(exc),
+                        }
 
     def dispatch(self, data: dict[str, Any]) -> dict[str, Any]:
         command = data["command"]
         if command == "sim_configure":
             self._configure(data)
-            return {}
+            return {"rule_errors": {str(i): e for i, e in self._rule_errors.items()}}
         if command == "device_start":
             mode = data.get("mode")
             # Validate everything before replacing a running service.
@@ -258,6 +272,7 @@ class FlutterDevices:
                 self.events.clear()
                 dropped = self.dropped
                 self.dropped = 0
+                rule_errors = {str(i): dict(e) for i, e in self._rule_errors.items()}
                 results = [
                     render(
                         row_from_json(d),
@@ -275,6 +290,7 @@ class FlutterDevices:
                 "events": events,
                 "dropped": dropped,
                 "rows": results,
+                "rule_errors": rule_errors,
                 "units": self.sniffer.units(),
             }
         raise ValueError("Unknown device command")

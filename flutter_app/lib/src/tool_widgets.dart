@@ -102,3 +102,88 @@ Future<void> showText(BuildContext context, String title, String content) =>
         ],
       ),
     );
+
+Future<String?> expressionPrompt(
+  BuildContext context, {
+  required String value,
+  required Iterable<String> names,
+}) async {
+  final input = TextEditingController(text: value);
+  final result = await showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const LText('Expression rule'),
+      content: SizedBox(
+        width: 540,
+        height: 290,
+        child: Column(
+          children: [
+            TextField(
+              controller: input,
+              autofocus: true,
+              minLines: 2,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: tr('Blank rule means manual'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const LText('Insert a reference or function at the cursor'),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Wrap(
+                  spacing: 6,
+                  children: [
+                    for (final token in [
+                      't',
+                      'prev',
+                      'sin()',
+                      'cos()',
+                      'abs()',
+                      'min(,)',
+                      'max(,)',
+                      'rand()',
+                      'randint(0, 100)',
+                      ...names.map((n) => '[$n]'),
+                    ])
+                      ActionChip(
+                        label: Text(token),
+                        onPressed: () {
+                          final selection = input.selection;
+                          final start = selection.isValid
+                              ? selection.start
+                              : input.text.length;
+                          final end = selection.isValid
+                              ? selection.end
+                              : input.text.length;
+                          input.value = TextEditingValue(
+                            text: input.text.replaceRange(start, end, token),
+                            selection: TextSelection.collapsed(
+                              offset: start + token.length,
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const LText('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, input.text),
+          child: const LText('Apply'),
+        ),
+      ],
+    ),
+  );
+  await Future<void>.delayed(const Duration(milliseconds: 250));
+  input.dispose();
+  return result;
+}

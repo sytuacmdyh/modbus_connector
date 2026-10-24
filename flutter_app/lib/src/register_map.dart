@@ -186,7 +186,9 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
         ? model.results[i]['values'] as List? ?? []
         : [];
     List<dynamic>? values;
-    if (bits) {
+    if (!bits && hasRawEditor(row)) {
+      values = await rawValuePrompt(context, row, raw);
+    } else if (bits) {
       final value = await showDialog<int>(
         context: context,
         builder: (_) => BitsDialog(
@@ -771,4 +773,54 @@ class _CsvMappingDialogState extends State<CsvMappingDialog> {
       ),
     ],
   );
+}
+
+/// Enum choices and bit toggles use raw words, independent of display scaling.
+bool hasRawEditor(Map<String, dynamic> row) =>
+    row['count'] == 1 &&
+    (['coils', 'discrete_inputs'].contains(row['kind']) ||
+        ['dec', 's16', 'hex'].contains(row['format'])) &&
+    (row['bitmask'] == true || (row['value_names'] as Map? ?? {}).isNotEmpty);
+
+Future<List<dynamic>?> rawValuePrompt(
+  BuildContext context,
+  Map<String, dynamic> row,
+  List raw,
+) async {
+  final names = (row['value_names'] as Map? ?? {}).cast<String, dynamic>();
+  if (row['bitmask'] == true &&
+      !['coils', 'discrete_inputs'].contains(row['kind'])) {
+    final value = await showDialog<int>(
+      context: context,
+      builder: (_) => BitsDialog(
+        value: raw.isEmpty ? 0 : (raw.first as num).toInt(),
+        names: names,
+      ),
+    );
+    return value == null ? null : [value];
+  }
+  final value = await showDialog<int>(
+    context: context,
+    builder: (context) => SimpleDialog(
+      title: LText(row['name'] as String? ?? 'Set value'),
+      children: [
+        for (final entry in names.entries)
+          if (int.tryParse(entry.key) != null &&
+              int.parse(entry.key) >= 0 &&
+              int.parse(entry.key) <=
+                  (['coils', 'discrete_inputs'].contains(row['kind'])
+                      ? 1
+                      : 65535))
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, int.parse(entry.key)),
+              child: Text('${entry.key} = ${entry.value}'),
+            ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const LText('Cancel'),
+        ),
+      ],
+    ),
+  );
+  return value == null ? null : [value];
 }

@@ -220,3 +220,21 @@ Grouped and scheduled map reads:
   transactions. Per-row `poll_enabled` gates manual/map polling; optional `poll_ms`
   100..86400000 overrides the map interval. Busy ticks are skipped. Group choice
   and row scheduling preferences persist in Flutter state/custom snapshots.
+
+Display and simulator parity additions:
+
+- `render_rows`: `{rows,unit?}` renders 1..512 register descriptors containing
+  raw `values`, using the same display/scaling/names/bitmask/alarms code as reads.
+  Returns `{rows:[{values,display,numeric,alarm}]}` without bus I/O. Raw lengths
+  and ranges are validated before rendering. Sniffer multiword views assemble
+  consecutive recovered words in one area; incomplete views stay unavailable.
+- `sim_configure` now retains invalid expression text as an inactive row rule
+  instead of rejecting otherwise valid maps. Returns `rule_errors`, indexed by
+  string row index, containing `{code,detail}`. Structural/raw/address validation
+  still fails atomically. `device_status` also returns `rule_errors`: codes are
+  `invalid_rule`, `missing_reference`, `nonfinite_rule`, `rule_evaluation_failed`.
+  An invalid/failed row never writes; valid rows continue ticking. Evaluation
+  errors clear on successful recovery; reconfiguration resets rule state.
+
+Native file choosers, snapshot JSON exchange and graph PNG export are handled
+locally by Flutter; they introduce no bridge commands or Qt CSV schema changes.

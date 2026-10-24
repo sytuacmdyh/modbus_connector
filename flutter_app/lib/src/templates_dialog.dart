@@ -11,8 +11,10 @@ class TemplatesDialog extends StatefulWidget {
     required this.session,
     required this.onOpen,
     this.service,
+    this.simulator = false,
   });
   final SessionController session;
+  final bool simulator;
   final SessionController? service;
   final void Function(Map<String, dynamic>, String?) onOpen;
   @override
@@ -149,7 +151,9 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const LText('Templates / custom history'),
+    title: LText(
+      widget.simulator ? 'Load template rows' : 'Templates / custom history',
+    ),
     content: SizedBox(
       width: 780,
       height: 470,
@@ -265,8 +269,10 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
                             ),
                           ],
                         ),
-                      const LText(
-                        'Opening creates a disconnected tab. Saving appends a new snapshot; public templates stay read-only.',
+                      LText(
+                        widget.simulator
+                            ? 'Template rows append to the simulator; duplicate area/address pairs are skipped.'
+                            : 'Opening creates a disconnected tab. Saving appends a new snapshot; public templates stay read-only.',
                       ),
                     ],
                   ),
@@ -285,7 +291,13 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
       FilledButton(
         onPressed: busy || selected == null ? null : open,
         child: LText(
-          version == null ? 'Open latest in new tab' : 'Open selected version',
+          version == null
+              ? widget.simulator
+                    ? 'Add rows to simulator'
+                    : 'Open latest in new tab'
+              : widget.simulator
+              ? 'Add selected version rows'
+              : 'Open selected version',
         ),
       ),
     ],

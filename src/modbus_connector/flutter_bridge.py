@@ -185,7 +185,14 @@ class Bridge:
             return self.devices.dispatch(data)
         if command.startswith("logger_"):
             return self.logger.dispatch(data)
-        if command in ("csv_parse", "csv_export", "encode_values", "read_rows", "plan_reads"):
+        if command in (
+            "csv_parse",
+            "csv_export",
+            "encode_values",
+            "read_rows",
+            "plan_reads",
+            "render_rows",
+        ):
             from .flutter_registers import (
                 bounded,
                 csv_command,
@@ -204,6 +211,24 @@ class Bridge:
                 raise ValueError("rows must contain 1..512 rows")
             unit = bounded(data.get("unit", 1), "unit", 1, 247)
             rows = [row_from_json(row, unit) for row in raw_rows]
+            if command == "render_rows":
+                rendered = []
+                for row, descriptor in zip(rows, raw_rows, strict=True):
+                    raw = descriptor.get("values")
+                    if (
+                        not isinstance(raw, list)
+                        or len(raw) != row.count
+                        or any(
+                            type(v) not in (int, bool)
+                            or not 0
+                            <= v
+                            <= (1 if row.kind in ("coils", "discrete_inputs") else 65535)
+                            for v in raw
+                        )
+                    ):
+                        raise ValueError("Invalid raw sample")
+                    rendered.append(render(row, raw, descriptor))
+                return {"rows": rendered}
             groups = (
                 planned_groups(rows) if data.get("grouped") else [[i] for i in range(len(rows))]
             )

@@ -102,13 +102,15 @@ external account. No physical Modbus/serial device was available.
   inline enum editors and some editing/validation polish remain below the Qt UI.
   Scanner results/progress/selection now restore on reopen and workspace restart;
   there is no archive of multiple previous scans.
-- Sniffer lacks Qt's complete per-row format editing, multiword views, sparklines
-  and per-unit filtered log experience. Names/values, raw graph data, traffic and
-  CSV are usable. Device-mode forms accept manually typed serial ports.
-- Simulator lacks the complete Qt template-menu workflow, enum/bit convenience
-  editors, expression autocomplete and per-row rule-error presentation. Rules,
-  map edits and external master traffic work. Public templates primarily open
-  master maps; loading them is not an automatic simulator-map conversion.
+- Sniffer now supports per-row format/order editing, consecutive multiword views,
+  sparklines, per-unit traffic filtering and formatted CSV export. Incomplete
+  multiword views remain unavailable until all words are observed. Device-mode
+  forms still accept manually typed serial ports; advanced view management differs
+  from Qt.
+- Simulator now appends public/custom template rows into its map (duplicate
+  area/address pairs skipped), offers enum/bit editors, reference/function insertion
+  chips and per-row syntax/runtime rule errors. Prefix-driven expression
+  autocomplete and Qt's manufacturer submenu layout remain different.
 - Expression rows use latest register-map values; expression selection/output is
   not integrated into the logger. Some Qt row/display options are not exported
   by the shared canonical CSV schema.
@@ -149,3 +151,10 @@ Setup, running, native packaging and exact standalone integration commands:
   exchange, PNG export and timestamp-based graph inspection: native cancellation
   and missing-plugin fallback covered by widget tests; analyzer clean. Scanner
   results/progress/selection saved alongside preferences and restored disconnected.
+
+- Device editing follow-up: simulator template-to-map conversion, shared raw
+  enum/bit editors, expression insertion chips and per-row rule failures; sniffer
+  format/order/multiword views, numeric sparklines and selected-unit traffic.
+  Added display-only `render_rows` and documented simulator rule error payloads.
+  Python bridge/online: 41 passed; Flutter analyzer clean and device/template/
+  sniffer tests pass. Qt backends/UI and canonical CSV schema remain unchanged.
