@@ -151,12 +151,14 @@ def api(repository: str, path: str) -> dict:
 
 
 def expected_assets(version: str) -> set[str]:
-    return {
+    assets = {
         "ModbusConnector.dmg", "modbus-connector-windows.zip", "modbus-connector-linux.zip",
         "ModbusConnector.AppImage", f"modbus-connector_{version}_amd64.deb",
         f"modbus-connector-{version}-windows-x64-setup.exe",
+        "modbus-flutter-windows.zip",
     } | {f"modbus-connector-{tool}-{suffix}" for tool in ("cli", "mcp")
          for suffix in ("macos", "linux", "windows.exe")}
+    return assets
 
 
 def check_release(repository: str, version: str, head: str) -> bool:

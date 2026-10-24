@@ -11,7 +11,9 @@
 | `feature/*` | 从 `develop` 拉出，合并回 `develop` |
 | `release/*`、`hotfix/*` | 可选；也可用 `main` / `develop` 直接打标签发布 |
 
-**不要**合并 `feature/flutter-ui-migration`（Flutter UI 不在本 Qt 应用范围内）。
+`feature/flutter-ui-migration`（Flutter 桌面客户端，目录 `flutter_app/`）在验收前可合并到
+`develop` 用于 **beta** 发布与 Windows/Linux 测试；稳定版 `main` 仍以 Qt/PySide6 为主，Flutter
+并入 `main` 需单独评审。
 
 ## 发布标签
 
