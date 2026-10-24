@@ -125,6 +125,7 @@ def catalog_command(data: dict[str, Any]) -> dict[str, Any]:
                         "device_config",
                         "sim_rows",
                         "map_grouped",
+                        "sniffed",
                     )
                     if k in state
                 }

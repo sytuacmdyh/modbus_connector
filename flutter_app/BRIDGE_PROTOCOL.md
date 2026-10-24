@@ -6,7 +6,8 @@ text. No listener, shell commands or Qt. Every request has an integer/string `id
 and a `command`. The client sends **one request at a time**. Every response has
 `id`, `ok`, `connected`, and either `result` or `error` (`type`, `message`, optional
 Modbus `exception_code`). Framing/JSON errors return `id: null`; a malformed request
-never terminates the bridge. Frames are limited to 65,536 characters.
+never terminates the bridge. Request frames are limited to 2,097,152 characters, accommodating complete
+512-row maps and CSV/template payloads. Oversized frames drain to the next newline.
 
 ```json
 {"id":1,"command":"hello"}
@@ -34,7 +35,8 @@ Commands:
   Returns `result.values` (integers/booleans) and `elapsed_ms`.
 - `write`: coils or holding registers only. Non-empty `values`, bool/0/1 coils,
   unsigned 0–65535 registers, at most 1968 coils / 123 registers. Returns
-  `elapsed_ms`. The Flutter MVP writes one row and rereads the selected range.
+  `elapsed_ms`. The quick-range tool writes one row and rereads the selected range; the
+  register-map tool also supports multi-register writes.
 - `disconnect`: closes the backend and demo, keeps bridge alive for reconnect.
 - `shutdown`: closes resources, acknowledges, exits. EOF also closes resources.
 

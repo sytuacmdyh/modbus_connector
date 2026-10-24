@@ -351,6 +351,7 @@ def test_templates_public_and_isolated_custom_history(
     state = request(bridge, "template_load", resource="Eastron/SDM120")["result"]["state"]
     assert state["connection"]["baudrate"] == 2400 and len(state["registers"]) > 3
     state["query"] = {"kind": "holding_registers", "address": 5, "count": 10}
+    state["sniffed"] = {"1": {"holding_registers/0": {"name": "Observed", "value": 7}}}
     saved = request(bridge, "template_save", state=state, name="My meter")["result"]
     template_id = saved["id"]
     assert request(bridge, "template_save", state=state, template_id=template_id)["ok"]
@@ -360,6 +361,7 @@ def test_templates_public_and_isolated_custom_history(
         bridge, "template_load", template_id=template_id, version_id=versions[-1]["id"]
     )["result"]["state"]
     assert loaded["query"]["address"] == 5
+    assert loaded["sniffed"] == state["sniffed"]
     assert request(bridge, "template_rename", template_id=template_id, name="Renamed")["ok"]
     assert request(
         bridge, "template_delete_version", template_id=template_id, version_id=versions[0]["id"]
@@ -452,3 +454,25 @@ def test_csv_exports_display_values_and_preserves_importable_metadata(bridge: Br
     assert len(imported) == 3 and imported[0]["scale"] == 0.1
     selected = request(bridge, "csv_export", rows=rows[:1], columns=["name", "value"])
     assert list(csv.DictReader(io.StringIO(selected["result"]["text"])))[0]["name"] == "Temperature"
+
+
+def test_full_register_map_fits_bounded_protocol_frames() -> None:
+    rows = [
+        {
+            "name": f"Register {i} " + "x" * 200,
+            "address": i,
+            "count": 1,
+            "format": "dec",
+            "kind": "holding_registers",
+            "scale": 1,
+            "offset": 0,
+        }
+        for i in range(512)
+    ]
+    frame = json.dumps({"id": 1, "command": "plan_reads", "unit": 1, "rows": rows}) + "\n"
+    assert 65536 < len(frame) < MAX_LINE
+    sink = io.StringIO()
+    serve(io.StringIO(frame), sink)
+    result = json.loads(sink.getvalue())
+    assert result["ok"]
+    assert sum(len(group) for group in result["result"]["groups"]) == 512

@@ -270,3 +270,11 @@ read and left unchanged, including its pre-existing untracked Git state.
   Theme preference persists; simulator expression rows prevent manual value edits.
 - Analyze clean and 26 Flutter tests passed; 38 bridge/online tests passed. Native
   verification and the consolidated parity inventory follow in the final commit.
+
+## Final protocol capacity check
+
+- Raised the bounded request frame limit to 2 Mi characters for full 512-row maps,
+  CSV and template payloads; oversize-frame recovery remains tested.
+- Custom template snapshots also retain recovered sniffer names/values.
+- Frozen bridge and packaged release independently exercised from `/tmp` without
+  a Python override; master/map/scanner visually checked at 900×650.

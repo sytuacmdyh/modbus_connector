@@ -25,7 +25,7 @@ from .models import RegisterKind, RtuParams, ScanProbe, TcpParams, describe_conn
 from .sim_backend import SimBackend, SimTcpParams
 
 PROTOCOL_VERSION = 1
-MAX_LINE = 65536
+MAX_LINE = 2 * 1024 * 1024
 BIT_KINDS = ("coils", "discrete_inputs")
 
 
