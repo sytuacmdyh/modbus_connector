@@ -1,3 +1,5 @@
+import 'translations.dart';
+
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -95,7 +97,7 @@ class _GraphDialogState extends State<GraphDialog> {
           ? first
           : points.map((p) => p.time).reduce((a, b) => a.isAfter(b) ? a : b);
       return AlertDialog(
-        title: const Text('Multi-series graph'),
+        title: const LText('Multi-series graph'),
         content: SizedBox(
           width: 800,
           height: 470,
@@ -114,12 +116,12 @@ class _GraphDialogState extends State<GraphDialog> {
                     width: 155,
                   ),
                   FilterChip(
-                    label: const Text('Normalize each curve'),
+                    label: const LText('Normalize each curve'),
                     selected: normalized,
                     onSelected: (v) => setState(() => normalized = v),
                   ),
                   FilterChip(
-                    label: Text(paused ? 'Resume chart' : 'Pause chart'),
+                    label: LText(paused ? 'Resume chart' : 'Pause chart'),
                     selected: paused,
                     onSelected: (v) => setState(() {
                       paused = v;
@@ -130,11 +132,11 @@ class _GraphDialogState extends State<GraphDialog> {
                   ),
                   TextButton(
                     onPressed: export,
-                    child: const Text('Export samples'),
+                    child: const LText('Export samples'),
                   ),
                   TextButton(
                     onPressed: widget.session.clearHistory,
-                    child: const Text('Clear'),
+                    child: const LText('Clear'),
                   ),
                 ],
               ),
@@ -150,7 +152,7 @@ class _GraphDialogState extends State<GraphDialog> {
                             CheckboxListTile(
                               dense: true,
                               contentPadding: EdgeInsets.zero,
-                              title: Text(
+                              title: LText(
                                 widget.session.historyLabels[key] ?? key,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -201,8 +203,8 @@ class _GraphDialogState extends State<GraphDialog> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(first.toIso8601String().substring(11, 19)),
-                              Text(last.toIso8601String().substring(11, 19)),
+                              LText(first.toIso8601String().substring(11, 19)),
+                              LText(last.toIso8601String().substring(11, 19)),
                             ],
                           ),
                           SizedBox(
@@ -222,7 +224,7 @@ class _GraphDialogState extends State<GraphDialog> {
                                           : values[((hover ?? 1) *
                                                     (values.length - 1))
                                                 .round()];
-                                      return Text(
+                                      return LText(
                                         '${widget.session.historyLabels[key] ?? key}: ${at?.toStringAsPrecision(6) ?? '—'}   ${values.isEmpty ? '' : 'min ${values.reduce(math.min).toStringAsPrecision(4)} / max ${values.reduce(math.max).toStringAsPrecision(4)} / mean ${(values.reduce((a, b) => a + b) / values.length).toStringAsPrecision(4)}'}',
                                         style: TextStyle(
                                           color:
@@ -243,11 +245,11 @@ class _GraphDialogState extends State<GraphDialog> {
                 ),
               ),
               if (points.isEmpty)
-                const Text(
+                const LText(
                   'Read or poll a range/map to collect samples. Sniffer traffic also adds curves.',
                 ),
-              if (message != null) Text(message!),
-              const Text(
+              if (message != null) LText(message!),
+              const LText(
                 'Scroll/pinch to zoom; drag to pan. Up to 1000 samples per series, sampled at most 10 Hz.',
               ),
             ],
@@ -256,7 +258,7 @@ class _GraphDialogState extends State<GraphDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: const LText('Close'),
           ),
         ],
       );

@@ -1,3 +1,5 @@
+import 'translations.dart';
+
 import 'package:flutter/material.dart';
 
 class WriteDialog extends StatefulWidget {
@@ -37,7 +39,7 @@ class _WriteDialogState extends State<WriteDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(
+    title: LText(
       'Write ${widget.isBit ? 'coil' : 'register'} @${widget.address}',
     ),
     content: SizedBox(
@@ -67,9 +69,9 @@ class _WriteDialogState extends State<WriteDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
+        child: const LText('Cancel'),
       ),
-      FilledButton(onPressed: _submit, child: const Text('Write')),
+      FilledButton(onPressed: _submit, child: const LText('Write')),
     ],
   );
 }

@@ -1,3 +1,5 @@
+import 'translations.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -156,7 +158,7 @@ class _ScannerDialogState extends State<ScannerDialog> {
     builder: (context, _) => PopScope(
       canPop: !scanner.running,
       child: AlertDialog(
-        title: const Text('Scanner'),
+        title: const LText('Scanner'),
         content: SizedBox(
           width: 760,
           height: 470,
@@ -216,12 +218,12 @@ class _ScannerDialogState extends State<ScannerDialog> {
                         Row(
                           children: [
                             Expanded(
-                              child: Text(
+                              child: LText(
                                 '${probe['kind']} @${probe['address']} × ${probe['count']}',
                               ),
                             ),
                             IconButton(
-                              tooltip: 'Edit probe',
+                              tooltip: tr('Edit probe'),
                               onPressed: scanner.running
                                   ? null
                                   : () async {
@@ -249,7 +251,7 @@ class _ScannerDialogState extends State<ScannerDialog> {
                               icon: const Icon(Icons.edit, size: 18),
                             ),
                             IconButton(
-                              tooltip: 'Remove probe',
+                              tooltip: tr('Remove probe'),
                               onPressed: scanner.running || probes.length == 1
                                   ? null
                                   : () => setState(() => probes.remove(probe)),
@@ -271,16 +273,16 @@ class _ScannerDialogState extends State<ScannerDialog> {
                             'count': 1,
                           }),
                         ),
-                  child: const Text('Add probe'),
+                  child: const LText('Add probe'),
                 ),
               LinearProgressIndicator(
                 value: scanner.total == 0 ? 0 : scanner.done / scanner.total,
               ),
-              Text(
+              LText(
                 '${scanner.done} / ${scanner.total} · ${scanner.hits.length} hits${scanner.stopped ? ' · stopped' : ''}',
               ),
               if (scanner.error != null)
-                Text(
+                LText(
                   scanner.error!,
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
@@ -302,7 +304,7 @@ class _ScannerDialogState extends State<ScannerDialog> {
                                 selected.remove(n);
                               }
                             }),
-                      title: Text(
+                      title: LText(
                         addresses
                             ? '@$n · ${(hit['values'] as List).join(', ')}'
                             : 'Unit $n · probes ${hit['hits']}',
@@ -310,7 +312,7 @@ class _ScannerDialogState extends State<ScannerDialog> {
                       secondary: addresses
                           ? null
                           : IconButton(
-                              tooltip: 'Device identification',
+                              tooltip: tr('Device identification'),
                               onPressed: scanner.running
                                   ? null
                                   : () async {
@@ -344,10 +346,10 @@ class _ScannerDialogState extends State<ScannerDialog> {
         actions: [
           TextButton(
             onPressed: scanner.running ? null : () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: const LText('Close'),
           ),
           if (scanner.running)
-            FilledButton(onPressed: scanner.stop, child: const Text('Stop'))
+            FilledButton(onPressed: scanner.stop, child: const LText('Stop'))
           else ...[
             TextButton(
               onPressed: selected.isEmpty
@@ -373,7 +375,7 @@ class _ScannerDialogState extends State<ScannerDialog> {
                       }
                       Navigator.pop(context, true);
                     },
-              child: Text(
+              child: LText(
                 addresses ? 'Open selected range' : 'Use selected unit',
               ),
             ),
@@ -393,7 +395,7 @@ class _ScannerDialogState extends State<ScannerDialog> {
                         ),
                       );
                     },
-              child: const Text('Start scan'),
+              child: const LText('Start scan'),
             ),
           ],
         ],

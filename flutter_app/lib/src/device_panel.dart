@@ -1,3 +1,5 @@
+import 'translations.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -83,7 +85,7 @@ class _ConnectionFieldsState extends State<ConnectionFields> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(widget.label, style: Theme.of(context).textTheme.titleMedium),
+          LText(widget.label, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 10),
           Wrap(
             spacing: 10,
@@ -414,20 +416,20 @@ class _DevicePanelState extends State<DevicePanel> {
           children: [
             Row(
               children: [
-                Text(
+                LText(
                   '${session.mode[0].toUpperCase()}${session.mode.substring(1)} session',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const Spacer(),
                 IconButton(
-                  tooltip: 'Graph',
+                  tooltip: tr('Graph'),
                   icon: const Icon(Icons.multiline_chart),
                   onPressed: () => showDialog<void>(
                     context: context,
                     builder: (_) => GraphDialog(session: session),
                   ),
                 ),
-                Text(session.deviceRunning ? 'Running' : 'Stopped'),
+                LText(session.deviceRunning ? 'Running' : 'Stopped'),
                 const SizedBox(width: 12),
                 FilledButton.icon(
                   onPressed: session.busy
@@ -443,7 +445,7 @@ class _DevicePanelState extends State<DevicePanel> {
                   icon: Icon(
                     session.deviceRunning ? Icons.stop : Icons.play_arrow,
                   ),
-                  label: Text(session.deviceRunning ? 'Stop' : 'Start'),
+                  label: LText(session.deviceRunning ? 'Stop' : 'Start'),
                 ),
               ],
             ),
@@ -499,7 +501,7 @@ class _DevicePanelState extends State<DevicePanel> {
             if (localError != null || session.error != null)
               Padding(
                 padding: const EdgeInsets.all(8),
-                child: Text(
+                child: LText(
                   localError ?? session.error!,
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
@@ -511,11 +513,11 @@ class _DevicePanelState extends State<DevicePanel> {
                   TextButton.icon(
                     onPressed: session.busy ? null : addRow,
                     icon: const Icon(Icons.add),
-                    label: const Text('Add row'),
+                    label: const LText('Add row'),
                   ),
                   const Padding(
                     padding: EdgeInsets.all(10),
-                    child: Text(
+                    child: LText(
                       'Edit rows, set values, or assign expression rules. Map persists while stopped.',
                     ),
                   ),
@@ -530,10 +532,10 @@ class _DevicePanelState extends State<DevicePanel> {
                       final row = session.simRows[i];
                       return ListTile(
                         dense: true,
-                        title: Text(
+                        title: LText(
                           '${row['name']} · ${row['kind']} @${row['address']} ×${row['count']}',
                         ),
-                        subtitle: Text(
+                        subtitle: LText(
                           '${i < results.length ? results[i]['display'] : '—'} · ${row['rule_text'] ?? 'manual'}',
                         ),
                         onTap: session.busy ? null : () => addRow(i),
@@ -541,21 +543,21 @@ class _DevicePanelState extends State<DevicePanel> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              tooltip: 'Set value',
+                              tooltip: tr('Set value'),
                               onPressed: session.busy
                                   ? null
                                   : () => setValue(i),
                               icon: const Icon(Icons.edit_note),
                             ),
                             IconButton(
-                              tooltip: 'Expression rule',
+                              tooltip: tr('Expression rule'),
                               onPressed: session.busy
                                   ? null
                                   : () => editRule(i),
                               icon: const Icon(Icons.functions),
                             ),
                             IconButton(
-                              tooltip: 'Remove row',
+                              tooltip: tr('Remove row'),
                               onPressed: session.busy
                                   ? null
                                   : () async {
@@ -580,17 +582,17 @@ class _DevicePanelState extends State<DevicePanel> {
                 children: [
                   for (final unit in session.sniffed.keys)
                     ChoiceChip(
-                      label: Text('Unit $unit'),
+                      label: LText('Unit $unit'),
                       selected: selectedUnit == unit,
                       onSelected: (_) => setState(() => selectedUnit = unit),
                     ),
                   TextButton(
                     onPressed: refreshSniffer,
-                    child: const Text('Refresh map'),
+                    child: const LText('Refresh map'),
                   ),
                   TextButton(
                     onPressed: exportSniffer,
-                    child: const Text('Export CSV'),
+                    child: const LText('Export CSV'),
                   ),
                 ],
               ),
@@ -603,10 +605,10 @@ class _DevicePanelState extends State<DevicePanel> {
                           in (session.sniffed[selectedUnit] ?? {}).values)
                         ListTile(
                           dense: true,
-                          title: Text(
+                          title: LText(
                             '${row['kind']} @${row['address']} ${row['name']}',
                           ),
-                          subtitle: Text('Value: ${row['value']}'),
+                          subtitle: LText('Value: ${row['value']}'),
                           onTap: () async {
                             final name = await textPrompt(
                               context,
@@ -626,11 +628,11 @@ class _DevicePanelState extends State<DevicePanel> {
             const SizedBox(height: 12),
             Row(
               children: [
-                const Text('Traffic / events'),
+                const LText('Traffic / events'),
                 const Spacer(),
                 TextButton(
                   onPressed: () => setState(logs.clear),
-                  child: const Text('Clear'),
+                  child: const LText('Clear'),
                 ),
               ],
             ),

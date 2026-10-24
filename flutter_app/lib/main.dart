@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'src/translations.dart';
+
 import 'src/session_controller.dart';
 import 'src/workbench.dart';
 import 'src/workspace.dart';
@@ -16,6 +18,15 @@ class ModbusApp extends StatefulWidget {
 
 class _ModbusAppState extends State<ModbusApp> {
   ThemeMode _themeMode = ThemeMode.system;
+  @override
+  void initState() {
+    super.initState();
+    appLanguage.addListener(_languageChanged);
+  }
+
+  void _languageChanged() {
+    setState(() {});
+  }
 
   ThemeData _theme(Brightness brightness) {
     final scheme = ColorScheme.fromSeed(
@@ -42,6 +53,7 @@ class _ModbusAppState extends State<ModbusApp> {
 
   @override
   void dispose() {
+    appLanguage.removeListener(_languageChanged);
     super.dispose();
   }
 

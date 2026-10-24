@@ -1,3 +1,5 @@
+import 'translations.dart';
+
 import 'package:flutter/material.dart';
 
 Widget toolField(
@@ -14,7 +16,7 @@ Widget toolField(
     enabled: enabled,
     maxLines: lines,
     obscureText: secret,
-    decoration: InputDecoration(labelText: label),
+    decoration: InputDecoration(labelText: tr(label)),
   ),
 );
 Widget toolChoice(
@@ -28,12 +30,12 @@ Widget toolChoice(
   child: DropdownButtonFormField<String>(
     initialValue: value,
     isExpanded: true,
-    decoration: InputDecoration(labelText: label),
+    decoration: InputDecoration(labelText: tr(label)),
     items: choices
         .map(
           (v) => DropdownMenuItem(
             value: v,
-            child: Text(v, overflow: TextOverflow.ellipsis),
+            child: LText(v, overflow: TextOverflow.ellipsis),
           ),
         )
         .toList(),
@@ -54,7 +56,7 @@ Future<String?> textPrompt(
   final result = await showDialog<String>(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text(title),
+      title: LText(title),
       content: SizedBox(
         width: 540,
         child: TextField(
@@ -68,11 +70,11 @@ Future<String?> textPrompt(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: const LText('Cancel'),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, input.text),
-          child: const Text('Apply'),
+          child: const LText('Apply'),
         ),
       ],
     ),
@@ -87,7 +89,7 @@ Future<void> showText(BuildContext context, String title, String content) =>
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title),
+        title: LText(title),
         content: SizedBox(
           width: 650,
           child: SingleChildScrollView(child: SelectableText(content)),
@@ -95,7 +97,7 @@ Future<void> showText(BuildContext context, String title, String content) =>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: const LText('Close'),
           ),
         ],
       ),

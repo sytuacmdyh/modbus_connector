@@ -1,3 +1,5 @@
+import 'translations.dart';
+
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show AppExitResponse;
@@ -178,7 +180,7 @@ class _WorkbenchState extends State<Workbench> {
       focusNode: focusNode,
       enabled: enabled,
       validator: validator,
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(labelText: tr(label)),
       onFieldSubmitted: (_) => onSubmit?.call(),
     ),
   );
@@ -194,12 +196,12 @@ class _WorkbenchState extends State<Workbench> {
     child: DropdownButtonFormField<T>(
       initialValue: value,
       isExpanded: true,
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(labelText: tr(label)),
       items: items.entries
           .map(
             (e) => DropdownMenuItem(
               value: e.key,
-              child: Text(e.value, overflow: TextOverflow.ellipsis),
+              child: LText(e.value, overflow: TextOverflow.ellipsis),
             ),
           )
           .toList(),
@@ -266,12 +268,12 @@ class _WorkbenchState extends State<Workbench> {
     final selected = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Serial ports'),
+        title: const LText('Serial ports'),
         children: [
           if (ports.isEmpty)
             const Padding(
               padding: EdgeInsets.all(24),
-              child: Text(
+              child: LText(
                 'No serial ports found. You can type a port manually.',
               ),
             )
@@ -279,12 +281,12 @@ class _WorkbenchState extends State<Workbench> {
             ...ports.map(
               (p) => SimpleDialogOption(
                 onPressed: () => Navigator.pop(context, p['port'] as String),
-                child: Text('${p['port']} · ${p['description']}'),
+                child: LText('${p['port']} · ${p['description']}'),
               ),
             ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const LText('Cancel'),
           ),
         ],
       ),
@@ -375,7 +377,7 @@ class _WorkbenchState extends State<Workbench> {
                   onSubmit: _connect,
                 ),
                 IconButton(
-                  tooltip: 'Find serial ports',
+                  tooltip: tr('Find serial ports'),
                   onPressed: locked ? null : _ports,
                   icon: _refreshingPorts
                       ? const SizedBox(
@@ -462,7 +464,7 @@ class _WorkbenchState extends State<Workbench> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : Icon(session.connected ? Icons.link_off : Icons.link),
-                label: Text(
+                label: LText(
                   session.disconnecting
                       ? 'Disconnecting…'
                       : session.connected
@@ -473,7 +475,7 @@ class _WorkbenchState extends State<Workbench> {
                 ),
               ),
               if (_transport == 'demo')
-                const Text('Real loopback TCP · input registers animate'),
+                const LText('Real loopback TCP · input registers animate'),
             ],
           ),
         ),
@@ -514,7 +516,7 @@ class _WorkbenchState extends State<Workbench> {
                     }
                   : null,
               icon: const Icon(Icons.download, size: 18),
-              label: const Text('Read'),
+              label: const LText('Read'),
             ),
             FilledButton.tonalIcon(
               style: compact
@@ -533,14 +535,14 @@ class _WorkbenchState extends State<Workbench> {
                 session.polling ? Icons.stop : Icons.play_arrow,
                 size: 18,
               ),
-              label: Text(session.polling ? 'Stop polling' : 'Start polling'),
+              label: LText(session.polling ? 'Stop polling' : 'Start polling'),
             ),
           ],
         ),
         if (_queryError != null)
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: Text(
+            child: LText(
               _queryError!,
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
@@ -560,7 +562,7 @@ class _WorkbenchState extends State<Workbench> {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
+                  child: LText(
                     areas[session.query.kind]!.split(' · ').first,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -569,7 +571,7 @@ class _WorkbenchState extends State<Workbench> {
                 ),
                 const SizedBox(width: 8),
                 Flexible(
-                  child: Text(
+                  child: LText(
                     !_queryMatches
                         ? 'Read to apply range'
                         : session.elapsedMs == null
@@ -590,9 +592,9 @@ class _WorkbenchState extends State<Workbench> {
             child: const Row(
               children: [
                 SizedBox(width: 32),
-                SizedBox(width: 80, child: Text('Address')),
-                Expanded(child: Text('Value')),
-                SizedBox(width: 100, child: Text('Hex')),
+                SizedBox(width: 80, child: LText('Address')),
+                Expanded(child: LText('Value')),
+                SizedBox(width: 100, child: LText('Hex')),
                 SizedBox(width: 48),
               ],
             ),
@@ -634,10 +636,10 @@ class _WorkbenchState extends State<Workbench> {
                             ),
                             SizedBox(
                               width: 80,
-                              child: Text('${session.query.address + index}'),
+                              child: LText('${session.query.address + index}'),
                             ),
                             Expanded(
-                              child: Text(
+                              child: LText(
                                 value == null ? '—' : '$value',
                                 style: const TextStyle(
                                   fontFeatures: [FontFeature.tabularFigures()],
@@ -646,7 +648,7 @@ class _WorkbenchState extends State<Workbench> {
                             ),
                             SizedBox(
                               width: 100,
-                              child: Text(
+                              child: LText(
                                 value == null
                                     ? '—'
                                     : '0x${value.toRadixString(16).padLeft(4, '0').toUpperCase()}',
@@ -707,10 +709,13 @@ class _WorkbenchState extends State<Workbench> {
             padding: const EdgeInsets.fromLTRB(18, 4, 8, 0),
             child: Row(
               children: [
-                Text('Activity', style: Theme.of(context).textTheme.titleSmall),
+                LText(
+                  'Activity',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
                 const Spacer(),
                 IconButton(
-                  tooltip: 'Clear log',
+                  tooltip: tr('Clear log'),
                   onPressed: session.clearLog,
                   icon: const Icon(Icons.delete_sweep_outlined, size: 18),
                 ),
@@ -720,7 +725,7 @@ class _WorkbenchState extends State<Workbench> {
           Expanded(
             child: logs.isEmpty
                 ? const Center(
-                    child: Text('Connection and error events appear here'),
+                    child: LText('Connection and error events appear here'),
                   )
                 : Scrollbar(
                     controller: _logScroll,
@@ -788,7 +793,7 @@ class _WorkbenchState extends State<Workbench> {
                             children: [
                               Icon(Icons.hub_outlined, color: colors.primary),
                               const SizedBox(width: 12),
-                              Text(
+                              LText(
                                 'Modbus Connector',
                                 style: Theme.of(context).textTheme.titleLarge,
                               ),
@@ -802,14 +807,14 @@ class _WorkbenchState extends State<Workbench> {
                               ),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: Text(
+                                child: LText(
                                   session.description,
                                   overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ),
                               IconButton(
-                                tooltip: 'Multi-series graph',
+                                tooltip: tr('Multi-series graph'),
                                 icon: const Icon(Icons.multiline_chart),
                                 onPressed: () => showDialog<void>(
                                   context: context,
@@ -817,7 +822,7 @@ class _WorkbenchState extends State<Workbench> {
                                 ),
                               ),
                               IconButton(
-                                tooltip: 'Data logger',
+                                tooltip: tr('Data logger'),
                                 icon: Icon(
                                   session.logging
                                       ? Icons.fiber_manual_record
@@ -830,7 +835,7 @@ class _WorkbenchState extends State<Workbench> {
                                 ),
                               ),
                               IconButton(
-                                tooltip: 'Register map / CSV / snapshots',
+                                tooltip: tr('Register map / CSV / snapshots'),
                                 icon: const Icon(Icons.table_view),
                                 onPressed: session.busy
                                     ? null
@@ -845,7 +850,7 @@ class _WorkbenchState extends State<Workbench> {
                                       },
                               ),
                               IconButton(
-                                tooltip: 'Scanner',
+                                tooltip: tr('Scanner'),
                                 icon: const Icon(Icons.radar),
                                 onPressed: session.connected && !session.busy
                                     ? () async {
@@ -869,7 +874,7 @@ class _WorkbenchState extends State<Workbench> {
                                     : null,
                               ),
                               PopupMenuButton<ThemeMode>(
-                                tooltip: 'Appearance',
+                                tooltip: tr('Appearance'),
                                 initialValue: widget.themeMode,
                                 icon: const Icon(Icons.contrast),
                                 onSelected: widget.onThemeChanged,
@@ -877,7 +882,7 @@ class _WorkbenchState extends State<Workbench> {
                                     .map(
                                       (mode) => PopupMenuItem(
                                         value: mode,
-                                        child: Text(
+                                        child: LText(
                                           '${mode.name[0].toUpperCase()}${mode.name.substring(1)}',
                                         ),
                                       ),
@@ -905,7 +910,7 @@ class _WorkbenchState extends State<Workbench> {
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
-                                        child: Text(
+                                        child: LText(
                                           session.error!,
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
@@ -915,7 +920,7 @@ class _WorkbenchState extends State<Workbench> {
                                         ),
                                       ),
                                       IconButton(
-                                        tooltip: 'Dismiss error',
+                                        tooltip: tr('Dismiss error'),
                                         onPressed: session.clearError,
                                         icon: const Icon(Icons.close, size: 18),
                                       ),

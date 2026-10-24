@@ -1,3 +1,5 @@
+import 'translations.dart';
+
 import 'dart:async';
 import 'dart:ui' show AppExitResponse;
 
@@ -9,6 +11,7 @@ import 'workbench.dart';
 import 'settings_store.dart';
 import 'templates_dialog.dart';
 import 'tool_widgets.dart';
+import 'help_dialog.dart';
 
 class WorkspaceController extends ChangeNotifier {
   WorkspaceController({BridgeTransport Function()? bridgeFactory, this.store})
@@ -40,6 +43,7 @@ class WorkspaceController extends ChangeNotifier {
     'schema': 1,
     'tabs': sessions.map((s) => s.state()).toList(),
     'active_tab': selected,
+    'language': appLanguage.value,
   };
   Future<void> save({String? path}) async {
     try {
@@ -79,6 +83,9 @@ class WorkspaceController extends ChangeNotifier {
           ..addAll(staged);
         selected = (data['active_tab'] is int ? data['active_tab'] as int : 0)
             .clamp(0, sessions.length - 1);
+      }
+      if (data?['language'] == 'en' || data?['language'] == 'zh_CN') {
+        appLanguage.value = data!['language'] as String;
       }
       stateError = null;
       _allowAutoSave = true;
@@ -211,7 +218,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                                       : Icons.tab,
                                   size: 16,
                                 ),
-                                label: Text(
+                                label: LText(
                                   '${workspace.sessions[i].mode} ${i + 1}',
                                 ),
                                 onPressed: () => workspace.select(i),
@@ -225,8 +232,24 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                     ),
                   ),
                 ),
+                IconButton(
+                  tooltip: tr('Help'),
+                  onPressed: () => showFeatureHelp(context),
+                  icon: const Icon(Icons.help_outline),
+                ),
                 PopupMenuButton<String>(
-                  tooltip: 'Workspace',
+                  tooltip: tr('Language'),
+                  icon: const Icon(Icons.translate),
+                  onSelected: (v) {
+                    appLanguage.value = v;
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'en', child: Text('English')),
+                    PopupMenuItem(value: 'zh_CN', child: Text('简体中文')),
+                  ],
+                ),
+                PopupMenuButton<String>(
+                  tooltip: tr('Workspace'),
                   icon: const Icon(Icons.folder_open),
                   onSelected: (v) async {
                     final session = workspace.sessions[workspace.selected];
@@ -262,32 +285,35 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                   itemBuilder: (_) => const [
                     PopupMenuItem(
                       value: 'templates',
-                      child: Text('Templates / history'),
+                      child: LText('Templates / history'),
                     ),
-                    PopupMenuItem(value: 'save', child: Text('Save workspace')),
+                    PopupMenuItem(
+                      value: 'save',
+                      child: LText('Save workspace'),
+                    ),
                     PopupMenuItem(
                       value: 'export',
-                      child: Text('Export workspace'),
+                      child: LText('Export workspace'),
                     ),
                     PopupMenuItem(
                       value: 'import',
-                      child: Text('Import workspace'),
+                      child: LText('Import workspace'),
                     ),
                   ],
                 ),
                 PopupMenuButton<String>(
-                  tooltip: 'Session mode',
+                  tooltip: tr('Session mode'),
                   icon: const Icon(Icons.swap_horiz),
                   onSelected: (v) => unawaited(
                     workspace.sessions[workspace.selected].changeMode(v),
                   ),
                   itemBuilder: (_) =>
                       ['master', 'simulator', 'sniffer', 'gateway']
-                          .map((m) => PopupMenuItem(value: m, child: Text(m)))
+                          .map((m) => PopupMenuItem(value: m, child: LText(m)))
                           .toList(),
                 ),
                 IconButton(
-                  tooltip: 'New session',
+                  tooltip: tr('New session'),
                   onPressed: workspace.add,
                   icon: const Icon(Icons.add),
                 ),
@@ -296,14 +322,14 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
           ),
           if (workspace.stateError != null)
             MaterialBanner(
-              content: Text(workspace.stateError!),
+              content: LText(workspace.stateError!),
               actions: [
                 TextButton(
                   onPressed: () {
                     workspace.stateError = null;
                     setState(() {});
                   },
-                  child: const Text('Dismiss'),
+                  child: const LText('Dismiss'),
                 ),
               ],
             ),

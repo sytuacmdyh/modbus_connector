@@ -1,3 +1,5 @@
+import 'translations.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -29,14 +31,14 @@ class LiveChart extends StatelessWidget {
                 Icon(Icons.show_chart, size: 18, color: colors.primary),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
+                  child: LText(
                     'Live trend · @$address',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
+                LText(
                   samples.isEmpty ? '—' : samples.last.value.toStringAsFixed(0),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
@@ -45,7 +47,9 @@ class LiveChart extends StatelessWidget {
             const SizedBox(height: 12),
             Expanded(
               child: samples.isEmpty
-                  ? const Center(child: Text('Select a row, then read or poll'))
+                  ? const Center(
+                      child: LText('Select a row, then read or poll'),
+                    )
                   : Semantics(
                       label: 'Register $address, minimum $low, maximum $high',
                       child: RepaintBoundary(
@@ -63,7 +67,7 @@ class LiveChart extends StatelessWidget {
                     ),
             ),
             const SizedBox(height: 8),
-            Text(
+            LText(
               samples.isEmpty
                   ? 'Up to 300 samples · 10 Hz'
                   : '${low.toStringAsFixed(0)} – ${high.toStringAsFixed(0)}  ·  '

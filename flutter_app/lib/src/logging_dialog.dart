@@ -1,3 +1,5 @@
+import 'translations.dart';
+
 import 'package:flutter/material.dart';
 
 import 'session_controller.dart';
@@ -37,7 +39,7 @@ class _LoggingDialogState extends State<LoggingDialog> {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: widget.session,
     builder: (context, _) => AlertDialog(
-      title: const Text('Data logger'),
+      title: const LText('Data logger'),
       content: SizedBox(
         width: 600,
         height: 400,
@@ -69,7 +71,7 @@ class _LoggingDialogState extends State<LoggingDialog> {
               ],
             ),
             CheckboxListTile(
-              title: const Text('Append to existing file'),
+              title: const LText('Append to existing file'),
               value: append,
               onChanged: widget.session.logging
                   ? null
@@ -80,7 +82,7 @@ class _LoggingDialogState extends State<LoggingDialog> {
                 children: [
                   for (final f in ['timestamp', 'name', 'address', 'kind'])
                     FilterChip(
-                      label: Text(f),
+                      label: LText(f),
                       selected: fields.contains(f),
                       onSelected: widget.session.logging
                           ? null
@@ -94,18 +96,18 @@ class _LoggingDialogState extends State<LoggingDialog> {
                     ),
                 ],
               ),
-            const Text(
+            const LText(
               'CSV: timestamp + one column per selected row. Logging reads at this interval; busy ticks are skipped.',
             ),
             if (widget.session.registers.isEmpty)
-              const Text('Add rows in Register map before starting.'),
+              const LText('Add rows in Register map before starting.'),
             Expanded(
               child: ListView(
                 children: [
                   for (var i = 0; i < widget.session.registers.length; i++)
                     CheckboxListTile(
                       dense: true,
-                      title: Text(
+                      title: LText(
                         '${widget.session.registers[i]['name']} @${widget.session.registers[i]['address']}',
                       ),
                       value: selected.contains(i),
@@ -122,25 +124,25 @@ class _LoggingDialogState extends State<LoggingDialog> {
                 ],
               ),
             ),
-            Text(
+            LText(
               widget.session.logging
                   ? 'Logging · ${widget.session.loggedSamples} samples written'
                   : 'Stopped',
             ),
             if (error != null || widget.session.error != null)
-              Text(error ?? widget.session.error!),
+              LText(error ?? widget.session.error!),
           ],
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
+          child: const LText('Close'),
         ),
         if (widget.session.logging)
           FilledButton(
             onPressed: widget.session.stopLogging,
-            child: const Text('Stop logging'),
+            child: const LText('Stop logging'),
           )
         else
           FilledButton(
@@ -165,16 +167,16 @@ class _LoggingDialogState extends State<LoggingDialog> {
                       final confirmed = await showDialog<bool>(
                         context: context,
                         builder: (context) => AlertDialog(
-                          title: const Text('Replace existing log file?'),
-                          content: Text(path.text),
+                          title: const LText('Replace existing log file?'),
+                          content: LText(path.text),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(context, false),
-                              child: const Text('Cancel'),
+                              child: const LText('Cancel'),
                             ),
                             FilledButton(
                               onPressed: () => Navigator.pop(context, true),
-                              child: const Text('Replace'),
+                              child: const LText('Replace'),
                             ),
                           ],
                         ),
@@ -192,7 +194,7 @@ class _LoggingDialogState extends State<LoggingDialog> {
                       selected.map((i) => widget.session.registers[i]).toList(),
                     );
                   },
-            child: const Text('Start logging'),
+            child: const LText('Start logging'),
           ),
       ],
     ),
@@ -226,7 +228,7 @@ class _AlarmRulesDialogState extends State<AlarmRulesDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Alarm rules · first match wins'),
+    title: const LText('Alarm rules · first match wins'),
     content: SizedBox(
       width: 650,
       height: 400,
@@ -260,12 +262,12 @@ class _AlarmRulesDialogState extends State<AlarmRulesDialog> {
           Row(
             children: [
               Checkbox(value: log, onChanged: (v) => setState(() => log = v!)),
-              const Text('Log on entry'),
+              const LText('Log on entry'),
               Checkbox(
                 value: sound,
                 onChanged: (v) => setState(() => sound = v!),
               ),
-              const Text('Sound on entry'),
+              const LText('Sound on entry'),
               TextButton(
                 onPressed: () {
                   final a = double.tryParse(value.text);
@@ -290,25 +292,25 @@ class _AlarmRulesDialogState extends State<AlarmRulesDialog> {
                     }),
                   );
                 },
-                child: const Text('Add rule'),
+                child: const LText('Add rule'),
               ),
             ],
           ),
-          if (error != null) Text(error!),
+          if (error != null) LText(error!),
           Expanded(
             child: ListView(
               children: [
                 for (var i = 0; i < rules.length; i++)
                   ListTile(
                     dense: true,
-                    title: Text(
+                    title: LText(
                       '${i + 1}. ${rules[i]['condition']} ${rules[i]['value']} ${rules[i]['value2'] ?? ''} · ${rules[i]['color']}',
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          tooltip: 'Higher priority',
+                          tooltip: tr('Higher priority'),
                           onPressed: i == 0
                               ? null
                               : () => setState(() {
@@ -318,7 +320,7 @@ class _AlarmRulesDialogState extends State<AlarmRulesDialog> {
                           icon: const Icon(Icons.arrow_upward),
                         ),
                         IconButton(
-                          tooltip: 'Remove rule',
+                          tooltip: tr('Remove rule'),
                           onPressed: () => setState(() => rules.removeAt(i)),
                           icon: const Icon(Icons.close),
                         ),
@@ -334,11 +336,11 @@ class _AlarmRulesDialogState extends State<AlarmRulesDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
+        child: const LText('Cancel'),
       ),
       FilledButton(
         onPressed: () => Navigator.pop(context, rules),
-        child: const Text('Apply'),
+        child: const LText('Apply'),
       ),
     ],
   );

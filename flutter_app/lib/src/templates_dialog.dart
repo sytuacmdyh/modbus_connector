@@ -1,3 +1,5 @@
+import 'translations.dart';
+
 import 'package:flutter/material.dart';
 
 import 'session_controller.dart';
@@ -108,18 +110,18 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
     final yes = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
+        title: LText(
           history ? 'Delete selected version?' : 'Delete custom template?',
         ),
-        content: Text('${selected!['name']}\n${history ? version ?? '' : ''}'),
+        content: LText('${selected!['name']}\n${history ? version ?? '' : ''}'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const LText('Cancel'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: const LText('Delete'),
           ),
         ],
       ),
@@ -142,7 +144,7 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Templates / custom history'),
+    title: const LText('Templates / custom history'),
     content: SizedBox(
       width: 780,
       height: 470,
@@ -154,42 +156,42 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
             children: [
               OutlinedButton(
                 onPressed: busy ? null : () => save(false),
-                child: const Text('Save as custom'),
+                child: const LText('Save as custom'),
               ),
               OutlinedButton(
                 onPressed: busy || widget.session.customTemplateId == null
                     ? null
                     : () => save(true),
-                child: const Text('Save new version'),
+                child: const LText('Save new version'),
               ),
               TextButton(
                 onPressed: busy ? null : refresh,
-                child: const Text('Refresh catalog'),
+                child: const LText('Refresh catalog'),
               ),
             ],
           ),
           if (busy) const LinearProgressIndicator(),
-          if (error != null) Text(error!),
+          if (error != null) LText(error!),
           Expanded(
             child: Row(
               children: [
                 Expanded(
                   child: ListView(
                     children: [
-                      const ListTile(title: Text('Public (read-only)')),
+                      const ListTile(title: LText('Public (read-only)')),
                       for (final e in public)
                         ListTile(
                           dense: true,
                           selected: selected == e,
-                          title: Text('${e['manufacturer']} / ${e['name']}'),
+                          title: LText('${e['manufacturer']} / ${e['name']}'),
                           onTap: busy ? null : () => choose(e),
                         ),
-                      const ListTile(title: Text('Custom (Flutter storage)')),
+                      const ListTile(title: LText('Custom (Flutter storage)')),
                       for (final e in custom)
                         ListTile(
                           dense: true,
                           selected: selected?['id'] == e['id'],
-                          title: Text(e['name'] as String),
+                          title: LText(e['name'] as String),
                           onTap: busy ? null : () => choose(e),
                         ),
                     ],
@@ -199,14 +201,16 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
                 Expanded(
                   child: Column(
                     children: [
-                      Text(selected?['name'] as String? ?? 'Select a template'),
+                      LText(
+                        selected?['name'] as String? ?? 'Select a template',
+                      ),
                       Expanded(
                         child: ListView(
                           children: [
                             for (final v in versions)
                               ListTile(
-                                title: Text(v['saved_at'] as String),
-                                subtitle: Text(v['id'] as String),
+                                title: LText(v['saved_at'] as String),
+                                subtitle: LText(v['id'] as String),
                                 selected: version == v['id'],
                                 leading: Icon(
                                   version == v['id']
@@ -242,21 +246,21 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
                                         await refresh();
                                       }
                                     },
-                              child: const Text('Rename'),
+                              child: const LText('Rename'),
                             ),
                             TextButton(
                               onPressed: busy ? null : () => remove(false),
-                              child: const Text('Delete template'),
+                              child: const LText('Delete template'),
                             ),
                             TextButton(
                               onPressed: busy || version == null
                                   ? null
                                   : () => remove(true),
-                              child: const Text('Delete version'),
+                              child: const LText('Delete version'),
                             ),
                           ],
                         ),
-                      const Text(
+                      const LText(
                         'Opening creates a disconnected tab. Saving appends a new snapshot; public templates stay read-only.',
                       ),
                     ],
@@ -271,11 +275,11 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Close'),
+        child: const LText('Close'),
       ),
       FilledButton(
         onPressed: busy || selected == null ? null : open,
-        child: Text(
+        child: LText(
           version == null ? 'Open latest in new tab' : 'Open selected version',
         ),
       ),

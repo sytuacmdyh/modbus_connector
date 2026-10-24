@@ -1,3 +1,5 @@
+import 'translations.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -206,14 +208,14 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, update) => AlertDialog(
-          title: const Text('Export columns'),
+          title: const LText('Export columns'),
           content: SizedBox(
             width: 450,
             child: Wrap(
               children: [
                 for (final c in csvColumns)
                   FilterChip(
-                    label: Text(c),
+                    label: LText(c),
                     selected: columns.contains(c),
                     onSelected: (v) => update(() {
                       if (v) {
@@ -229,13 +231,13 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: const LText('Cancel'),
             ),
             FilledButton(
               onPressed: columns.isEmpty
                   ? null
                   : () => Navigator.pop(context, true),
-              child: const Text('Continue'),
+              child: const LText('Continue'),
             ),
           ],
         ),
@@ -312,7 +314,7 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: Listenable.merge([model, widget.session]),
     builder: (context, _) => AlertDialog(
-      title: const Text('Register map'),
+      title: const LText('Register map'),
       content: SizedBox(
         width: 800,
         height: 470,
@@ -323,7 +325,7 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
               runSpacing: 6,
               children: [
                 IconButton(
-                  tooltip: 'Graph map',
+                  tooltip: tr('Graph map'),
                   icon: const Icon(Icons.multiline_chart),
                   onPressed: () => showDialog<void>(
                     context: context,
@@ -334,22 +336,22 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
                   onPressed: model.reading || model.rows.length >= 512
                       ? null
                       : edit,
-                  child: const Text('Add row'),
+                  child: const LText('Add row'),
                 ),
                 OutlinedButton(
                   onPressed: model.reading ? null : csvImport,
-                  child: const Text('Import CSV'),
+                  child: const LText('Import CSV'),
                 ),
                 OutlinedButton(
                   onPressed: model.reading ? null : csvExport,
-                  child: const Text('Export CSV'),
+                  child: const LText('Export CSV'),
                 ),
                 OutlinedButton(
                   onPressed: model.reading ? null : snapshot,
-                  child: const Text('Snapshot'),
+                  child: const LText('Snapshot'),
                 ),
                 PopupMenuButton<String>(
-                  tooltip: 'Compare snapshot',
+                  tooltip: tr('Compare snapshot'),
                   onSelected: (name) => showText(
                     context,
                     'Snapshot $name differences',
@@ -358,7 +360,7 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
                         : model.diff(name).join('\n'),
                   ),
                   itemBuilder: (_) => widget.session.snapshots.keys
-                      .map((n) => PopupMenuItem(value: n, child: Text(n)))
+                      .map((n) => PopupMenuItem(value: n, child: LText(n)))
                       .toList(),
                   icon: const Icon(Icons.compare),
                 ),
@@ -366,7 +368,7 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
                   onPressed: !widget.session.connected || model.reading
                       ? null
                       : model.read,
-                  child: const Text('Read map'),
+                  child: const LText('Read map'),
                 ),
                 FilledButton.tonal(
                   onPressed: model.polling
@@ -374,7 +376,7 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
                       : !widget.session.connected
                       ? null
                       : () => model.start(interval),
-                  child: Text(model.polling ? 'Stop' : 'Poll map'),
+                  child: LText(model.polling ? 'Stop' : 'Poll map'),
                 ),
                 toolChoice(
                   'Interval, ms',
@@ -388,9 +390,9 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
               ],
             ),
             if (model.reading) const LinearProgressIndicator(),
-            if (message != null) Text(message!),
+            if (message != null) LText(message!),
             if (widget.session.error != null)
-              Text(widget.session.error!, maxLines: 2),
+              LText(widget.session.error!, maxLines: 2),
             const SizedBox(height: 8),
             Expanded(
               child: ListView.builder(
@@ -405,10 +407,10 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
                       row['kind'] == 'coils';
                   return ListTile(
                     dense: true,
-                    title: Text(
+                    title: LText(
                       '${row['name']} · ${row['kind']} @${row['address']} ×${row['count']} · unit ${row['unit_id'] ?? widget.session.unit}',
                     ),
-                    subtitle: Text(
+                    subtitle: LText(
                       '${row['format']} · ${result?['display'] ?? '—'}',
                       style: TextStyle(
                         color: result?['alarm'] == null
@@ -425,14 +427,14 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
                         if (row['kind'] == 'holding_registers' &&
                             row['count'] == 1)
                           IconButton(
-                            tooltip: 'Edit bits',
+                            tooltip: tr('Edit bits'),
                             onPressed: !widget.session.canRead || model.reading
                                 ? null
                                 : () => write(i, bits: true),
                             icon: const Icon(Icons.grid_4x4, size: 18),
                           ),
                         IconButton(
-                          tooltip: 'Write row',
+                          tooltip: tr('Write row'),
                           onPressed:
                               !writable ||
                                   !widget.session.canRead ||
@@ -442,7 +444,7 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
                           icon: const Icon(Icons.edit_note),
                         ),
                         IconButton(
-                          tooltip: 'Delete row',
+                          tooltip: tr('Delete row'),
                           onPressed: model.reading
                               ? null
                               : () {
@@ -458,7 +460,7 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
               ),
             ),
             if (model.rows.isEmpty)
-              const Text(
+              const LText(
                 'Add named rows at any unit/address, or import a CSV/template.',
               ),
           ],
@@ -470,7 +472,7 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
             model.stop();
             Navigator.pop(context);
           },
-          child: const Text('Close'),
+          child: const LText('Close'),
         ),
       ],
     ),
@@ -581,7 +583,7 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Register row'),
+    title: const LText('Register row'),
     content: SizedBox(
       width: 600,
       child: SingleChildScrollView(
@@ -633,14 +635,14 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
                 );
                 if (edited != null && mounted) setState(() => alarms = edited);
               },
-              child: Text('Alarm rules (${alarms.length})'),
+              child: LText('Alarm rules (${alarms.length})'),
             ),
             CheckboxListTile(
-              title: const Text('Names label bits 0–15'),
+              title: const LText('Names label bits 0–15'),
               value: bitmask,
               onChanged: (v) => setState(() => bitmask = v!),
             ),
-            if (error != null) Text(error!),
+            if (error != null) LText(error!),
           ],
         ),
       ),
@@ -648,9 +650,9 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
+        child: const LText('Cancel'),
       ),
-      FilledButton(onPressed: save, child: const Text('Apply')),
+      FilledButton(onPressed: save, child: const LText('Apply')),
     ],
   );
 }
@@ -667,7 +669,7 @@ class _BitsDialogState extends State<BitsDialog> {
   late int value = widget.value;
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text('Bits · 0x${value.toRadixString(16).padLeft(4, '0')}'),
+    title: LText('Bits · 0x${value.toRadixString(16).padLeft(4, '0')}'),
     content: SizedBox(
       width: 480,
       height: 330,
@@ -678,7 +680,7 @@ class _BitsDialogState extends State<BitsDialog> {
           for (var bit = 0; bit < 16; bit++)
             CheckboxListTile(
               dense: true,
-              title: Text('b$bit ${widget.names['$bit'] ?? ''}'),
+              title: LText('b$bit ${widget.names['$bit'] ?? ''}'),
               value: value & (1 << bit) != 0,
               onChanged: (v) => setState(
                 () => value = v! ? value | (1 << bit) : value & ~(1 << bit),
@@ -690,11 +692,11 @@ class _BitsDialogState extends State<BitsDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
+        child: const LText('Cancel'),
       ),
       FilledButton(
         onPressed: () => Navigator.pop(context, value),
-        child: const Text('Write'),
+        child: const LText('Write'),
       ),
     ],
   );
@@ -712,7 +714,7 @@ class _CsvMappingDialogState extends State<CsvMappingDialog> {
       .cast<String, String>();
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('CSV column mapping'),
+    title: const LText('CSV column mapping'),
     content: SizedBox(
       width: 500,
       height: 350,
@@ -724,7 +726,7 @@ class _CsvMappingDialogState extends State<CsvMappingDialog> {
               padding: const EdgeInsets.only(bottom: 12),
               child: Row(
                 children: [
-                  Expanded(child: Text(column)),
+                  Expanded(child: LText(column)),
                   toolChoice(
                     'Field',
                     mapping[column] ?? 'Ignore',
@@ -746,13 +748,13 @@ class _CsvMappingDialogState extends State<CsvMappingDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
+        child: const LText('Cancel'),
       ),
       FilledButton(
         onPressed: ['name', 'kind', 'address'].every(mapping.values.contains)
             ? () => Navigator.pop(context, mapping)
             : null,
-        child: const Text('Import'),
+        child: const LText('Import'),
       ),
     ],
   );

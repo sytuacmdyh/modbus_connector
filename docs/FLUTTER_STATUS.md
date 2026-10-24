@@ -206,3 +206,16 @@ read and left unchanged, including its pre-existing untracked Git state.
   including independent storage, disconnected restore and invalid import retention.
 - Remaining: help/i18n; cloud/update. Native file chooser, scheduled per-row
   polling, master expression rows, detached graph windows remain below Qt parity.
+
+## Parity push — chunk 8: help and localization
+
+- English/Chinese language picker with persisted language, centralized visible
+  text widgets and common field/tooltip labels. Reuses Qt's Chinese dictionary
+  through a reproducible AST extraction tool that never imports Qt.
+- English/Chinese feature guide covers session ownership, register/CSV/snapshot
+  workflows, logger/alarms, device modes, graphs and separate storage/templates.
+  It describes the Flutter implementation's actual behavior.
+- Linux: analyze clean; localization/help widget verification added. Dynamic
+  technical messages, freeform file prompts and some tool-specific captions still
+  fall back to English; the translation dictionaries can be extended incrementally.
+- Remaining: cloud/update surfaces and final native Linux integration/build pass.
