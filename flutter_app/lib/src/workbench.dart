@@ -5,6 +5,7 @@ import 'dart:ui' show AppExitResponse;
 import 'package:flutter/material.dart';
 
 import 'live_chart.dart';
+import 'scanner.dart';
 import 'session_controller.dart';
 import 'write_dialog.dart';
 
@@ -716,6 +717,30 @@ class _WorkbenchState extends State<Workbench> {
                                   overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
+                              ),
+                              IconButton(
+                                tooltip: 'Scanner',
+                                icon: const Icon(Icons.radar),
+                                onPressed: session.connected && !session.busy
+                                    ? () async {
+                                        session.stopPolling();
+                                        final applied = await showDialog<bool>(
+                                          context: context,
+                                          builder: (_) =>
+                                              ScannerDialog(session: session),
+                                        );
+                                        if (applied == true && mounted) {
+                                          setState(() {
+                                            _unit.text = '${session.unit}';
+                                            _kind = session.query.kind;
+                                            _address.text =
+                                                '${session.query.address}';
+                                            _count.text =
+                                                '${session.query.count}';
+                                          });
+                                        }
+                                      }
+                                    : null,
                               ),
                               PopupMenuButton<ThemeMode>(
                                 tooltip: 'Appearance',

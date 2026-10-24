@@ -117,3 +117,16 @@ read and left unchanged, including its pre-existing untracked Git state.
   independent connections and closing a tab while another tab continues reading.
 - Remaining: scanner; richer register tools; logger/alarms; mode panels; graph;
   templates/persistence; help/localization; cloud/update surfaces.
+
+## Parity push — chunk 2: scanner
+
+- Usable unit/address scanner dialog: editable/add/remove probes, range and area
+  selection, progress/hits, Stop, device identification and apply unit/range.
+- Reuses backend scan semantics, including two-register address probes and
+  single-register fallback. Flutter sends individual probes to permit Stop
+  between transactions; stopped results cannot appear late.
+- Linux: `flutter analyze` clean, `flutter test` 14 passed; Python bridge 25 passed
+  against a real TCP fixture, including invalid probes and absent addresses.
+- Remaining: register tools; logger/alarms; mode panels; graph; templates/state;
+  help/i18n; cloud/update. Scanner hit CSV/multiple disjoint-row insertion awaits
+  the richer register map.

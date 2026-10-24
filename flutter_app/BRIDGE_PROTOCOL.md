@@ -50,3 +50,18 @@ allows three seconds for cleanup, then terminates the child if necessary.
 Multi-session ownership: every tab launches its own bridge process. There is no
 shared connection or session identifier. Closing one tab waits for its active
 transaction and closes that process; other tabs continue independently.
+
+Scanner commands (v1 additive):
+
+- `scan_unit`: `unit` 1..247, `probes` array (1..32) of `{kind,address,count}`.
+  Returns `{unit,hits}` where hits are responding probe indices. Invalid probe
+  ranges fail before I/O. Flutter submits one probe per request so Stop takes
+  effect after the current backend transaction, suppressing late results.
+- `scan_address`: `unit`, `kind`, `address`; returns `{address,values}`. Reuses
+  backend pair reads and count=1 fallback for register areas; bits read one.
+  Empty values means no response. Transport loss is an error.
+- `device_id`: `unit`; returns `{objects}` from FC 0x2B/0x0E (string JSON keys).
+
+Scanner owns that tab's bus while running. Polling stops before a scan. Progress
+and hits remain visible after Stop; applying a result updates the session's unit
+or selected contiguous address range. Other tabs remain usable.

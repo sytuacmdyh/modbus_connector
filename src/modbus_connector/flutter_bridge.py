@@ -18,7 +18,7 @@ from typing import Any, TextIO, cast, get_args
 from serial.tools import list_ports
 
 from .backend import ModbusBackend, ModbusExceptionError
-from .models import RegisterKind, RtuParams, TcpParams, describe_connection
+from .models import RegisterKind, RtuParams, ScanProbe, TcpParams, describe_connection
 from .sim_backend import SimBackend, SimTcpParams
 
 PROTOCOL_VERSION = 1
@@ -114,6 +114,36 @@ class Bridge:
         if command in ("disconnect", "shutdown"):
             self.close()
             return {}
+        if command in ("scan_unit", "scan_address", "device_id"):
+            unit = integer(data, "unit", 1, 247, 1)
+            if command == "device_id":
+                return {"objects": self.backend.read_device_identification(unit)}
+            if command == "scan_unit":
+                raw = data.get("probes", [])
+                if not isinstance(raw, list) or not 1 <= len(raw) <= 32:
+                    raise ValueError("probes must contain 1..32 probe objects")
+                probes = []
+                for probe in raw:
+                    if not isinstance(probe, dict):
+                        raise ValueError("probe must be an object")
+                    kind = text(probe, "kind", "holding_registers")
+                    if kind not in get_args(RegisterKind):
+                        raise ValueError("Unknown register area")
+                    address = integer(probe, "address", 0, 65535, 0)
+                    count = integer(probe, "count", 1, 2000 if kind in BIT_KINDS else 125, 1)
+                    if address + count > 65536:
+                        raise ValueError("Address range exceeds 65535")
+                    probes.append(ScanProbe(cast(RegisterKind, kind), address, count))
+                _, hits = next(self.backend.scan(probes, unit, unit, lambda: False))
+                return {"unit": unit, "hits": hits}
+            kind = text(data, "kind", "holding_registers")
+            if kind not in get_args(RegisterKind):
+                raise ValueError("Unknown register area")
+            address = integer(data, "address", 0, 65535, 0)
+            hits = list(self.backend.scan_addresses(
+                unit, cast(RegisterKind, kind), address, address, lambda: False
+            ))
+            return {"address": address, "values": hits[0][1] if hits else []}
         if command not in ("read", "write"):
             raise ValueError(f"Unknown command: {command}")
         unit = integer(data, "unit", 1, 247, 1)

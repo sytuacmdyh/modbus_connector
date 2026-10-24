@@ -77,6 +77,7 @@ class SessionController extends ChangeNotifier {
   bool busy = false;
   bool disconnecting = false;
   bool polling = false;
+  bool toolActive = false;
   String description = 'Disconnected';
   String? error;
   int unit = 1;
@@ -97,7 +98,7 @@ class SessionController extends ChangeNotifier {
   Future<void>? _shutdown;
   DateTime? _lastSample;
 
-  bool get canRead => connected && !busy && !disconnecting;
+  bool get canRead => connected && !busy && !disconnecting && !toolActive;
   Duration get deadline =>
       Duration(milliseconds: (timeoutSeconds * 5000).round() + 10000);
 
@@ -152,6 +153,28 @@ class SessionController extends ChangeNotifier {
       done.complete();
       if (!_disposed) notifyListeners();
     }
+  }
+
+  Future<Map<String, dynamic>?> command(Map<String, dynamic> request) async {
+    Map<String, dynamic>? result;
+    await _run((epoch) async {
+      final reply = await bridge.request(request, timeout: deadline);
+      if (epoch != _epoch || _closing) return;
+      result = reply.result;
+      error = null;
+    });
+    return result;
+  }
+
+  void beginTool() {
+    stopPolling();
+    toolActive = true;
+    notifyListeners();
+  }
+
+  void endTool() {
+    toolActive = false;
+    if (!_disposed) notifyListeners();
   }
 
   Future<void> connect(Map<String, dynamic> config, int unitId) =>

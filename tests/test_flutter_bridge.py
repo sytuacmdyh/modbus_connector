@@ -155,3 +155,16 @@ def test_subprocess_protocol_eof_and_no_qt(shutdown: bool) -> None:
         timeout=10,
     )
     assert probe.returncode == 0
+
+
+def test_scanner_real_backend(bridge: Bridge, modbus_server: int) -> None:
+    assert request(bridge, 'connect', transport='tcp', host='127.0.0.1', port=modbus_server)['ok']
+    result = request(bridge, 'scan_unit', unit=1, probes=[
+        {'kind': 'holding_registers', 'address': 0, 'count': 1},
+        {'kind': 'holding_registers', 'address': 60000, 'count': 1},
+    ])
+    assert result['result']['hits'] == [0]
+    assert request(bridge, 'scan_address', address=0)['result']['values'] == [100, 101]
+    assert request(bridge, 'scan_address', address=60000)['result']['values'] == []
+    assert not request(bridge, 'scan_unit', probes=[{'address': 65535, 'count': 2}])['ok']
+    assert not request(bridge, 'scan_unit', probes=[])['ok']
