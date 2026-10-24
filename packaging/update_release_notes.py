@@ -12,7 +12,9 @@ from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_ITEMS = 10
-TAG = re.compile(r"v\d+\.\d+\.\d+")
+TAG = re.compile(
+    r"v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-beta\.(?:0|[1-9]\d*))?",
+)
 
 
 def git(*args: str) -> str:
@@ -21,7 +23,7 @@ def git(*args: str) -> str:
     ).strip()
 
 
-def stable_tags(*args: str) -> list[str]:
+def release_tags(*args: str) -> list[str]:
     return [tag for tag in git("tag", "--sort=-version:refname", *args).splitlines()
             if TAG.fullmatch(tag)]
 
@@ -33,7 +35,9 @@ def summarize(subjects: list[str]) -> list[str]:
         if match:
             kind, scope, subject = match.groups()
             if kind == "chore" and scope == "release" and re.fullmatch(
-                r"(?:(?:发布|更新|升级|提升|同步)\s*)?v?\d+\.\d+\.\d+(?:版本)?", subject,
+                r"(?:(?:发布|更新|升级|提升|同步)\s*)?"
+                r"v?\d+\.\d+\.\d+(?:-beta\.\d+)?(?:版本)?",
+                subject,
             ):
                 continue
         if re.match(r"bump (?:version|.+ version)\b", subject, re.IGNORECASE):
@@ -46,7 +50,7 @@ def summarize(subjects: list[str]) -> list[str]:
 def generate_notes(tag: str, repository: str) -> str:
     # Only consider earlier tags reachable from this release, not newer or sibling branches.
     commit = git("rev-parse", f"{tag}^{{commit}}")
-    previous = next((candidate for candidate in stable_tags("--merged", tag)
+    previous = next((candidate for candidate in release_tags("--merged", tag)
                      if git("rev-parse", f"{candidate}^{{commit}}") != commit), None)
     revision = f"{previous}..{tag}" if previous else tag
     subjects = git("log", "--no-merges", "--format=%s", revision).splitlines()
@@ -99,12 +103,12 @@ def sync_notes(tag: str, title: str, body: str, *, missing_ok: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tag", help="Update one release; default: all local stable tags")
+    parser.add_argument("--tag", help="Update one release; default: all local release tags")
     parser.add_argument("--preview", action="store_true", help="Print notes without network access")
     args = parser.parse_args()
     if args.tag and not TAG.fullmatch(args.tag):
-        parser.error("tag must be vMAJOR.MINOR.PATCH")
-    tags = [args.tag] if args.tag else stable_tags()
+        parser.error("tag must be vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-beta.N")
+    tags = [args.tag] if args.tag else release_tags()
     if not tags:
         parser.error("no release tags found")
     repository = os.environ["GITHUB_REPOSITORY"]

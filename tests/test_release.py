@@ -143,3 +143,38 @@ def test_completion_requires_exact_successful_tag_run_and_all_assets(monkeypatch
             release.check_release("owner/repo", "0.1.1", "sha")
     else:
         assert release.check_release("owner/repo", "0.1.1", "sha") == (state == "complete")
+
+
+def test_beta_publish_from_develop(repo):
+    git, path, remote = repo
+    git("checkout", "-b", "develop")
+    git("push", "-u", "origin", "develop")
+    head = release.publish("0.1.1-beta.1", "origin", dry_run=False, resume=False)
+    assert path.read_text() == '__version__ = "0.1.1-beta.1"\n'
+    assert git("rev-parse", "v0.1.1-beta.1^{commit}") == head
+    assert git("--git-dir", str(remote), "rev-parse", "develop") == head
+
+
+def test_stable_publish_rejects_develop_branch(repo):
+    git, path, remote = repo
+    git("checkout", "-b", "develop")
+    git("push", "-u", "origin", "develop")
+    with pytest.raises(ValueError, match="main"):
+        release.publish("0.1.1", "origin", dry_run=False, resume=False)
+
+
+def test_beta_completion_expects_prerelease_release(monkeypatch):
+    run = {
+        "head_sha": "sha",
+        "head_branch": "v0.1.1-beta.1",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/owner/repo/actions/runs/1",
+    }
+    assets = [{"name": name, "size": 1, "state": "uploaded"}
+              for name in sorted(release.expected_assets("0.1.1-beta.1"))]
+    data = {"draft": False, "prerelease": True, "body": "Notes", "assets": assets,
+            "html_url": "https://github.com/owner/repo/releases/tag/v0.1.1-beta.1"}
+    monkeypatch.setattr(release, "api", lambda repo, path:
+                        {"workflow_runs": [run]} if path.startswith("actions/") else data)
+    assert release.check_release("owner/repo", "0.1.1-beta.1", "sha")

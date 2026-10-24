@@ -1137,7 +1137,8 @@ packaging/linux/          # упаковка для Linux (только на Lin
                           # control-шаблон — deb-control)
 ```
 
-CI: `.github/workflows/build.yml` — push в main / ручной запуск; матрица
+CI: `.github/workflows/build.yml` — push в `main` и `develop` (артефакты), теги
+`vX.Y.Z` (stable, Release) и `vX.Y.Z-beta.N` (prerelease с develop); ручной запуск; матрица
 macOS/Windows/Linux: pytest (по одному процессу на test-файл — изоляция от
 флаки-сегфолтов Qt на CI), затем сборка через build.sh/build.bat,
 артефакты в upload-artifact (macOS — dmg, Windows/Linux — каталог dist;
@@ -1146,8 +1147,9 @@ CLI-бинарь — отдельным артефактом modbus-connector-cl
 прикрепляются к релизу отдельным шагом, как и CLI-бинарь).
 Linux installs Qt runtime libraries before testing; PyPI publishing is restricted
 to `cramen/modbus_connector`, while forks can publish tagged GitHub Releases.
-Use `python packaging/release.py MAJOR.MINOR.PATCH` for releases. It requires a
-clean main branch containing remote main, updates the single application version,
+Use `python packaging/release.py MAJOR.MINOR.PATCH` (stable, `main`) or
+`MAJOR.MINOR.PATCH-beta.N` (beta, `develop`) for releases. It requires a clean
+release branch containing the remote tip, updates the single application version,
 commits it, creates an annotated tag and atomically pushes branch/tag without force.
 The stdlib-only script supports --dry-run, --resume after a failed push, --status,
 --no-wait and --timeout. Default waiting checks the exact tag commit's Build run,
