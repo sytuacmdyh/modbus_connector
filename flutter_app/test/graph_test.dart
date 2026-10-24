@@ -6,6 +6,30 @@ import 'package:modbus_desktop/src/session_controller.dart';
 import 'fake_bridge.dart';
 
 void main() {
+  test('nearest sample uses timestamps across uneven sample intervals', () {
+    final origin = DateTime(2026);
+    final samples = [
+      Sample(origin, 1),
+      Sample(origin.add(const Duration(seconds: 1)), 2),
+      Sample(origin.add(const Duration(seconds: 100)), 3),
+    ];
+    expect(
+      nearestGraphSample(
+        samples,
+        origin.add(const Duration(seconds: 3)),
+      )!.value,
+      2,
+    );
+    expect(
+      nearestGraphSample(
+        samples,
+        origin.add(const Duration(seconds: 90)),
+      )!.value,
+      3,
+    );
+    expect(nearestGraphSample([], origin), isNull);
+  });
+
   testWidgets(
     'graph shows multiple numeric curves, statistics, pause and normalization',
     (tester) async {

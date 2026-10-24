@@ -1,3 +1,4 @@
+import 'file_paths.dart';
 import 'translations.dart';
 
 import 'package:flutter/material.dart';
@@ -52,8 +53,26 @@ class _LoggingDialogState extends State<LoggingDialog> {
                 toolField(
                   'Output file path',
                   path,
-                  width: 550,
+                  width: 410,
                   enabled: !widget.session.logging,
+                ),
+                IconButton(
+                  tooltip: tr('Browse'),
+                  icon: const Icon(Icons.folder_open),
+                  onPressed: widget.session.logging
+                      ? null
+                      : () async {
+                          final chosen = await chooseFilePath(
+                            context,
+                            save: true,
+                            title: 'Output file path',
+                            extension: format,
+                            suggestedName: path.text,
+                          );
+                          if (chosen != null && mounted) {
+                            setState(() => path.text = chosen);
+                          }
+                        },
                 ),
                 toolChoice(
                   'Format',

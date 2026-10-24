@@ -1,6 +1,8 @@
+import 'file_paths.dart';
 import 'translations.dart';
 
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -70,7 +72,12 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
   }
 
   Future<void> csvImport() async {
-    final path = await textPrompt(context, 'Import CSV file path');
+    final path = await chooseFilePath(
+      context,
+      save: false,
+      title: 'Import CSV file path',
+      extension: 'csv',
+    );
     if (path == null || path.isEmpty || !mounted) return;
     try {
       final content = await File(path).readAsString();
@@ -143,7 +150,13 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
       ),
     );
     if (chosen != true || !mounted) return;
-    final path = await textPrompt(context, 'Export CSV file path');
+    final path = await chooseFilePath(
+      context,
+      save: true,
+      title: 'Export CSV file path',
+      extension: 'csv',
+      suggestedName: 'registers.csv',
+    );
     if (path == null || path.isEmpty) return;
     try {
       final result = await widget.session.command({
@@ -208,6 +221,56 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
     await model.read();
   }
 
+  Future<void> snapshotFile(bool save) async {
+    final path = await chooseFilePath(
+      context,
+      save: save,
+      title: save ? 'Export snapshots file path' : 'Import snapshots file path',
+      extension: 'json',
+      suggestedName: 'snapshots.json',
+    );
+    if (path == null || path.isEmpty) return;
+    try {
+      if (save) {
+        await File(path).writeAsString(
+          jsonEncode({'schema': 1, 'snapshots': widget.session.snapshots}),
+          flush: true,
+        );
+      } else {
+        final data = jsonDecode(await File(path).readAsString());
+        if (data is! Map || data['schema'] != 1 || data['snapshots'] is! Map) {
+          throw const FormatException('Invalid snapshots file');
+        }
+        final parsed = <String, List<Object?>>{};
+        for (final e in (data['snapshots'] as Map).entries) {
+          if (e.key is! String ||
+              e.value is! List ||
+              (e.value as List).any(
+                (r) =>
+                    r is! Map ||
+                    r['key'] is! String ||
+                    r['name'] is! String ||
+                    (r['values'] != null && r['values'] is! List),
+              )) {
+            throw const FormatException('Invalid snapshots file');
+          }
+          parsed[e.key as String] = List<Object?>.from(e.value as List);
+        }
+        widget.session.snapshots.addAll(parsed);
+      }
+      if (mounted) {
+        setState(
+          () =>
+              message = tr(save ? 'Snapshots exported' : 'Snapshots imported'),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => message = '${tr('Snapshot file failed')}: $e');
+      }
+    }
+  }
+
   Future<void> snapshot() async {
     final name = await textPrompt(context, 'Snapshot name');
     if (name != null && name.trim().isNotEmpty && mounted) {
@@ -269,6 +332,21 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
                 OutlinedButton(
                   onPressed: model.reading ? null : snapshot,
                   child: const LText('Snapshot'),
+                ),
+                PopupMenuButton<bool>(
+                  tooltip: tr('Snapshot files'),
+                  icon: const Icon(Icons.folder_copy_outlined),
+                  onSelected: snapshotFile,
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: false,
+                      child: LText('Import snapshots'),
+                    ),
+                    PopupMenuItem(
+                      value: true,
+                      child: LText('Export snapshots'),
+                    ),
+                  ],
                 ),
                 PopupMenuButton<String>(
                   tooltip: tr('Compare snapshot'),

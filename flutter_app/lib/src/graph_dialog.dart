@@ -1,9 +1,12 @@
+import 'file_paths.dart';
 import 'translations.dart';
 
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import 'session_controller.dart';
 import 'tool_widgets.dart';
@@ -19,6 +22,14 @@ const curveColors = [
   Colors.brown,
 ];
 
+Sample? nearestGraphSample(List<Sample> samples, DateTime time) {
+  if (samples.isEmpty) return null;
+  return samples.reduce(
+    (a, b) =>
+        a.time.difference(time).abs() <= b.time.difference(time).abs() ? a : b,
+  );
+}
+
 class GraphDialog extends StatefulWidget {
   const GraphDialog({super.key, required this.session});
   final SessionController session;
@@ -33,6 +44,42 @@ class _GraphDialogState extends State<GraphDialog> {
   int seconds = 60;
   Map<String, List<Sample>>? frozen;
   double? hover;
+  bool pinned = false;
+  final chartKey = GlobalKey();
+  final transform = TransformationController();
+  @override
+  void dispose() {
+    transform.dispose();
+    super.dispose();
+  }
+
+  Future<void> exportPng() async {
+    final path = await chooseFilePath(
+      context,
+      save: true,
+      title: 'Export graph PNG file path',
+      extension: 'png',
+      suggestedName: 'graph.png',
+    );
+    if (path == null || path.isEmpty || !mounted) return;
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      final boundary =
+          chartKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final image = await boundary.toImage(pixelRatio: 2);
+      try {
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        await File(path).writeAsBytes(bytes!.buffer.asUint8List(), flush: true);
+      } finally {
+        image.dispose();
+      }
+      if (mounted) setState(() => message = '${tr('Saved')} $path');
+    } catch (e) {
+      if (mounted) setState(() => message = '${tr('Image export failed')}: $e');
+    }
+  }
+
   String? message;
   @override
   void initState() {
@@ -59,9 +106,12 @@ class _GraphDialogState extends State<GraphDialog> {
   }
 
   Future<void> export() async {
-    final path = await textPrompt(
+    final path = await chooseFilePath(
       context,
-      'Export graph samples CSV file path',
+      save: true,
+      title: 'Export graph samples CSV file path',
+      extension: 'csv',
+      suggestedName: 'graph.csv',
     );
     if (path == null || path.isEmpty) return;
     try {
@@ -78,7 +128,7 @@ class _GraphDialogState extends State<GraphDialog> {
         }
       }
       await File(path).writeAsString(buffer.toString(), flush: true);
-      if (mounted) setState(() => message = 'Saved $path');
+      if (mounted) setState(() => message = '${tr('Saved')} $path');
     } catch (e) {
       if (mounted) setState(() => message = '$e');
     }
@@ -135,6 +185,10 @@ class _GraphDialogState extends State<GraphDialog> {
                     child: const LText('Export samples'),
                   ),
                   TextButton(
+                    onPressed: exportPng,
+                    child: const LText('Export PNG'),
+                  ),
+                  TextButton(
                     onPressed: widget.session.clearHistory,
                     child: const LText('Clear'),
                   ),
@@ -142,107 +196,165 @@ class _GraphDialogState extends State<GraphDialog> {
               ),
               const SizedBox(height: 10),
               Expanded(
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 205,
-                      child: ListView(
-                        children: [
-                          for (final key in widget.session.histories.keys)
-                            CheckboxListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              title: LText(
-                                widget.session.historyLabels[key] ?? key,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              value: selected.contains(key),
-                              onChanged: (v) => setState(() {
-                                if (v!) {
-                                  selected.add(key);
-                                } else {
-                                  selected.remove(key);
-                                }
-                              }),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: LayoutBuilder(
-                              builder: (context, bounds) => MouseRegion(
-                                onHover: (e) => setState(
-                                  () => hover =
-                                      (e.localPosition.dx / bounds.maxWidth)
-                                          .clamp(0, 1),
+                child: RepaintBoundary(
+                  key: chartKey,
+                  child: Material(
+                    color: Theme.of(context).colorScheme.surface,
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 205,
+                          child: ListView(
+                            children: [
+                              for (final key in widget.session.histories.keys)
+                                CheckboxListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  title: LText(
+                                    widget.session.historyLabels[key] ?? key,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  value: selected.contains(key),
+                                  onChanged: (v) => setState(() {
+                                    if (v!) {
+                                      selected.add(key);
+                                    } else {
+                                      selected.remove(key);
+                                    }
+                                  }),
                                 ),
-                                onExit: (_) => setState(() => hover = null),
-                                child: ClipRect(
-                                  child: InteractiveViewer(
-                                    minScale: 1,
-                                    maxScale: 10,
-                                    child: CustomPaint(
-                                      painter: MultiSeriesPainter(
-                                        curves.values.toList(),
-                                        normalized,
-                                        Theme.of(context).colorScheme,
-                                        hover,
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Expanded(
+                                child: LayoutBuilder(
+                                  builder: (context, bounds) => MouseRegion(
+                                    onHover: (e) {
+                                      if (!pinned) {
+                                        setState(
+                                          () => hover =
+                                              (transform
+                                                          .toScene(
+                                                            e.localPosition,
+                                                          )
+                                                          .dx /
+                                                      bounds.maxWidth)
+                                                  .clamp(0, 1),
+                                        );
+                                      }
+                                    },
+                                    onExit: (_) {
+                                      if (!pinned) setState(() => hover = null);
+                                    },
+                                    child: ClipRect(
+                                      child: GestureDetector(
+                                        onTapDown: (e) => setState(() {
+                                          pinned = !pinned;
+                                          hover =
+                                              (transform
+                                                          .toScene(
+                                                            e.localPosition,
+                                                          )
+                                                          .dx /
+                                                      bounds.maxWidth)
+                                                  .clamp(0, 1);
+                                        }),
+                                        child: InteractiveViewer(
+                                          transformationController: transform,
+                                          minScale: 1,
+                                          maxScale: 10,
+                                          child: CustomPaint(
+                                            painter: MultiSeriesPainter(
+                                              curves.values.toList(),
+                                              normalized,
+                                              Theme.of(context).colorScheme,
+                                              hover,
+                                            ),
+                                            size: Size.infinite,
+                                          ),
+                                        ),
                                       ),
-                                      size: Size.infinite,
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              LText(first.toIso8601String().substring(11, 19)),
-                              LText(last.toIso8601String().substring(11, 19)),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  LText(
+                                    first.toIso8601String().substring(11, 19),
+                                  ),
+                                  LText(
+                                    last.toIso8601String().substring(11, 19),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(
+                                height: 100,
+                                child: ListView(
+                                  children: [
+                                    for (var i = 0; i < curves.length; i++)
+                                      Builder(
+                                        builder: (context) {
+                                          final key = curves.keys.elementAt(i);
+                                          final samples = curves[key]!;
+                                          final values = samples
+                                              .map((s) => s.value)
+                                              .toList();
+                                          final target =
+                                              DateTime.fromMicrosecondsSinceEpoch(
+                                                first.microsecondsSinceEpoch +
+                                                    ((last.microsecondsSinceEpoch -
+                                                                first
+                                                                    .microsecondsSinceEpoch) *
+                                                            (hover ?? 1))
+                                                        .round(),
+                                              );
+                                          final sample = nearestGraphSample(
+                                            samples,
+                                            target,
+                                          );
+                                          final at = sample?.value;
+                                          return LText(
+                                            '${widget.session.historyLabels[key] ?? key}: ${at?.toStringAsPrecision(6) ?? '—'}   ${values.isEmpty ? '' : '${tr('min')} ${values.reduce(math.min).toStringAsPrecision(4)} / ${tr('max')} ${values.reduce(math.max).toStringAsPrecision(4)} / ${tr('mean')} ${(values.reduce((a, b) => a + b) / values.length).toStringAsPrecision(4)}'}',
+                                            style: TextStyle(
+                                              color:
+                                                  curveColors[i %
+                                                      curveColors.length],
+                                              fontSize: 12,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
-                          SizedBox(
-                            height: 100,
-                            child: ListView(
-                              children: [
-                                for (var i = 0; i < curves.length; i++)
-                                  Builder(
-                                    builder: (context) {
-                                      final key = curves.keys.elementAt(i);
-                                      final samples = curves[key]!;
-                                      final values = samples
-                                          .map((s) => s.value)
-                                          .toList();
-                                      final at = values.isEmpty
-                                          ? null
-                                          : values[((hover ?? 1) *
-                                                    (values.length - 1))
-                                                .round()];
-                                      return LText(
-                                        '${widget.session.historyLabels[key] ?? key}: ${at?.toStringAsPrecision(6) ?? '—'}   ${values.isEmpty ? '' : 'min ${values.reduce(math.min).toStringAsPrecision(4)} / max ${values.reduce(math.max).toStringAsPrecision(4)} / mean ${(values.reduce((a, b) => a + b) / values.length).toStringAsPrecision(4)}'}',
-                                        style: TextStyle(
-                                          color:
-                                              curveColors[i %
-                                                  curveColors.length],
-                                          fontSize: 12,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
+              ),
+              if (hover != null)
+                LText(
+                  DateTime.fromMicrosecondsSinceEpoch(
+                    first.microsecondsSinceEpoch +
+                        ((last.microsecondsSinceEpoch -
+                                    first.microsecondsSinceEpoch) *
+                                hover!)
+                            .round(),
+                  ).toIso8601String(),
+                ),
+              const LText(
+                'Click to pin a sample; click again to follow the pointer.',
               ),
               if (points.isEmpty)
                 const LText(

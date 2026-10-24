@@ -9,7 +9,41 @@ import 'session_controller.dart';
 import 'tool_widgets.dart';
 
 class ScannerController extends ChangeNotifier {
-  ScannerController(this.session);
+  ScannerController(this.session) {
+    final state = session.scannerState;
+    final raw = state['hits'];
+    final addresses = state['addresses'] == true;
+    if (raw is List) {
+      hits.addAll(
+        raw
+            .whereType<Map<String, dynamic>>()
+            .where(
+              (h) =>
+                  h[addresses ? 'address' : 'unit'] is int &&
+                  (h[addresses ? 'address' : 'unit'] as int) >=
+                      (addresses ? 0 : 1) &&
+                  (h[addresses ? 'address' : 'unit'] as int) <=
+                      (addresses ? 65535 : 247) &&
+                  h[addresses ? 'values' : 'hits'] is List,
+            )
+            .take(addresses ? 65536 : 247)
+            .map(Map<String, dynamic>.of),
+      );
+    }
+    done = (state['done'] as int? ?? 0).clamp(0, 65536);
+    total = (state['total'] as int? ?? 0).clamp(done, 65536);
+    stopped = state['stopped'] == true;
+  }
+
+  void saveResults() {
+    session.scannerState.addAll({
+      'hits': hits.map(Map<String, dynamic>.of).toList(),
+      'done': done,
+      'total': total,
+      'stopped': stopped,
+    });
+  }
+
   final SessionController session;
   bool running = false;
   bool stopped = false;
@@ -45,6 +79,16 @@ class ScannerController extends ChangeNotifier {
     done = 0;
     total = end - start + 1;
     hits.clear();
+    session.scannerState.addAll({
+      'addresses': addresses,
+      'start': start,
+      'end': end,
+      'unit': unit,
+      'kind': kind,
+      'probes': probes.map(Map<String, dynamic>.of).toList(),
+      'saved_at': DateTime.now().toIso8601String(),
+    });
+    saveResults();
     session.beginTool();
     notifyListeners();
     try {
@@ -86,6 +130,7 @@ class ScannerController extends ChangeNotifier {
       }
     } finally {
       running = false;
+      saveResults();
       session.endTool();
       if (!_disposed) notifyListeners();
     }
@@ -127,6 +172,8 @@ class _ScannerDialogState extends State<ScannerDialog> {
     start.text = '${state['start'] ?? (addresses ? 0 : 1)}';
     end.text = '${state['end'] ?? (addresses ? 99 : 247)}';
     unit.text = '${state['unit'] ?? widget.session.unit}';
+    final recalled = state['selected'];
+    if (recalled is List) selected.addAll(recalled.whereType<int>());
     if (areas.containsKey(state['kind'])) kind = state['kind'] as String;
     if (state['probes'] is List && (state['probes'] as List).isNotEmpty) {
       probes
@@ -144,7 +191,9 @@ class _ScannerDialogState extends State<ScannerDialog> {
       'unit': int.tryParse(unit.text),
       'kind': kind,
       'probes': probes,
+      'selected': selected.toList(),
     });
+    scanner.saveResults();
     scanner.dispose();
     start.dispose();
     end.dispose();
@@ -275,11 +324,15 @@ class _ScannerDialogState extends State<ScannerDialog> {
                         ),
                   child: const LText('Add probe'),
                 ),
+              if (widget.session.scannerState['saved_at'] is String)
+                LText(
+                  '${tr('Last scan')}: ${widget.session.scannerState['saved_at']}',
+                ),
               LinearProgressIndicator(
                 value: scanner.total == 0 ? 0 : scanner.done / scanner.total,
               ),
               LText(
-                '${scanner.done} / ${scanner.total} · ${scanner.hits.length} hits${scanner.stopped ? ' · stopped' : ''}',
+                '${scanner.done} / ${scanner.total} · ${scanner.hits.length} ${tr('hits')}${scanner.stopped ? ' · ${tr('stopped')}' : ''}',
               ),
               if (scanner.error != null)
                 LText(

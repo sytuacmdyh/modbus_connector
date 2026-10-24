@@ -48,6 +48,15 @@ void main() {
       );
       expect(scanner.done, 3);
       expect(scanner.hits.single['unit'], 2);
+      final restored = SessionController(ScanBridge())
+        ..restore(session.state());
+      final recalled = ScannerController(restored);
+      expect(recalled.hits.single['unit'], 2);
+      expect(recalled.done, 3);
+      expect(recalled.running, isFalse);
+      expect(restored.connected, isFalse);
+      recalled.dispose();
+      restored.dispose();
       bridge.held = Completer<BridgeReply>();
       final scanning = scanner.scan(
         addresses: false,

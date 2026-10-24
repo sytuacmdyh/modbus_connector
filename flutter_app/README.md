@@ -169,10 +169,12 @@ resource lifecycle are in [BRIDGE_PROTOCOL.md](BRIDGE_PROTOCOL.md).
 
 ## Current parity limits
 
-File dialogs currently take editable local paths. Named-map polling runs while
-that tool is open; the quick range, logger and device services run independently
-of tool dialogs. Some advanced Qt table/sniffer/simulator conveniences, detached
-graph windows, graph image export and dynamic-message translations remain.
+Desktop file operations use native choosers with editable-path fallback on
+unsupported hosts. Named-map polling survives closing the dialog and stops with
+the session connection. Scanner results restore with the workspace. Graphs export
+PNG and CSV; hover selects the nearest timestamp and click pins the cursor. Some
+advanced Qt table/sniffer/simulator conveniences, detached graph windows and
+dynamic-message translations remain.
 
 Update checking and manual download are wired. Automatic Flutter installation
 is unavailable on every platform: the existing NSIS asset installs the Qt product.

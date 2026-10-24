@@ -28,8 +28,8 @@ workflows below. It still has the explicit parity gaps listed later in this file
 | Updates | Manual stable-release check, notes/current/latest, explicit errors and releases-page launch. UI/API explicitly report automatic Flutter installation as unsupported. |
 
 The 900×650 Material 3 workspace retains independent scrolling panes. Most tools
-are dialogs with wrapping controls and scrollable content. File operations
-currently use editable paths. All addresses are zero-based PDU addresses.
+are dialogs with wrapping controls and scrollable content. File operations use native desktop choosers with editable-path fallback when
+the plugin/host is unavailable. All addresses are zero-based PDU addresses.
 
 ## Architecture and storage
 
@@ -98,10 +98,10 @@ external account. No physical Modbus/serial device was available.
   stops on disconnect, bridge exit, mode change or session shutdown. A main-view
   Stop map polling control remains available. Quick reads and logging share the
   serialized bus and skip busy ticks without cancelling map polling.
-- Native file choosers, table column sizing/reordering, batch/context-menu actions,
-  extensive shortcuts, inline enum editors and some editing/validation polish
-  remain below the Qt UI. Scanner preferences persist; scanner result history is
-  not a full Qt-equivalent saved scanner window.
+- Table column sizing/reordering, batch/context-menu actions, extensive shortcuts,
+  inline enum editors and some editing/validation polish remain below the Qt UI.
+  Scanner results/progress/selection now restore on reopen and workspace restart;
+  there is no archive of multiple previous scans.
 - Sniffer lacks Qt's complete per-row format editing, multiword views, sparklines
   and per-unit filtered log experience. Names/values, raw graph data, traffic and
   CSV are usable. Device-mode forms accept manually typed serial ports.
@@ -112,8 +112,9 @@ external account. No physical Modbus/serial device was available.
 - Expression rows use latest register-map values; expression selection/output is
   not integrated into the logger. Some Qt row/display options are not exported
   by the shared canonical CSV schema.
-- Graphs remain in-window dialogs; detached native graph windows and image export
-  are not implemented. Hover/sample selection is approximate in time.
+- Graphs remain in-window dialogs; detached native graph windows are deferred.
+  PNG export includes curves, labels and statistics. Hover uses nearest timestamps
+  and transformed coordinates after zoom/pan; click pins the sample cursor.
 - Some dynamic technical errors, freeform prompts and tool captions still fall
   back to English; English/Chinese localization is substantial, not complete.
 - Automatic Flutter install/update, a Flutter-specific installer/product identity,
@@ -143,3 +144,8 @@ Setup, running, native packaging and exact standalone integration commands:
 - Session-owned register-map polling: analyzer clean; 12 targeted map/session
   tests pass, including dialog close and disconnect cancellation. No new bridge
   commands or Qt changes.
+
+- Native file selectors (CSV/workspace/snapshots/logger/graph), snapshot JSON
+  exchange, PNG export and timestamp-based graph inspection: native cancellation
+  and missing-plugin fallback covered by widget tests; analyzer clean. Scanner
+  results/progress/selection saved alongside preferences and restored disconnected.

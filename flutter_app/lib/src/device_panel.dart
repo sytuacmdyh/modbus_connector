@@ -1,3 +1,4 @@
+import 'file_paths.dart';
 import 'translations.dart';
 
 import 'dart:async';
@@ -388,9 +389,12 @@ class _DevicePanelState extends State<DevicePanel> {
   }
 
   Future<void> exportSniffer() async {
-    final path = await textPrompt(
+    final path = await chooseFilePath(
       context,
-      'Export selected unit CSV file path',
+      save: true,
+      title: 'Export selected unit CSV file path',
+      extension: 'csv',
+      suggestedName: 'unit-$selectedUnit.csv',
     );
     if (path == null || path.isEmpty) return;
     try {

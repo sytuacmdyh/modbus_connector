@@ -1,3 +1,4 @@
+import 'file_paths.dart';
 import 'translations.dart';
 
 import 'dart:async';
@@ -10,7 +11,6 @@ import 'session_controller.dart';
 import 'workbench.dart';
 import 'settings_store.dart';
 import 'templates_dialog.dart';
-import 'tool_widgets.dart';
 import 'help_dialog.dart';
 import 'online_dialogs.dart';
 
@@ -289,9 +289,12 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                       await workspace.save();
                       return;
                     }
-                    final path = await textPrompt(
+                    final path = await chooseFilePath(
                       context,
-                      v == 'export'
+                      save: v == 'export',
+                      extension: 'json',
+                      suggestedName: 'workspace.json',
+                      title: v == 'export'
                           ? 'Export Flutter workspace file path'
                           : 'Import Flutter workspace file path',
                     );
