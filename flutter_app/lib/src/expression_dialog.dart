@@ -79,8 +79,8 @@ class _ExpressionsDialogState extends State<ExpressionsDialog> {
                             : null;
                         return ListTile(
                           title: Text('${row['name']} = ${row['text']}'),
-                          subtitle: Text(
-                            '${result?['display'] ?? '—'} ${result?['error'] ?? ''}',
+                          subtitle: LText(
+                            '${result?['display'] ?? '—'} ${tr(result?['error'] as String? ?? '')}',
                             style: TextStyle(
                               color: result?['alarm'] == null
                                   ? null
@@ -92,7 +92,7 @@ class _ExpressionsDialogState extends State<ExpressionsDialog> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                tooltip: 'Alarm rules',
+                                tooltip: tr('Alarm rules'),
                                 onPressed: widget.session.busy
                                     ? null
                                     : () async {
@@ -119,7 +119,7 @@ class _ExpressionsDialogState extends State<ExpressionsDialog> {
                                 icon: const Icon(Icons.notifications_outlined),
                               ),
                               IconButton(
-                                tooltip: 'Remove expression',
+                                tooltip: tr('Remove expression'),
                                 onPressed: widget.session.busy
                                     ? null
                                     : () => setState(() {

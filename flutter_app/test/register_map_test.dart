@@ -89,6 +89,8 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(home: RegisterMapDialog(session: session)),
       );
+      await tester.ensureVisible(find.byType(DropdownButton<int>));
+      await tester.pumpAndSettle();
       await tester.tap(find.byType(DropdownButton<int>));
       await tester.pumpAndSettle();
       await tester.tap(find.text('1 = On').last);

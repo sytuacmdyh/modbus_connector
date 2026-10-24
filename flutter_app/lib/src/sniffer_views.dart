@@ -22,3 +22,22 @@ List<Map<String, dynamic>> snifferViews(Map<String, Map<String, dynamic>> map) {
     };
   }).toList();
 }
+
+List<Map<String, dynamic>> visibleSnifferViews(
+  Map<String, Map<String, dynamic>> map, {
+  String area = 'all',
+  String query = '',
+  bool descending = false,
+}) {
+  final search = query.trim().toLowerCase();
+  final rows = snifferViews(map)
+      .where(
+        (r) =>
+            r['hidden'] != true &&
+            (area == 'all' || r['kind'] == area) &&
+            (search.isEmpty ||
+                '${r['name']} ${r['address']}'.toLowerCase().contains(search)),
+      )
+      .toList();
+  return descending ? rows.reversed.toList() : rows;
+}

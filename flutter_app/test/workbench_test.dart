@@ -162,7 +162,7 @@ void main() {
           .widget<CustomScrollView>(find.byType(CustomScrollView))
           .controller!;
       expect(page.position.maxScrollExtent, greaterThan(0));
-      page.jumpTo(page.position.maxScrollExtent);
+      await tester.ensureVisible(find.widgetWithText(Card, 'Activity'));
       await tester.pumpAndSettle();
       expect(
         tester.getRect(find.widgetWithText(Card, 'Activity')).bottom,
@@ -173,7 +173,7 @@ void main() {
       await tester.drag(logs, const Offset(0, -100));
       await tester.pumpAndSettle();
       expect(logScroll.offset, greaterThan(0));
-      expect(page.offset, page.position.maxScrollExtent);
+      expect(page.offset, greaterThan(0));
       await tester.tap(find.byTooltip('Clear log'));
       await tester.pumpAndSettle();
       expect(session.logs, isEmpty);

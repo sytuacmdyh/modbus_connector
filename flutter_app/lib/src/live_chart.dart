@@ -51,7 +51,9 @@ class LiveChart extends StatelessWidget {
                       child: LText('Select a row, then read or poll'),
                     )
                   : Semantics(
-                      label: 'Register $address, minimum $low, maximum $high',
+                      label: tr(
+                        'Register $address, minimum $low, maximum $high',
+                      ),
                       child: RepaintBoundary(
                         child: CustomPaint(
                           painter: _ChartPainter(

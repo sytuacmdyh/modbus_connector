@@ -1,4 +1,6 @@
 import 'sniffer_views.dart';
+import 'desktop_table.dart';
+import 'serial_ports.dart';
 import 'templates_dialog.dart';
 import 'bridge_client.dart';
 import 'file_paths.dart';
@@ -18,6 +20,7 @@ class ConnectionFields extends StatefulWidget {
   const ConnectionFields({
     super.key,
     required this.label,
+    required this.session,
     required this.value,
     required this.onChanged,
     this.enabled = true,
@@ -25,6 +28,7 @@ class ConnectionFields extends StatefulWidget {
     this.target = false,
   });
   final String label;
+  final SessionController session;
   final Map<String, dynamic> value;
   final ValueChanged<Map<String, dynamic>> onChanged;
   final bool enabled;
@@ -54,7 +58,7 @@ class _ConnectionFieldsState extends State<ConnectionFields> {
     }.entries) {
       fields[e.key] = TextEditingController(
         text:
-            '${e.key == 'serial' ? (widget.value['transport'] == 'rtu' ? widget.value['port'] ?? '' : '') : widget.value[e.key] ?? e.value}',
+            '${e.key == 'serial' ? (widget.value['transport'] == 'rtu' ? widget.value['port'] ?? '' : '') : (e.key == 'port' && widget.value['transport'] == 'rtu' ? e.value : widget.value[e.key] ?? e.value)}',
       );
       fields[e.key]!.addListener(changed);
     }
@@ -128,6 +132,11 @@ class _ConnectionFieldsState extends State<ConnectionFields> {
                   enabled: widget.enabled,
                   width: 180,
                 ),
+                SerialPortPicker(
+                  session: widget.session,
+                  enabled: widget.enabled,
+                  onSelected: (port) => fields['serial']!.text = port,
+                ),
                 for (final key in ['baudrate', 'bytesize', 'stopbits'])
                   toolField(
                     key,
@@ -199,13 +208,30 @@ class _DevicePanelState extends State<DevicePanel> {
   List<Map<String, dynamic>> results = [];
   Map<String, dynamic> ruleErrors = {};
   final sniffDisplays = <String, Map<String, dynamic>>{};
-  bool unitLog = true;
-  int selectedUnit = 1;
+  late bool unitLog = session.draft['sniffer_unit_log'] != false;
+  late int selectedUnit = session.draft['sniffer_selected_unit'] as int? ?? 1;
+  late String sniffArea = session.draft['sniffer_area'] as String? ?? 'all';
+  late bool sniffDescending = session.draft['sniffer_descending'] == true;
+  late final sniffSearch = TextEditingController(
+    text: session.draft['sniffer_search'] as String? ?? '',
+  );
+  List<Map<String, dynamic>> get visibleViews => visibleSnifferViews(
+    session.sniffed[selectedUnit] ?? {},
+    area: sniffArea,
+    query: sniffSearch.text,
+    descending: sniffDescending,
+  );
+
   String? localError;
   Timer? timer;
   @override
   void initState() {
     super.initState();
+    sniffSearch.addListener(
+      () => setState(() {
+        session.draft['sniffer_search'] = sniffSearch.text;
+      }),
+    );
     units.addListener(saveConfig);
     tick.addListener(saveConfig);
     timer = Timer.periodic(
@@ -217,6 +243,7 @@ class _DevicePanelState extends State<DevicePanel> {
   @override
   void dispose() {
     timer?.cancel();
+    sniffSearch.dispose();
     units.dispose();
     tick.dispose();
     super.dispose();
@@ -246,6 +273,13 @@ class _DevicePanelState extends State<DevicePanel> {
       );
       for (final e in (status['events'] as List).cast<Map<String, dynamic>>()) {
         logs.add(e);
+        final seenUnit = e['unit'];
+        if (session.mode == 'sniffer' &&
+            seenUnit is int &&
+            seenUnit >= 1 &&
+            seenUnit <= 247) {
+          session.sniffed.putIfAbsent(seenUnit, () => {});
+        }
         if (logs.length > 1000) logs.removeAt(0);
         if (e['mode'] == 'sniffer' && e['event'] == 'values') {
           receivedValues = true;
@@ -274,8 +308,17 @@ class _DevicePanelState extends State<DevicePanel> {
               'value': values[i],
             };
           }
-          if (!session.sniffed.containsKey(selectedUnit)) selectedUnit = unit;
+          if (!session.sniffed.containsKey(selectedUnit)) {
+            selectedUnit = unit;
+            session.draft['sniffer_selected_unit'] = unit;
+          }
         }
+      }
+      if (session.mode == 'sniffer' &&
+          session.sniffed.isNotEmpty &&
+          !session.sniffed.containsKey(selectedUnit)) {
+        selectedUnit = (session.sniffed.keys.toList()..sort()).first;
+        session.draft['sniffer_selected_unit'] = selectedUnit;
       }
       if ((status['dropped'] as int) > 0) {
         localError = trf(
@@ -550,20 +593,21 @@ class _DevicePanelState extends State<DevicePanel> {
   }
 
   Future<void> refreshSniffer() async {
+    final unit = selectedUnit;
     final reply = await session.command({
       'command': 'sniffer_snapshot',
-      'unit': selectedUnit,
+      'unit': unit,
     });
     if (reply == null || !mounted) return;
     setState(() {
-      final map = session.sniffed.putIfAbsent(selectedUnit, () => {});
+      final map = session.sniffed.putIfAbsent(unit, () => {});
       for (final area in (reply['areas'] as Map).entries) {
         for (final cell in (area.value as Map).entries) {
           final address = int.parse('${cell.key}');
           final key = '${area.key}/$address';
           map[key] = {
             ...?map[key],
-            'unit_id': selectedUnit,
+            'unit_id': unit,
             'kind': area.key,
             'address': address,
             'count': map[key]?['count'] ?? 1,
@@ -576,6 +620,93 @@ class _DevicePanelState extends State<DevicePanel> {
       localError = null;
     });
     await renderSniffer(record: true);
+  }
+
+  Future<void> manageSnifferViews() async {
+    final unit = selectedUnit;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) => AlertDialog(
+          title: const LText('Manage views'),
+          content: SizedBox(
+            width: 500,
+            height: 320,
+            child: ListView(
+              children: [
+                const LText(
+                  'Hidden views retain captured values and settings.',
+                ),
+                for (final row in snifferViews(session.sniffed[unit] ?? {}))
+                  CheckboxListTile(
+                    title: LText(
+                      '${tr(row['kind'] as String)} @${row['address']} ${row['name']}',
+                    ),
+                    value: row['hidden'] != true,
+                    onChanged: (v) => update(() {
+                      session.sniffed[unit]!['${row['kind']}/${row['address']}']!['hidden'] =
+                          !v!;
+                    }),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const LText('Close'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  Widget snifferTable() {
+    final rows = visibleViews;
+    return DesktopTable(
+      key: ValueKey('sniffer-table-$selectedUnit'),
+      columns: const [
+        TableColumnSpec('address', 'Address', 95),
+        TableColumnSpec('name', 'Name', 150),
+        TableColumnSpec('kind', 'Area', 160),
+        TableColumnSpec('format', 'Format', 85),
+        TableColumnSpec('order', 'Byte order', 100),
+        TableColumnSpec('value', 'Value', 190),
+        TableColumnSpec('trend', 'Trend', 130),
+      ],
+      layout: desktopTableLayout(session.draft, 'sniffer_table_$selectedUnit'),
+      rowCount: rows.length,
+      onRowTap: (i) => editSniffer(rows[i]),
+      cellBuilder: (context, i, key) {
+        final row = rows[i];
+        final id = '${row['kind']}/${row['address']}';
+        if (key == 'trend') {
+          return SizedBox(
+            height: 26,
+            child: CustomPaint(
+              painter: MultiSeriesPainter(
+                [
+                  session.histories['sniff-view/$selectedUnit/$id']?.toList() ??
+                      [],
+                ],
+                false,
+                Theme.of(context).colorScheme,
+                null,
+              ),
+            ),
+          );
+        }
+        final text = key == 'value'
+            ? (sniffDisplays[id]?['display'] ?? '—')
+            : row[key] ?? (key == 'order' ? 'ABCD' : '');
+        return Tooltip(
+          message: tr('$text'),
+          child: LText('$text', maxLines: 1, overflow: TextOverflow.ellipsis),
+        );
+      },
+    );
   }
 
   Future<void> exportSniffer() async {
@@ -659,6 +790,7 @@ class _DevicePanelState extends State<DevicePanel> {
             ),
             const SizedBox(height: 12),
             ConnectionFields(
+              session: session,
               key: ValueKey('${session.mode}-listen'),
               label: session.mode == 'sniffer'
                   ? 'Serial adapter (passive; never transmits)'
@@ -674,6 +806,7 @@ class _DevicePanelState extends State<DevicePanel> {
             if (session.mode == 'gateway') ...[
               const SizedBox(height: 12),
               ConnectionFields(
+                session: session,
                 label: 'Target',
                 value: target,
                 enabled: !session.deviceRunning,
@@ -823,13 +956,14 @@ class _DevicePanelState extends State<DevicePanel> {
               Wrap(
                 spacing: 10,
                 children: [
-                  for (final unit in session.sniffed.keys)
+                  for (final unit in session.sniffed.keys.toList()..sort())
                     ChoiceChip(
                       label: LText('Unit $unit'),
                       selected: selectedUnit == unit,
                       onSelected: (_) {
                         setState(() {
                           selectedUnit = unit;
+                          session.draft['sniffer_selected_unit'] = unit;
                           sniffDisplays.clear();
                         });
                         unawaited(renderSniffer());
@@ -845,47 +979,47 @@ class _DevicePanelState extends State<DevicePanel> {
                   ),
                 ],
               ),
-              SizedBox(
-                height: 260,
-                child: Card(
-                  child: ListView(
-                    children: [
-                      for (final row in snifferViews(
-                        session.sniffed[selectedUnit] ?? {},
-                      ))
-                        ListTile(
-                          dense: true,
-                          title: LText(
-                            '${tr(row['kind'] as String)} @${row['address']} ${row['name']}',
-                          ),
-                          subtitle: LText(
-                            '${row['format']} · ${sniffDisplays['${row['kind']}/${row['address']}']?['display'] ?? '—'}',
-                          ),
-                          trailing: SizedBox(
-                            width: 110,
-                            height: 26,
-                            child: CustomPaint(
-                              painter: MultiSeriesPainter(
-                                [
-                                  session.histories['sniff-view/$selectedUnit/${row['kind']}/${row['address']}']
-                                          ?.toList() ??
-                                      [],
-                                ],
-                                false,
-                                Theme.of(context).colorScheme,
-                                null,
-                              ),
-                            ),
-                          ),
-                          onTap: () => editSniffer(
-                            session
-                                .sniffed[selectedUnit]!['${row['kind']}/${row['address']}']!,
-                          ),
-                        ),
-                    ],
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  toolField('Search name / address', sniffSearch, width: 210),
+                  toolChoice(
+                    'Area',
+                    sniffArea,
+                    ['all', ...areas.keys],
+                    (v) => setState(() {
+                      sniffArea = v;
+                      session.draft['sniffer_area'] = v;
+                    }),
+                    width: 180,
                   ),
-                ),
+                  FilterChip(
+                    label: const LText('Descending addresses'),
+                    selected: sniffDescending,
+                    onSelected: (v) => setState(() {
+                      sniffDescending = v;
+                      session.draft['sniffer_descending'] = v;
+                    }),
+                  ),
+                  TextButton(
+                    onPressed: manageSnifferViews,
+                    child: const LText('Manage views'),
+                  ),
+                  TextButton(
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => GraphDialog(
+                        session: session,
+                        historyPrefix: 'sniff-view/$selectedUnit/',
+                      ),
+                    ),
+                    child: const LText('Graph selected unit'),
+                  ),
+                ],
               ),
+              SizedBox(height: 280, child: Card(child: snifferTable())),
             ],
             const SizedBox(height: 12),
             Row(
@@ -895,7 +1029,10 @@ class _DevicePanelState extends State<DevicePanel> {
                   FilterChip(
                     label: const LText('Selected unit only'),
                     selected: unitLog,
-                    onSelected: (v) => setState(() => unitLog = v),
+                    onSelected: (v) => setState(() {
+                      unitLog = v;
+                      session.draft['sniffer_unit_log'] = v;
+                    }),
                   ),
                 const Spacer(),
                 TextButton(

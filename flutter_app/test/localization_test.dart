@@ -8,6 +8,38 @@ import 'package:modbus_desktop/src/translations.dart';
 import 'fake_bridge.dart';
 
 void main() {
+  test('remaining Flutter captions and dynamic titles translate both ways', () {
+    final captions = [
+      'Read',
+      'Activity',
+      'Hex',
+      'Scanner',
+      'Close',
+      'Apply',
+      'Write',
+      'Advanced Modbus',
+      'Settings',
+      'Device / diagnostics',
+      'Find serial ports',
+      'Manage views',
+      'Move column left',
+      'Reset columns',
+      'Automatically save workspace',
+      'No serial ports found. You can type a port manually.',
+    ];
+    appLanguage.value = 'zh_CN';
+    for (final caption in captions) {
+      expect(tr(caption), isNot(caption), reason: caption);
+    }
+    expect(tr('Live trend · @42'), '实时趋势 · @42');
+    expect(tr('Write register @5'), '写入寄存器 @5');
+    expect(tr('Advanced Modbus · unit 3'), '高级 Modbus · 站号 3');
+    appLanguage.value = 'en';
+    for (final caption in captions) {
+      expect(tr(caption), caption);
+    }
+  });
+
   test(
     'dynamic prompts and technical validation errors translate in Chinese',
     () {

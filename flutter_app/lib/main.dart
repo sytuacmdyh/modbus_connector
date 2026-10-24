@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'src/translations.dart';
 
@@ -62,6 +63,11 @@ class _ModbusAppState extends State<ModbusApp> {
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Modbus Connector',
+    locale: appLanguage.value == 'zh_CN'
+        ? const Locale('zh', 'CN')
+        : const Locale('en'),
+    supportedLocales: const [Locale('en'), Locale('zh', 'CN')],
+    localizationsDelegates: GlobalMaterialLocalizations.delegates,
     debugShowCheckedModeBanner: false,
     theme: _theme(Brightness.light),
     darkTheme: _theme(Brightness.dark),

@@ -9,6 +9,52 @@ import 'package:modbus_desktop/src/session_controller.dart';
 import 'fake_bridge.dart';
 
 void main() {
+  testWidgets(
+    'sniffer unit graph selection and clearing stay within that unit',
+    (tester) async {
+      tester.view.physicalSize = const Size(900, 650);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final session = SessionController(FakeBridge());
+      session.recordPoint(
+        'sniff-view/1/holding_registers/0',
+        'Unit one voltage',
+        2,
+      );
+      final firstHistory =
+          session.histories['sniff-view/1/holding_registers/0']!;
+      firstHistory
+        ..clear()
+        ..add(Sample(DateTime(2026), 2));
+      session.recordPoint(
+        'sniff-view/2/holding_registers/0',
+        'Unit two voltage',
+        3,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GraphDialog(session: session, historyPrefix: 'sniff-view/1/'),
+        ),
+      );
+      expect(find.text('Unit one voltage'), findsWidgets);
+      expect(find.text('Unit two voltage'), findsNothing);
+      // Traffic in another unit must not advance this unit's time window.
+      expect(find.textContaining('Unit one voltage: 2.00000'), findsOneWidget);
+      await tester.tap(find.text('Clear'));
+      await tester.pump();
+      expect(session.histories['sniff-view/1/holding_registers/0'], isEmpty);
+      expect(
+        session.histories['sniff-view/2/holding_registers/0'],
+        hasLength(1),
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      session.dispose();
+    },
+  );
+
   testWidgets('graph exports a real PNG with native save selection', (
     tester,
   ) async {

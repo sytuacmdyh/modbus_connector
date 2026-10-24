@@ -31,13 +31,17 @@ Sample? nearestGraphSample(List<Sample> samples, DateTime time) {
 }
 
 class GraphDialog extends StatefulWidget {
-  const GraphDialog({super.key, required this.session});
+  const GraphDialog({super.key, required this.session, this.historyPrefix});
   final SessionController session;
+  final String? historyPrefix;
   @override
   State<GraphDialog> createState() => _GraphDialogState();
 }
 
 class _GraphDialogState extends State<GraphDialog> {
+  Iterable<String> get availableKeys => widget.session.histories.keys.where(
+    (k) => widget.historyPrefix == null || k.startsWith(widget.historyPrefix!),
+  );
   final selected = <String>{};
   bool normalized = false;
   bool paused = false;
@@ -89,14 +93,14 @@ class _GraphDialogState extends State<GraphDialog> {
   @override
   void initState() {
     super.initState();
-    selected.addAll(widget.session.histories.keys.take(4));
+    selected.addAll(availableKeys.take(4));
   }
 
   Map<String, List<Sample>> series() {
     final source = paused
         ? frozen ?? {}
         : widget.session.histories.map((k, v) => MapEntry(k, v.toList()));
-    final all = source.values.expand((s) => s);
+    final all = availableKeys.expand((key) => source[key] ?? <Sample>[]);
     final last = all.isEmpty
         ? DateTime.now()
         : all.map((s) => s.time).reduce((a, b) => a.isAfter(b) ? a : b);
@@ -204,7 +208,13 @@ class _GraphDialogState extends State<GraphDialog> {
                     child: const LText('Export PNG'),
                   ),
                   TextButton(
-                    onPressed: widget.session.clearHistory,
+                    onPressed: widget.historyPrefix == null
+                        ? widget.session.clearHistory
+                        : () => setState(() {
+                            for (final key in availableKeys.toList()) {
+                              widget.session.histories[key]?.clear();
+                            }
+                          }),
                     child: const LText('Clear'),
                   ),
                 ],
@@ -221,7 +231,7 @@ class _GraphDialogState extends State<GraphDialog> {
                           width: 205,
                           child: ListView(
                             children: [
-                              for (final key in widget.session.histories.keys)
+                              for (final key in availableKeys)
                                 CheckboxListTile(
                                   dense: true,
                                   contentPadding: EdgeInsets.zero,

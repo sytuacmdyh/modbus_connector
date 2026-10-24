@@ -347,7 +347,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
             if (busy) const LinearProgressIndicator(),
             if (error != null) LText(error!),
             if (result != null) ...[
-              Text(
+              LText(
                 'Current ${result!['current']} · ${result!['release'] == null
                     ? 'No public stable release'
                     : result!['newer'] == true
@@ -355,13 +355,13 @@ class _UpdateDialogState extends State<UpdateDialog> {
                     : 'Up to date'}',
               ),
               if (result!['release'] != null)
-                Text('Latest: ${result!['release']['tag']}'),
+                LText('Latest: ${result!['release']['tag']}'),
               const SizedBox(height: 12),
               Expanded(
                 child: SingleChildScrollView(
                   child: SelectableText(
                     result!['release']?['notes'] as String? ??
-                        'No release notes.',
+                        tr('No release notes.'),
                   ),
                 ),
               ),

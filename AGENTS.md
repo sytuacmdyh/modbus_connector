@@ -33,6 +33,11 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
   Public templates remain shared/read-only. Utility cloud/template/update dialogs
   own separate bridges; cloud password saving is opt-in. Flutter update install is
   unsupported because current NSIS assets install Qt, not Flutter.
+  Flutter's master map is embedded; `desktop_table.dart` virtualizes map/sniffer
+  rows and persists column layouts in session drafts. `serial_ports.dart` discovers
+  device-mode ports through the owned session bridge; `expression_completion.dart`
+  provides simulator rule prefix completion. Settings groups language/theme and
+  workspace files/autosave; disabled autosave requires explicit Save workspace.
   Protocol: `flutter_app/BRIDGE_PROTOCOL.md`; setup/package: `flutter_app/README.md`;
   current parity gaps/verification: `docs/FLUTTER_STATUS.md`.
   `flutter_app/tool/build_bridge.py` freezes `packaging/flutter_bridge_entry.py`

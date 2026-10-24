@@ -35,6 +35,7 @@ class Workbench extends StatefulWidget {
 
 class _WorkbenchState extends State<Workbench> {
   SessionController get session => widget.controller;
+  final _mapKey = GlobalKey();
   final _pageScroll = ScrollController();
   final _tableScroll = ScrollController();
   final _logScroll = ScrollController();
@@ -354,7 +355,7 @@ class _WorkbenchState extends State<Workbench> {
                   _host,
                   175,
                   enabled: !locked,
-                  validator: (v) => v!.trim().isEmpty ? 'Required' : null,
+                  validator: (v) => v!.trim().isEmpty ? tr('Required') : null,
                   onSubmit: _connect,
                 ),
                 _field(
@@ -373,8 +374,9 @@ class _WorkbenchState extends State<Workbench> {
                   160,
                   focusNode: _serialFocus,
                   enabled: !locked,
-                  validator: (v) =>
-                      v!.trim().isEmpty ? 'Enter COM3 or /dev/ttyUSB0' : null,
+                  validator: (v) => v!.trim().isEmpty
+                      ? tr('Enter COM3 or /dev/ttyUSB0')
+                      : null,
                   onSubmit: _connect,
                 ),
                 IconButton(
@@ -665,8 +667,10 @@ class _WorkbenchState extends State<Workbench> {
                               width: 48,
                               child: IconButton(
                                 tooltip: session.query.writable
-                                    ? 'Write address ${session.query.address + index}'
-                                    : 'Read-only area',
+                                    ? tr(
+                                        'Write address ${session.query.address + index}',
+                                      )
+                                    : tr('Read-only area'),
                                 onPressed:
                                     session.canRead &&
                                         session.query.writable &&
@@ -746,7 +750,7 @@ class _WorkbenchState extends State<Workbench> {
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
                           child: SelectableText(
-                            '$time  ${log.message}',
+                            '$time  ${tr(log.message)}',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
                                   color: log.isError
@@ -794,9 +798,13 @@ class _WorkbenchState extends State<Workbench> {
                             children: [
                               Icon(Icons.hub_outlined, color: colors.primary),
                               const SizedBox(width: 12),
-                              LText(
-                                'Modbus Connector',
-                                style: Theme.of(context).textTheme.titleLarge,
+                              Flexible(
+                                child: LText(
+                                  'Modbus Connector',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleLarge,
+                                ),
                               ),
                               const SizedBox(width: 20),
                               Icon(
@@ -815,7 +823,7 @@ class _WorkbenchState extends State<Workbench> {
                                 ),
                               ),
                               IconButton(
-                                tooltip: 'Advanced Modbus',
+                                tooltip: tr('Advanced Modbus'),
                                 icon: const Icon(
                                   Icons.settings_input_component,
                                 ),
@@ -859,15 +867,12 @@ class _WorkbenchState extends State<Workbench> {
                                 icon: const Icon(Icons.table_view),
                                 onPressed: session.busy
                                     ? null
-                                    : () {
-                                        session.stopPolling();
-                                        showDialog<void>(
-                                          context: context,
-                                          builder: (_) => RegisterMapDialog(
-                                            session: session,
-                                          ),
-                                        );
-                                      },
+                                    : () => Scrollable.ensureVisible(
+                                        _mapKey.currentContext!,
+                                        duration: const Duration(
+                                          milliseconds: 200,
+                                        ),
+                                      ),
                               ),
                               IconButton(
                                 tooltip: tr('Scanner'),
@@ -1015,6 +1020,35 @@ class _WorkbenchState extends State<Workbench> {
                           ),
                         );
                       },
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        key: _mapKey,
+                        padding: EdgeInsets.only(top: gap),
+                        child: Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: SizedBox(
+                              height: 470,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  LText(
+                                    'Register map',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Expanded(
+                                    child: RegisterMapPanel(session: session),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),

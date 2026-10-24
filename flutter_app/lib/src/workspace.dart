@@ -1,4 +1,5 @@
 import 'file_paths.dart';
+import 'tool_widgets.dart';
 import 'translations.dart';
 
 import 'dart:async';
@@ -22,7 +23,9 @@ class WorkspaceController extends ChangeNotifier {
       loading = true;
       unawaited(load());
       _autosave = Timer.periodic(const Duration(seconds: 3), (_) {
-        if (!loading && _allowAutoSave && !closing) unawaited(save());
+        if (!loading && _allowAutoSave && autoSave && !closing) {
+          unawaited(save());
+        }
       });
     }
   }
@@ -39,10 +42,12 @@ class WorkspaceController extends ChangeNotifier {
   }
 
   bool _allowAutoSave = true;
+  bool autoSave = true;
   String? stateError;
   Future<void>? _shutdown;
   Map<String, dynamic> exportState() => {
     'schema': 1,
+    'autosave': autoSave,
     'tabs': sessions.map((s) => s.state()).toList(),
     'active_tab': selected,
     'language': appLanguage.value,
@@ -87,6 +92,7 @@ class WorkspaceController extends ChangeNotifier {
         selected = (data['active_tab'] is int ? data['active_tab'] as int : 0)
             .clamp(0, sessions.length - 1);
       }
+      if (data?['autosave'] is bool) autoSave = data!['autosave'] as bool;
       if (data?['language'] == 'en' || data?['language'] == 'zh_CN') {
         appLanguage.value = data!['language'] as String;
       }
@@ -144,7 +150,7 @@ class WorkspaceController extends ChangeNotifier {
   Future<void> _shutdownOwned() async {
     closing = true;
     _autosave?.cancel();
-    if (_allowAutoSave) await save();
+    if (_allowAutoSave && autoSave) await save();
     await Future.wait([...sessions, ...tools].map((s) => s.shutdown()));
   }
 
@@ -195,6 +201,111 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
     super.dispose();
   }
 
+  Future<void> workspaceFile(String action) async {
+    if (action == 'save') {
+      await workspace.save();
+      return;
+    }
+    final path = await chooseFilePath(
+      context,
+      save: action == 'export',
+      extension: 'json',
+      suggestedName: 'workspace.json',
+      title: action == 'export'
+          ? 'Export Flutter workspace file path'
+          : 'Import Flutter workspace file path',
+    );
+    if (path == null || path.isEmpty) return;
+    if (action == 'export') {
+      await workspace.save(path: path);
+    } else {
+      await workspace.load(path: path);
+    }
+  }
+
+  Future<void> settings() => showDialog<void>(
+    context: context,
+    builder: (context) => ListenableBuilder(
+      listenable: Listenable.merge([appLanguage, appTheme, workspace]),
+      builder: (context, _) => AlertDialog(
+        title: const LText('Settings'),
+        content: SizedBox(
+          width: 540,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                toolChoice(
+                  'Appearance',
+                  appTheme.value.name,
+                  ThemeMode.values.map((m) => m.name),
+                  (v) => widget.onThemeChanged(
+                    ThemeMode.values.firstWhere((m) => m.name == v),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: appLanguage.value,
+                  decoration: InputDecoration(labelText: tr('Language')),
+                  items: const [
+                    DropdownMenuItem(value: 'en', child: Text('English')),
+                    DropdownMenuItem(value: 'zh_CN', child: Text('简体中文')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) appLanguage.value = v;
+                  },
+                ),
+                const SizedBox(height: 16),
+                const LText('Workspace'),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const LText('Automatically save workspace'),
+                  subtitle: const LText(
+                    'Restore tabs disconnected on next launch',
+                  ),
+                  value: workspace.autoSave,
+                  onChanged: (v) {
+                    workspace.autoSave = v;
+                    workspace.notifyListeners();
+                  },
+                ),
+                const LText(
+                  'Use Save workspace to keep preferences when autosave is off.',
+                ),
+                if (workspace.store != null)
+                  SelectableText(workspace.store!.file.path),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    TextButton(
+                      onPressed: () => workspaceFile('save'),
+                      child: const LText('Save workspace'),
+                    ),
+                    TextButton(
+                      onPressed: () => workspaceFile('export'),
+                      child: const LText('Export workspace'),
+                    ),
+                    TextButton(
+                      onPressed: () => workspaceFile('import'),
+                      child: const LText('Import workspace'),
+                    ),
+                  ],
+                ),
+                if (workspace.stateError != null) LText(workspace.stateError!),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const LText('Close'),
+          ),
+        ],
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: workspace,
@@ -226,7 +337,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                                   size: 16,
                                 ),
                                 label: LText(
-                                  '${workspace.sessions[i].mode} ${i + 1}',
+                                  '${tr(workspace.sessions[i].mode)} ${i + 1}',
                                 ),
                                 onPressed: () => workspace.select(i),
                                 onDeleted: () => unawaited(
@@ -244,16 +355,10 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                   onPressed: () => showFeatureHelp(context),
                   icon: const Icon(Icons.help_outline),
                 ),
-                PopupMenuButton<String>(
-                  tooltip: tr('Language'),
-                  icon: const Icon(Icons.translate),
-                  onSelected: (v) {
-                    appLanguage.value = v;
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'en', child: Text('English')),
-                    PopupMenuItem(value: 'zh_CN', child: Text('简体中文')),
-                  ],
+                IconButton(
+                  tooltip: tr('Settings'),
+                  onPressed: settings,
+                  icon: const Icon(Icons.settings_outlined),
                 ),
                 PopupMenuButton<String>(
                   tooltip: tr('Workspace'),
@@ -285,25 +390,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                       }
                       return;
                     }
-                    if (v == 'save') {
-                      await workspace.save();
-                      return;
-                    }
-                    final path = await chooseFilePath(
-                      context,
-                      save: v == 'export',
-                      extension: 'json',
-                      suggestedName: 'workspace.json',
-                      title: v == 'export'
-                          ? 'Export Flutter workspace file path'
-                          : 'Import Flutter workspace file path',
-                    );
-                    if (path == null || path.isEmpty) return;
-                    if (v == 'export') {
-                      await workspace.save(path: path);
-                    } else {
-                      await workspace.load(path: path);
-                    }
+                    await workspaceFile(v);
                   },
                   itemBuilder: (_) => const [
                     PopupMenuItem(

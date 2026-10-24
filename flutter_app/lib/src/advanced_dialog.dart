@@ -75,9 +75,9 @@ class _AdvancedDialogState extends State<AdvancedDialog> {
             children: [
               const TabBar(
                 tabs: [
-                  Tab(text: 'Device / diagnostics'),
-                  Tab(text: 'Mask write · 0x16'),
-                  Tab(text: 'Read/write · 0x17'),
+                  Tab(child: LText('Device / diagnostics')),
+                  Tab(child: LText('Mask write · 0x16')),
+                  Tab(child: LText('Read/write · 0x17')),
                 ],
               ),
               const SizedBox(height: 12),

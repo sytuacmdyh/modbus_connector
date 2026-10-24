@@ -170,11 +170,17 @@ resource lifecycle are in [BRIDGE_PROTOCOL.md](BRIDGE_PROTOCOL.md).
 ## Current parity limits
 
 Desktop file operations use native choosers with editable-path fallback on
-unsupported hosts. Named-map polling survives closing the dialog and stops with
-the session connection. Scanner results restore with the workspace. Graphs export
-PNG and CSV; hover selects the nearest timestamp and click pins the cursor. Some
-advanced Qt table/sniffer/simulator conveniences, detached graph windows and
-dynamic-message translations remain.
+unsupported hosts. The named map is embedded below the master quick view; its
+toolbar button scrolls to it. Map and sniffer column widths/order persist; drag
+headers or their edges, or use the header movement/reset menu. Map polling stops
+with the session connection. Device-mode serial forms include port discovery and
+manual entry. Sniffer views support filters, hiding/restoring and per-unit graphs;
+simulator rules offer keyboard prefix completion. Settings groups language, theme,
+autosave and workspace files. With autosave off, use Save workspace to persist
+preferences. Scanner results restore with the workspace. Graphs export PNG and CSV;
+hover selects the nearest timestamp and click pins the cursor. Additional Qt
+display/view conveniences, detached graph windows and translation of unrecognized
+external diagnostics remain deferred.
 
 Update checking and manual download are wired. Automatic Flutter installation
 is unavailable on every platform: the existing NSIS asset installs the Qt product.

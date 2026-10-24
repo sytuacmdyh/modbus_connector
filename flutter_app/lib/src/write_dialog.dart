@@ -52,9 +52,9 @@ class _WriteDialogState extends State<WriteDialog> {
           onFieldSubmitted: (_) => _submit(),
           decoration: InputDecoration(
             labelText: widget.isBit
-                ? 'Value · 0 or 1'
-                : 'Unsigned value · 0–65535',
-            helperText: 'Decimal or 0x hexadecimal',
+                ? tr('Value · 0 or 1')
+                : tr('Unsigned value · 0–65535'),
+            helperText: tr('Decimal or 0x hexadecimal'),
           ),
           validator: (text) {
             final value = int.tryParse(text ?? '');
