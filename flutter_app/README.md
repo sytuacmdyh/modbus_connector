@@ -7,6 +7,10 @@ up to 125 registers or 2,000 bits per read; the chart retains 300 samples and up
 at most 10 Hz. All Modbus I/O uses the existing Qt-free Python `ModbusBackend` in
 an owned subprocess. The PySide6 application and its settings remain independent.
 
+The minimum content size is **900×650 logical pixels**. The table and activity
+log scroll independently; the workspace also scrolls when validation messages or
+larger text need more room, preserving usable pane heights.
+
 ## Windows: prerequisites and development
 
 Use a Windows x64 machine with Git, **Flutter 3.47.8 stable / Dart 3.13+**,

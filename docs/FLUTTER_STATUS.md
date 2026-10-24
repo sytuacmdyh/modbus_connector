@@ -8,8 +8,15 @@ committed locally. Nothing was pushed and no PR was opened.
 
 - Material 3 system/light/dark UI with a minimal desktop layout and complete
   Windows/Linux runner projects, application title/icon, and minimum window size.
+  At 900×650 logical pixels the compact controls leave usable table/chart/log
+  panes; table and log have independent visible scrollbars. Validation banners
+  and larger text can scroll the workspace instead of shrinking/clipping panes.
+  Linux applies the minimum to the Flutter content, matching Windows client sizing.
 - TCP host/port and serial RTU port discovery/manual entry, baud, parity, data
   bits, stop bits, unit and timeout. Enter connects; loading disables settings.
+  Port refresh has its own progress state, clears old errors on success, offers
+  selection/cancel/empty states, and focuses the selected serial port. Reconnect
+  and range changes clear stale latency; bridge exit resets the connection label.
 - Four register areas, 0-based start/count, decimal/hex values, validated single
   holding-register/coil write dialogs, and Escape to cancel. Pending range edits
   disable writes until a read applies the new range.
@@ -36,20 +43,25 @@ Python 3.11.17 for the frozen bridge; x64 Linux with GTK 3 and Xvfb.
 | Check | Result |
 | --- | --- |
 | `flutter analyze` | Clean; no suppressed Dart diagnostics |
-| `flutter test` | 9 controller/widget tests passed |
+| `flutter test` | 12 controller/widget tests passed |
 | `flutter build linux --release` | Built `flutter_app/build/linux/x64/release/bundle/modbus_desktop` |
 | `flutter test integration_test/desktop_test.dart -d linux` under Xvfb | Passed with the real bridge and TCP simulator |
+| Native Linux release at 900×650 under Xvfb | Visually checked RTU form, demo connection, table/chart/log and polling |
 | Python bridge + backend + serial regression tests | 80 passed |
 | Ruff on all new Python files | Passed |
 | Native bridge freeze using `tool/build_bridge.py` | Passed |
 | Frozen bridge from `/tmp` | Handshake, serial discovery, TCP demo read/write and shutdown passed |
 | Packaged release app from `/tmp`, without `MODBUS_PYTHON` | Opened, found its frozen bridge and connected to Local demo; visually inspected |
 
-The desktop integration test covers register/coil writes, animated 50-register
-polling at 100 ms, chart samples, Modbus exceptions, refused TCP connection,
+The desktop integration test runs at 900×650 with the real bridge and covers all
+four areas, register/coil writes, animated 50-register polling at 100 ms, chart
+selection/samples, pane bounds, Modbus exceptions, refused TCP connection,
 disconnect/reconnect, unexpected bridge exit/restart, and shutdown. Widget tests
-cover Enter, write validation, Escape, pending-range write gating, table
-virtualization and the 900×650 minimum layout. Controller tests also verify that
+cover TCP validation/cancellation, RTU parameters and port-refresh recovery,
+Enter/Escape, write validation, all four areas, polling controls, pending-range
+write gating, table virtualization, and reaching the last of 2,000 rows at the
+900×650 minimum. Layout tests also exercise validation/error states, independent
+log scrolling, 150% display scale and larger text. Controller tests verify that
 late transactions cannot revive a cancelled connection.
 
 The Python 3.13 regression run emitted one asyncio transport-finalizer warning
