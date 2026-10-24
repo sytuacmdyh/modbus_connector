@@ -17,6 +17,7 @@ class BridgeException implements Exception {
 }
 
 abstract class BridgeTransport {
+  void Function(List<Map<String, dynamic>>, Map<String, dynamic>)? onTraffic;
   void Function(String)? onDiagnostic;
   void Function()? onExit;
   Future<BridgeReply> request(
@@ -102,6 +103,10 @@ class ProcessBridge extends BridgeTransport {
       _pending = null;
       _pendingId = null;
       final connected = message['connected'] == true;
+      onTraffic?.call(
+        (message['traffic'] as List? ?? []).cast<Map<String, dynamic>>(),
+        Map<String, dynamic>.from(message['statistics'] as Map? ?? {}),
+      );
       if (message['ok'] == true) {
         pending.complete(
           BridgeReply(message['result'] as Map<String, dynamic>, connected),

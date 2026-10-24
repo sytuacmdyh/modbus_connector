@@ -24,6 +24,78 @@ def request(bridge: Bridge, command: str, **params: object) -> dict:
     return bridge.respond({"id": 7, "command": command, **params})
 
 
+def test_qt_workspace_conversion_preserves_raw_semantics_and_device_parameters(bridge):
+    original = {
+        "active_tab": 1,
+        "cloud_password": "must not migrate",
+        "tabs": [
+            {"mode": "master", "connection": {"type": "TCP", "unit": 7},
+             "registers_options": {"order": "CDAB", "group_reads": True},
+             "registers": [{"name": "温度", "kind": "holding_registers", "address": 8,
+                            "count": 2, "format": "f32", "unit_id": "", "poll_ms": "",
+                            "order": "", "scale": 0.1}],
+             "expressions": [{"name": "double", "expr": "[温度]*2"}]},
+            {"mode": "slave", "sim": {"server": {"type": "TCP", "host": "127.0.0.1",
+                                                    "port": 1555, "unit": "any"},
+                                      "tick_ms": 200, "rows": []}},
+            {"mode": "gateway", "gateway": {"listen": {"type": "RTU", "rtu_port": "COM9"},
+                                                "target": {"type": "TCP", "tcp_port": 1502},
+                                                "units": "7,8"}},
+        ],
+    }
+    reply = request(bridge, "template_convert_workspace", workspace=original)
+    assert reply["ok"], reply
+    converted = reply["result"]
+    assert converted["active_tab"] == 1
+    assert "cloud_password" not in converted
+    master, simulator, gateway = converted["tabs"]
+    assert master["registers"][0]["unit_id"] is None
+    assert master["registers"][0]["poll_ms"] is None
+    assert master["registers"][0]["order"] == "CDAB"
+    assert master["expressions"][0]["text"] == "[温度]*2"
+    assert master["map_grouped"] is True
+    assert simulator["mode"] == "simulator"
+    assert simulator["device_config"]["listen"]["port"] == 1555
+    assert simulator["device_config"]["units_text"] == ""
+    assert gateway["device_config"]["listen"]["port"] == "COM9"
+    assert gateway["device_config"]["target"]["port"] == 1502
+    assert not request(bridge, "template_convert_workspace", workspace={"tabs": []})["ok"]
+
+
+def test_all_public_template_rows_are_usable_after_flutter_conversion():
+    from modbus_connector.flutter_catalog import flutter_state, public_catalog, public_template
+    from modbus_connector.flutter_registers import row_from_json
+
+    catalog = public_catalog()
+    assert catalog
+    for entry in catalog:
+        source = public_template(entry.resource)
+        converted = flutter_state(source)
+        assert len(converted["registers"]) == len(source.get("registers", []))
+        for row in converted["registers"]:
+            assert {
+                "name", "kind", "address", "count", "format", "scale", "offset", "unit",
+            } <= row.keys()
+            assert row["order"] in ("ABCD", "CDAB", "BADC", "DCBA")
+            row_from_json(row, converted["unit"])
+
+
+def test_master_traffic_contains_real_bytes_on_success_and_exception(bridge):
+    assert request(bridge, "connect", transport="demo", timeout=0.1)["ok"]
+    read = request(bridge, "read", unit=1, kind="holding_registers", address=0, count=2)
+    assert read["ok"]
+    assert {frame["direction"] for frame in read["traffic"]} == {"tx", "rx"}
+    assert all(bytes.fromhex(frame["hex"]) for frame in read["traffic"])
+    assert read["statistics"]["operations"] == 1
+    assert read["statistics"]["tx_bytes"] > 0
+    failed = request(bridge, "read", unit=1, kind="holding_registers", address=65535, count=1)
+    assert not failed["ok"]
+    assert failed["traffic"]
+    assert failed["statistics"]["errors"] == 1
+    assert failed["statistics"]["operations"] == 2
+    assert request(bridge, "hello")["traffic"] == []
+
+
 def test_real_tcp_read_write_reconnect(bridge: Bridge, modbus_server: int) -> None:
     reply = request(bridge, "connect", transport="tcp", host="127.0.0.1", port=modbus_server)
     assert reply["id"] == 7 and reply["ok"] and reply["connected"]
@@ -155,6 +227,26 @@ def test_subprocess_protocol_eof_and_no_qt(shutdown: bool) -> None:
         timeout=10,
     )
     assert probe.returncode == 0
+
+
+@pytest.mark.parametrize("system_encoding", ["gbk", "cp1252"])
+def test_subprocess_uses_utf8_for_unescaped_chinese_template_paths(system_encoding, tmp_path):
+    from modbus_connector.flutter_catalog import public_catalog
+
+    template = next(t for t in public_catalog() if not t.resource.isascii())
+    command = {"id": 1, "command": "template_load", "resource": template.resource}
+    completed = subprocess.run(
+        [sys.executable, "-u", "-m", "modbus_connector.flutter_bridge"],
+        input=(json.dumps(command, ensure_ascii=False) + "\n").encode("utf-8"),
+        capture_output=True, timeout=20,
+        env={**os.environ, "PYTHONIOENCODING": system_encoding,
+             "MODBUS_FLUTTER_HOME": str(tmp_path)},
+    )
+    assert completed.returncode == 0, completed.stderr
+    reply = json.loads(completed.stdout)
+    assert reply["ok"], reply
+    assert reply["result"]["state"]["name"] == template.name
+    assert reply["result"]["state"]["registers"]
 
 
 def test_scanner_real_backend(bridge: Bridge, modbus_server: int) -> None:
@@ -457,7 +549,8 @@ def test_csv_exports_display_values_and_preserves_importable_metadata(bridge: Br
     assert list(csv.DictReader(io.StringIO(selected["result"]["text"])))[0]["name"] == "Temperature"
 
 
-def test_full_register_map_fits_bounded_protocol_frames() -> None:
+@pytest.mark.parametrize("row_count", [512, 1832, 4096])
+def test_full_register_map_fits_bounded_protocol_frames(row_count: int) -> None:
     rows = [
         {
             "name": f"Register {i} " + "x" * 200,
@@ -468,7 +561,7 @@ def test_full_register_map_fits_bounded_protocol_frames() -> None:
             "scale": 1,
             "offset": 0,
         }
-        for i in range(512)
+        for i in range(row_count)
     ]
     frame = json.dumps({"id": 1, "command": "plan_reads", "unit": 1, "rows": rows}) + "\n"
     assert 65536 < len(frame) < MAX_LINE
@@ -476,7 +569,16 @@ def test_full_register_map_fits_bounded_protocol_frames() -> None:
     serve(io.StringIO(frame), sink)
     result = json.loads(sink.getvalue())
     assert result["ok"]
-    assert sum(len(group) for group in result["result"]["groups"]) == 512
+    assert sum(len(group) for group in result["result"]["groups"]) == row_count
+
+
+def test_large_template_csv_round_trip_keeps_all_rows(bridge):
+    rows = [{"name": f"Register {i}", "address": i, "count": 1} for i in range(1832)]
+    exported = request(bridge, "csv_export", rows=rows)
+    assert exported["ok"], exported
+    imported = request(bridge, "csv_parse", text=exported["result"]["text"])
+    assert imported["ok"], imported
+    assert len(imported["result"]["rows"]) == len(rows)
 
 
 def test_render_rows_decodes_multiword_without_bus_io(bridge: Bridge, monkeypatch) -> None:

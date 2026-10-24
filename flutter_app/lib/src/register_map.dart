@@ -90,7 +90,33 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
   final selectedRows = <int>{};
   String? message;
 
+  void valueAction(String action) {
+    if (selectedRows.length != 1) return;
+    final i = selectedRows.single;
+    if (i < 0 || i >= model.rows.length) return;
+    if (action == 'copy') {
+      if (i < model.results.length) {
+        Clipboard.setData(
+          ClipboardData(text: '${model.results[i]['display'] ?? ''}'),
+        );
+      }
+    } else {
+      model.quickValue(i, action);
+    }
+  }
+
   void batch(String action) {
+    if ([
+      'copy',
+      'zero',
+      'one',
+      'increment',
+      'decrement',
+      'toggle',
+    ].contains(action)) {
+      valueAction(action);
+      return;
+    }
     if (model.reading || widget.session.busy) return;
     final indices =
         selectedRows.where((i) => i >= 0 && i < model.rows.length).toList()
@@ -119,7 +145,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
         selectedRows.clear();
       } else if (action == 'duplicate') {
         for (final i in indices) {
-          if (model.rows.length >= 512) break;
+          if (model.rows.length >= maxRegisterRows) break;
           final copy =
               jsonDecode(jsonEncode(model.rows[i])) as Map<String, dynamic>;
           copy['name'] = '${copy['name']} ${tr('copy')}';
@@ -140,6 +166,10 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
             ..remove(i)
             ..add(next);
         }
+      } else if (action == 'trend_on' || action == 'trend_off') {
+        for (final i in indices) {
+          model.rows[i]['trend_enabled'] = action == 'trend_on';
+        }
       } else {
         for (final i in indices) {
           model.rows[i]['poll_enabled'] = action == 'enable';
@@ -151,6 +181,15 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
 
   List<PopupMenuEntry<String>> rowActions() => const [
     PopupMenuItem(value: 'read', child: LText('Read selected rows')),
+    PopupMenuItem(value: 'copy', child: LText('Copy value')),
+    PopupMenuItem(value: 'zero', child: LText('Write 0')),
+    PopupMenuItem(value: 'one', child: LText('Write 1')),
+    PopupMenuItem(value: 'increment', child: LText('Increment')),
+    PopupMenuItem(value: 'decrement', child: LText('Decrement')),
+    PopupMenuItem(value: 'toggle', child: LText('Toggle')),
+    PopupMenuDivider(),
+    PopupMenuItem(value: 'trend_on', child: LText('Enable trend')),
+    PopupMenuItem(value: 'trend_off', child: LText('Disable trend')),
     PopupMenuItem(value: 'enable', child: LText('Enable selected polling')),
     PopupMenuItem(value: 'disable', child: LText('Disable selected polling')),
     PopupMenuItem(value: 'duplicate', child: LText('Duplicate selected rows')),
@@ -432,6 +471,18 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
     listenable: Listenable.merge([model, widget.session]),
     builder: (context, _) => CallbackShortcuts(
       bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyC, control: true): () =>
+            valueAction('copy'),
+        const SingleActivator(LogicalKeyboardKey.digit0, control: true): () =>
+            valueAction('zero'),
+        const SingleActivator(LogicalKeyboardKey.digit1, control: true): () =>
+            valueAction('one'),
+        const SingleActivator(LogicalKeyboardKey.equal, control: true): () =>
+            valueAction('increment'),
+        const SingleActivator(LogicalKeyboardKey.minus, control: true): () =>
+            valueAction('decrement'),
+        const SingleActivator(LogicalKeyboardKey.keyT, control: true): () =>
+            valueAction('toggle'),
         const SingleActivator(LogicalKeyboardKey.keyA, control: true): () =>
             batch('all'),
         const SingleActivator(LogicalKeyboardKey.keyR, control: true): () {
@@ -503,7 +554,8 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                   ),
                 ),
                 OutlinedButton(
-                  onPressed: model.reading || model.rows.length >= 512
+                  onPressed:
+                      model.reading || model.rows.length >= maxRegisterRows
                       ? null
                       : edit,
                   child: const LText('Add row'),
@@ -596,6 +648,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                   TableColumnSpec('format', 'Format', 85),
                   TableColumnSpec('count', 'Count', 80),
                   TableColumnSpec('unit_id', 'Unit', 80),
+                  TableColumnSpec('trend', 'Trend', 130),
                   TableColumnSpec('actions', 'Actions', 260),
                 ],
                 layout: desktopTableLayout(widget.session.draft, 'map_table'),
@@ -611,6 +664,26 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                   final writable =
                       row['kind'] == 'holding_registers' ||
                       row['kind'] == 'coils';
+                  if (key == 'trend') {
+                    final historyKey =
+                        '${row['unit_id'] ?? widget.session.unit}/${row['kind']}/${row['address']}/${row['name']}';
+                    final points =
+                        widget.session.histories[historyKey]?.toList() ??
+                        <Sample>[];
+                    return row['trend_enabled'] == false || points.isEmpty
+                        ? const Text('—')
+                        : SizedBox(
+                            height: 28,
+                            child: CustomPaint(
+                              painter: MultiSeriesPainter(
+                                [points],
+                                false,
+                                Theme.of(context).colorScheme,
+                                null,
+                              ),
+                            ),
+                          );
+                  }
                   if (key == 'select') {
                     return Checkbox(
                       value: selectedRows.contains(i),

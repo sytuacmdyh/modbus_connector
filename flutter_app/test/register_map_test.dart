@@ -49,6 +49,47 @@ class ExpressionMapBridge extends MapBridge {
 }
 
 void main() {
+  test('quick value actions use raw first words, clamp and reject read-only/missing values', () async {
+    final bridge = MapBridge();
+    final session = SessionController(bridge);
+    await session.connect({'timeout': 0.1}, 7);
+    session.registers.add({
+      'kind': 'holding_registers',
+      'address': 20,
+      'count': 2,
+      'scale': 10,
+      'unit_id': 9,
+    });
+    await session.registerMap.quickValue(0, 'increment');
+    expect(bridge.calls.where((c) => c['command'] == 'write'), isEmpty);
+    session.registerResults.add({
+      'values': [65535, 123],
+      'display': '655350',
+    });
+    await session.registerMap.quickValue(0, 'increment');
+    final write = bridge.calls.firstWhere((c) => c['command'] == 'write');
+    expect(write['values'], [65535]);
+    expect(write['unit'], 9);
+    expect(write['address'], 20);
+    bridge.calls.clear();
+    session.registers[0]['kind'] = 'input_registers';
+    await session.registerMap.quickValue(0, 'zero');
+    expect(bridge.calls, isEmpty);
+    session.registerResults[0] = {
+      'values': [1],
+    };
+    session.registers[0]['kind'] = 'holding_registers';
+    await session.registerMap.quickValue(0, 'toggle');
+    expect(bridge.calls.firstWhere((c) => c['command'] == 'write')['values'], [
+      0,
+    ]);
+    await session.disconnect();
+    bridge.calls.clear();
+    await session.registerMap.quickValue(0, 'one');
+    expect(bridge.calls, isEmpty);
+    session.dispose();
+  });
+
   test('stopping map suppresses late expression evaluation failures', () async {
     final bridge = ExpressionMapBridge();
     final session = SessionController(bridge);

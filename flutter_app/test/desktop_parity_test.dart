@@ -13,6 +13,58 @@ import 'package:modbus_desktop/src/workspace.dart';
 import 'fake_bridge.dart';
 
 void main() {
+  testWidgets(
+    'column hiding/density persist, last column stays accessible and reset recovers all',
+    (tester) async {
+      final layout = <String, dynamic>{};
+      Widget table() => MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 300,
+            child: DesktopTable(
+              columns: const [
+                TableColumnSpec('name', 'Name', 150),
+                TableColumnSpec('value', 'Value', 200),
+              ],
+              layout: layout,
+              rowCount: 100,
+              cellBuilder: (_, i, key) => Text('$key-$i'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpWidget(table());
+      await tester.tap(find.text('Name'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Value').last);
+      await tester.pumpAndSettle();
+      expect(find.text('value-0'), findsNothing);
+      expect(layout['hidden'], ['value']);
+      await tester.tap(find.text('Name'));
+      await tester.pumpAndSettle();
+      final last = tester.widget<CheckedPopupMenuItem<String>>(
+        find.ancestor(
+          of: find.text('Name').last,
+          matching: find.byType(CheckedPopupMenuItem<String>),
+        ),
+      );
+      expect(last.enabled, isFalse);
+      await tester.tap(find.text('Compact rows'));
+      await tester.pumpAndSettle();
+      expect(layout['compact'], isTrue);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(table());
+      expect(find.text('value-0'), findsNothing);
+      await tester.tap(find.text('Name'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reset columns'));
+      await tester.pumpAndSettle();
+      expect(find.text('value-0'), findsOneWidget);
+      expect(layout, isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   test(
     'completion matches reference/function prefixes and preserves suffixes',
     () {

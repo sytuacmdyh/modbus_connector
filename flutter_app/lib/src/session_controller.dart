@@ -17,6 +17,8 @@ const areas = <String, String>{
   'discrete_inputs': 'Discrete inputs · 02',
 };
 
+const maxRegisterRows = 4096;
+
 class ReadQuery {
   const ReadQuery({
     this.kind = 'holding_registers',
@@ -65,6 +67,14 @@ class SessionController extends ChangeNotifier {
     registerMap.addListener(() {
       if (!_disposed) notifyListeners();
     });
+    bridge.onTraffic = (frames, statistics) {
+      if (_disposed || _closing) return;
+      traffic.addAll(frames);
+      while (traffic.length > 500) {
+        traffic.removeFirst();
+      }
+      busStatistics = statistics;
+    };
     bridge.onDiagnostic = (line) {
       if (_disposed) return;
       _log(line, isError: true);
@@ -82,6 +92,9 @@ class SessionController extends ChangeNotifier {
     };
   }
   final BridgeTransport bridge;
+  final Queue<Map<String, dynamic>> traffic = Queue();
+  Map<String, dynamic> busStatistics = {};
+  final List<Future<void> Function()> shutdownHooks = [];
   late final RegisterMapController registerMap;
   Map<String, dynamic> connectionConfig = {};
   final Map<String, dynamic> draft = {};
@@ -213,7 +226,10 @@ class SessionController extends ChangeNotifier {
     }
     void rowsInto(Object? raw, List<Map<String, dynamic>> target) {
       if (raw is! List) return;
-      for (final r in raw.take(512)) {
+      if (raw.length > maxRegisterRows) {
+        throw const BridgeException('Register maps support at most 4096 rows.');
+      }
+      for (final r in raw) {
         if (r is Map<String, dynamic> &&
             areas.containsKey(r['kind']) &&
             r['address'] is int &&
@@ -383,7 +399,7 @@ class SessionController extends ChangeNotifier {
       final key =
           '${row['unit_id'] ?? unit}/${row['kind']}/${row['address']}/${row['name']}';
       final numeric = results[i]['numeric'];
-      if (numeric is num) {
+      if (numeric is num && row['trend_enabled'] != false) {
         recordPoint(
           key,
           '${row['name'] ?? row['kind']} @${row['address']}',
@@ -740,6 +756,8 @@ class SessionController extends ChangeNotifier {
     ++_epoch;
     stopPolling();
     await _operation?.future;
+    await Future.wait(shutdownHooks.toList().map((close) => close()));
+    shutdownHooks.clear();
     await bridge.close();
   }
 
@@ -750,6 +768,7 @@ class SessionController extends ChangeNotifier {
     _timer?.cancel();
     _cancelLogger();
     bridge.onDiagnostic = null;
+    bridge.onTraffic = null;
     bridge.onExit = null;
     unawaited(shutdown());
     super.dispose();

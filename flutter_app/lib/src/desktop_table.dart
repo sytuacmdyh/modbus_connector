@@ -56,6 +56,28 @@ class _DesktopTableState extends State<DesktopTable> {
     }.toList();
   }
 
+  List<String> get visible {
+    final hidden = widget.layout['hidden'];
+    final keys = order
+        .where((k) => hidden is! List || !hidden.contains(k))
+        .toList();
+    // A damaged or old workspace must never leave an inaccessible empty table.
+    return keys.isEmpty ? order : keys;
+  }
+
+  void toggleColumn(String key) => setState(() {
+    final hidden = <String>{
+      if (widget.layout['hidden'] is List)
+        ...(widget.layout['hidden'] as List).whereType<String>(),
+    };
+    if (hidden.contains(key)) {
+      hidden.remove(key);
+    } else if (visible.length > 1) {
+      hidden.add(key);
+    }
+    widget.layout['hidden'] = hidden.toList();
+  });
+
   double width(String key) {
     final widths = widget.layout['widths'];
     final value = widths is Map ? widths[key] : null;
@@ -109,22 +131,44 @@ class _DesktopTableState extends State<DesktopTable> {
                     final at = keys.indexOf(key);
                     if (action == 'reset') {
                       setState(widget.layout.clear);
+                    } else if (action.startsWith('column:')) {
+                      toggleColumn(action.substring(7));
+                    } else if (action == 'compact') {
+                      setState(
+                        () => widget.layout['compact'] =
+                            widget.layout['compact'] != true,
+                      );
                     } else if (action == 'left' && at > 0) {
                       move(key, keys[at - 1]);
                     } else if (action == 'right' && at < keys.length - 1) {
                       move(key, keys[at + 1]);
                     }
                   },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
                       value: 'left',
                       child: LText('Move column left'),
                     ),
-                    PopupMenuItem(
+                    const PopupMenuItem(
                       value: 'right',
                       child: LText('Move column right'),
                     ),
-                    PopupMenuItem(
+                    const PopupMenuDivider(),
+                    for (final column in widget.columns)
+                      CheckedPopupMenuItem(
+                        value: 'column:${column.key}',
+                        checked: visible.contains(column.key),
+                        enabled:
+                            !visible.contains(column.key) || visible.length > 1,
+                        child: LText(column.label),
+                      ),
+                    const PopupMenuDivider(),
+                    CheckedPopupMenuItem(
+                      value: 'compact',
+                      checked: widget.layout['compact'] == true,
+                      child: const LText('Compact rows'),
+                    ),
+                    const PopupMenuItem(
                       value: 'reset',
                       child: LText('Reset columns'),
                     ),
@@ -170,10 +214,11 @@ class _DesktopTableState extends State<DesktopTable> {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final keys = order;
+      final keys = visible;
       final total = keys.fold<double>(0, (sum, key) => sum + width(key));
       final rowHeight =
-          56.0 * MediaQuery.textScalerOf(context).scale(1).clamp(1, 2);
+          (widget.layout['compact'] == true ? 48.0 : 56.0) *
+          MediaQuery.textScalerOf(context).scale(1).clamp(1, 2);
       final body = Scrollbar(
         controller: vertical,
         thumbVisibility: true,

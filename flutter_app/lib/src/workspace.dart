@@ -3,6 +3,8 @@ import 'tool_widgets.dart';
 import 'translations.dart';
 
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/material.dart';
@@ -63,11 +65,11 @@ class WorkspaceController extends ChangeNotifier {
     }
   }
 
-  Future<void> load({String? path}) async {
+  Future<void> load({String? path, Map<String, dynamic>? imported}) async {
     loading = true;
     notifyListeners();
     try {
-      final data = await store?.load(path: path);
+      final data = imported ?? await store?.load(path: path);
       if (data != null && !closing) {
         final staged = <SessionController>[];
         try {
@@ -110,9 +112,19 @@ class WorkspaceController extends ChangeNotifier {
   }
 
   void openState(Map<String, dynamic> state, {String? templateId}) {
-    if (closing || sessions.length >= 64) return;
+    if (closing) throw const FormatException('Workspace is closing');
+    if (sessions.length >= 64) {
+      throw const FormatException(
+        'Close a tab before opening another template (64 tabs maximum).',
+      );
+    }
     final session = SessionController(bridgeFactory());
-    session.restore(state);
+    try {
+      session.restore(state);
+    } catch (_) {
+      session.dispose();
+      rethrow;
+    }
     session.customTemplateId = templateId;
     sessions.add(session);
     selected = sessions.length - 1;
@@ -213,11 +225,31 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
       suggestedName: 'workspace.json',
       title: action == 'export'
           ? 'Export Flutter workspace file path'
+          : action == 'import_qt'
+          ? 'Import Qt configuration'
           : 'Import Flutter workspace file path',
     );
     if (path == null || path.isEmpty) return;
     if (action == 'export') {
       await workspace.save(path: path);
+    } else if (action == 'import_qt') {
+      final bridge = workspace.bridgeFactory();
+      try {
+        final source = File(path);
+        if (await source.length() > 2000000) {
+          throw const FormatException('Configuration file is too large');
+        }
+        final converted = await bridge.request({
+          'command': 'template_convert_workspace',
+          'workspace': jsonDecode(await source.readAsString()),
+        });
+        await workspace.load(imported: converted.result);
+      } catch (e) {
+        workspace.stateError = userError(e);
+        workspace.notifyListeners();
+      } finally {
+        await bridge.close();
+      }
     } else {
       await workspace.load(path: path);
     }
@@ -288,6 +320,10 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                     TextButton(
                       onPressed: () => workspaceFile('import'),
                       child: const LText('Import workspace'),
+                    ),
+                    TextButton(
+                      onPressed: () => workspaceFile('import_qt'),
+                      child: const LText('Import Qt configuration'),
                     ),
                   ],
                 ),
@@ -413,6 +449,10 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                     PopupMenuItem(
                       value: 'import',
                       child: LText('Import workspace'),
+                    ),
+                    PopupMenuItem(
+                      value: 'import_qt',
+                      child: LText('Import Qt configuration'),
                     ),
                   ],
                 ),

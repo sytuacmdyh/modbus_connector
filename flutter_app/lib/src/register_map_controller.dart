@@ -21,6 +21,46 @@ class RegisterMapController extends ChangeNotifier {
   List<Map<String, dynamic>> get results => session.registerResults;
   final Map<Map<String, dynamic>, DateTime> _lastRead = {};
   int _interval = 500;
+
+  /// Qt-compatible quick actions change the first raw word, independent of scale.
+  Future<void> quickValue(int index, String action) async {
+    if (reading ||
+        session.busy ||
+        session.toolActive ||
+        !session.connected ||
+        index < 0 ||
+        index >= rows.length) {
+      return;
+    }
+    final row = rows[index];
+    if (!['coils', 'holding_registers'].contains(row['kind'])) return;
+    final raw = index < results.length ? results[index]['values'] : null;
+    if (!['zero', 'one'].contains(action) && (raw is! List || raw.isEmpty)) {
+      return;
+    }
+    final first = raw is List && raw.isNotEmpty ? raw.first : 0;
+    final current = first is bool ? (first ? 1 : 0) : (first as num).toInt();
+    final value = switch (action) {
+      'zero' => 0,
+      'one' => 1,
+      'increment' => current + 1,
+      'decrement' => current - 1,
+      'toggle' => current == 0 ? 1 : 0,
+      _ => null,
+    };
+    if (value == null) return;
+    stop();
+    final clamped = value.clamp(0, row['kind'] == 'coils' ? 1 : 65535);
+    final result = await session.command({
+      'command': 'write',
+      'unit': row['unit_id'] ?? session.unit,
+      'kind': row['kind'],
+      'address': row['address'],
+      'values': [row['kind'] == 'coils' ? clamped != 0 : clamped],
+    });
+    if (result != null && !_disposed) await read(onlyIndices: {index});
+  }
+
   Future<void> read({bool dueOnly = false, Set<int>? onlyIndices}) async {
     if (reading ||
         session.busy ||

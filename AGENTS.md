@@ -32,9 +32,15 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
   `~/.modbus_connector/flutter` (`MODBUS_FLUTTER_HOME` override), never Qt settings.
   Public templates remain shared/read-only. Utility cloud/template/update dialogs
   own separate bridges; cloud password saving is opt-in. Flutter update install is
-  unsupported because current NSIS assets install Qt, not Flutter.
+  unsupported because published assets install Qt. `build_installer.py --flutter`
+  creates a separate ModbusConnectorFlutter install/shortcut/uninstall identity.
   Flutter's master map is embedded; `desktop_table.dart` virtualizes map/sniffer
-  rows and persists column layouts in session drafts. `serial_ports.dart` discovers
+  rows and persists column layouts/visibility/density in session drafts. Master
+  raw traffic is bounded and attached to bridge replies; traffic filtering/pause
+  never stops acquisition. `graph_window_host.dart` owns pipe-fed native graph
+  viewers without extra bus connections; session shutdown waits for them. Explicit
+  Qt JSON import stages converted disconnected tabs before replacing sessions;
+  never writes original Qt files. `serial_ports.dart` discovers
   device-mode ports through the owned session bridge; `expression_completion.dart`
   provides simulator rule prefix completion. Settings groups language/theme and
   workspace files/autosave; disabled autosave requires explicit Save workspace.

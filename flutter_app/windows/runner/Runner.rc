@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "Modbus Connector" "\0"
-            VALUE "FileDescription", "Modbus Connector" "\0"
+            VALUE "FileDescription", "Modbus Connector Flutter" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "Modbus Connector" "\0"
+            VALUE "InternalName", "Modbus Connector Flutter" "\0"
             VALUE "LegalCopyright", "Modbus Connector contributors. MIT License." "\0"
             VALUE "OriginalFilename", "modbus_desktop.exe" "\0"
-            VALUE "ProductName", "Modbus Connector" "\0"
+            VALUE "ProductName", "Modbus Connector Flutter" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

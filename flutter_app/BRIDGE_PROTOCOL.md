@@ -7,7 +7,16 @@ and a `command`. The client sends **one request at a time**. Every response has
 `id`, `ok`, `connected`, and either `result` or `error` (`type`, `message`, optional
 Modbus `exception_code`). Framing/JSON errors return `id: null`; a malformed request
 never terminates the bridge. Request frames are limited to 2,097,152 characters, accommodating complete
-512-row maps and CSV/template payloads. Oversized frames drain to the next newline.
+4096-row maps with ordinary labels and CSV/template payloads. The byte limit still
+applies to maps with large metadata. Oversized frames drain to the next newline.
+
+Responses also contain `traffic` (up to 256 captured master TX/RX chunks from the
+request) and cumulative `statistics`. Each frame has `direction`, ISO `time`,
+original byte `length` and uppercase space-separated `hex` (at most 4096 bytes).
+Statistics include `tx_bytes`, `rx_bytes`, `operations`, `errors`, `average_ms`.
+An operation is a bridge request that exchanged master traffic, including failed
+requests; grouped reads count as one operation. Flutter retains the latest 500
+chunks. Display pause/filtering never pauses capture or bus I/O.
 
 ```json
 {"id":1,"command":"hello"}
@@ -70,7 +79,7 @@ or selected contiguous address range. Other tabs remain usable.
 
 Register map commands (additive v1):
 
-- `read_rows`: `{unit, rows:[row,...]}` (1..512). Each row accepts `name`, `kind`,
+- `read_rows`: `{unit, rows:[row,...]}` (1..4096). Each row accepts `name`, `kind`,
   `address`, `count`, `unit_id` (null inherits unit), `format`, `order`, `scale`,
   `offset`, `unit`, `value_names` (string integer keys), `bitmask`, `alarms`.
   Formats: dec/hex/s16/u32/s32/f32/u64/s64/f64/ascii/ascii1; byte orders
@@ -160,6 +169,14 @@ by Dart to `flutter/settings.json`. They never include cloud settings/credential
 never auto-connect, and do not overwrite Qt settings. Import is staged before
 closing/replacing sessions. Corrupt startup state disables automatic overwrites.
 
+`template_convert_workspace` accepts `{workspace: {tabs: [...], active_tab: n}}`
+with 1..64 Qt session objects and returns a schema-1 Flutter workspace. It converts
+connection/device modes, maps, expressions, simulator rules and recovered sniffer
+values, inheriting Qt byte-order/grouping/column preferences. Only allowlisted
+session fields survive; cloud settings/credentials and Qt custom-template IDs are
+excluded. Conversion itself has no file or session side effects. The UI stages
+and validates every converted session before replacing any live tabs.
+
 Cloud/update commands (manual only):
 
 - `cloud_settings_load` → `{settings}`; `cloud_settings_save`: `{settings}`.
@@ -223,7 +240,7 @@ Grouped and scheduled map reads:
 
 Display and simulator parity additions:
 
-- `render_rows`: `{rows,unit?}` renders 1..512 register descriptors containing
+- `render_rows`: `{rows,unit?}` renders 1..4096 register descriptors containing
   raw `values`, using the same display/scaling/names/bitmask/alarms code as reads.
   Returns `{rows:[{values,display,numeric,alarm}]}` without bus I/O. Raw lengths
   and ranges are validated before rendering. Sniffer multiword views assemble

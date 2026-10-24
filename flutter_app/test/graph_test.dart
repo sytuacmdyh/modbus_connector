@@ -10,6 +10,50 @@ import 'package:modbus_desktop/src/translations.dart';
 import 'fake_bridge.dart';
 
 void main() {
+  testWidgets(
+    'graph restores curve selection, scale and time window when reopened',
+    (tester) async {
+      final session = SessionController(FakeBridge());
+      session.recordPoint('v', 'Voltage', 230);
+      session.recordPoint('i', 'Current', 5);
+      session.draft['graph:master'] = {
+        'selected': ['i'],
+        'seconds': 300,
+        'normalized': true,
+      };
+      await tester.pumpWidget(MaterialApp(home: GraphDialog(session: session)));
+      expect(
+        tester
+            .widget<CheckboxListTile>(
+              find.ancestor(
+                of: find.text('Current'),
+                matching: find.byType(CheckboxListTile),
+              ),
+            )
+            .value,
+        true,
+      );
+      expect(
+        tester
+            .widget<CheckboxListTile>(
+              find.ancestor(
+                of: find.text('Voltage'),
+                matching: find.byType(CheckboxListTile),
+              ),
+            )
+            .value,
+        false,
+      );
+      expect(find.text('300'), findsOneWidget);
+      await tester.tap(find.text('Normalize each curve'));
+      await tester.pumpAndSettle();
+      expect((session.draft['graph:master'] as Map)['normalized'], false);
+      expect(find.text('Reset zoom'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      session.dispose();
+    },
+  );
+
   testWidgets('area curve legends and statistics change language live', (
     tester,
   ) async {
@@ -119,11 +163,11 @@ void main() {
     await tester.tap(find.text('Export PNG'));
     for (var i = 0; i < 50; i++) {
       await tester.pump(const Duration(milliseconds: 50));
-      final exists = await tester.runAsync(() async {
+      await tester.runAsync(() async {
         await Future<void>.delayed(const Duration(milliseconds: 10));
-        return output.exists();
       });
-      if (exists == true) break;
+      // The file may exist before writeAsBytes has flushed/closed on Windows.
+      if (find.textContaining('Saved ').evaluate().isNotEmpty) break;
     }
     final bytes = (await tester.runAsync(output.readAsBytes))!;
     expect(bytes.take(8), [137, 80, 78, 71, 13, 10, 26, 10]);

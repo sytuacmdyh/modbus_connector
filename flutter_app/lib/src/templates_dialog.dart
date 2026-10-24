@@ -28,6 +28,11 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
   Map<String, dynamic>? selected;
   String? version;
   bool busy = false;
+  String filter = '';
+  bool matches(Map<String, dynamic> entry) =>
+      '${entry['manufacturer'] ?? ''} ${entry['name'] ?? ''}'
+          .toLowerCase()
+          .contains(filter.toLowerCase());
   String? error;
   @override
   void initState() {
@@ -89,11 +94,15 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
       'version_id': version,
     });
     if (result == null || !mounted) return;
-    widget.onOpen(
-      result['state'] as Map<String, dynamic>,
-      result['template_id'] as String?,
-    );
-    Navigator.pop(context);
+    try {
+      widget.onOpen(
+        result['state'] as Map<String, dynamic>,
+        result['template_id'] as String?,
+      );
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) setState(() => error = userError(e));
+    }
   }
 
   Future<void> save(bool append) async {
@@ -181,6 +190,16 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
           ),
           if (busy) const LinearProgressIndicator(),
           if (error != null) LText(error!),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: TextField(
+              decoration: InputDecoration(
+                labelText: tr('Search templates'),
+                prefixIcon: const Icon(Icons.search),
+              ),
+              onChanged: (value) => setState(() => filter = value.trim()),
+            ),
+          ),
           Expanded(
             child: Row(
               children: [
@@ -188,7 +207,7 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
                   child: ListView(
                     children: [
                       const ListTile(title: LText('Public (read-only)')),
-                      for (final e in public)
+                      for (final e in public.where(matches))
                         ListTile(
                           dense: true,
                           selected: selected == e,
@@ -196,13 +215,15 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
                           onTap: busy ? null : () => choose(e),
                         ),
                       const ListTile(title: LText('Custom (Flutter storage)')),
-                      for (final e in custom)
+                      for (final e in custom.where(matches))
                         ListTile(
                           dense: true,
                           selected: selected?['id'] == e['id'],
                           title: LText(e['name'] as String),
                           onTap: busy ? null : () => choose(e),
                         ),
+                      if (!public.any(matches) && !custom.any(matches))
+                        const ListTile(title: LText('No matching templates')),
                     ],
                   ),
                 ),

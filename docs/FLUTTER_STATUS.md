@@ -1,7 +1,7 @@
 # Flutter desktop parity status
 
 Branch: `feature/flutter-parity-workspace`. Updated 2026-10-24. Work is committed
-locally; no push or PR. The PySide6 application, its settings, dependencies and
+locally; current Windows additions are uncommitted; no push or PR. The PySide6 application, its settings, dependencies and
 Windows installer remain available. Flutter now implements the main interactive
 workflows below. It still has the explicit parity gaps listed later in this file.
 
@@ -39,8 +39,8 @@ Flutter uses the existing Qt-free synchronous Python backends through an owned
 NDJSON subprocess per session. New adapters reuse models/CSV/expression/alarm
 logic, DataLogger, SimBackend, SnifferBackend, GatewayBackend, custom templates,
 WebDAV and the stable release checker. No Qt or numpy is needed by the bridge.
-The request limit is bounded at 2,097,152 characters, sufficient for full 512-row
-maps; oversize-frame recovery remains supported. Protocol additions are in
+The request limit is bounded at 2,097,152 characters; master maps support 4096 rows
+within that byte limit. Oversize-frame recovery remains supported. Protocol additions are in
 [BRIDGE_PROTOCOL.md](../flutter_app/BRIDGE_PROTOCOL.md).
 
 Each session serializes transactions, skips busy timer ticks and cancels between
@@ -99,27 +99,28 @@ external account. No physical Modbus/serial device was available.
 
 ## Remaining parity and validation gaps
 
-- Additional Qt table/display options (including column hiding) and exhaustive
-  keyboard/accessibility coverage remain deferred. The embedded named map,
-  column resize/reorder/reset and their persistence are complete in this scope.
+- Column hiding/restore, compact rows, raw quick actions, copying and row trends
+  are implemented and persisted. Exhaustive keyboard/accessibility coverage and
+  further Qt view-management conveniences remain unverified.
 - Sniffer filters, hidden views, per-unit columns/graphs and serial discovery in
   Simulator/Sniffer/Gateway forms are complete. More extensive Qt view management
   and a byte-for-byte Qt layout are deferred.
 - Simulator prefix autocomplete is complete; public/custom templates still append
   with duplicate area/address checks. Qt's manufacturer submenu layout is deferred.
-- Graphs export PNG and use timestamp-based, zoom-aware hover/pinned inspection;
-  detached native graph windows remain deferred. A separate native window/plugin
-  lifecycle was not introduced in this run.
+- Graphs support owned detached native viewers with sample pipes, saved selection,
+  time window and normalization, and reset zoom. Parent sessions retain all bus
+  ownership; closing a session closes its graph viewers.
 - Dynamic message templates and touched prompts/tool captions now translate in
   English/Chinese, including common validation/file failures and rule errors.
   Unrecognized third-party/system diagnostics and some untouched captions can
   still appear in English. Canonical register-map CSV stays Qt-compatible and
   therefore omits some Qt row/display metadata; expression logger columns are
   supported without extending that schema (JSONL kind `expression` is documented).
-- Flutter automatic install/update, installer identity, code signing and release
-  workflow remain outside this run. Existing NSIS assets install Qt. Windows
-  compilation/runtime/COM/DPI/audio, physical RTU/USB timing, multi-client load and
-  the broader distro/performance matrix remain user/hardware verification work.
+- Flutter has an independent Windows NSIS installer and verified installed x64
+  runtime. Automatic update handoff, signing and public release workflow remain
+  deferred; currently published NSIS assets target Qt. Physical RTU/USB timing,
+  multi-monitor DPI/audio, multi-client load and the broader platform/performance
+  matrix still require hardware and environment validation.
 
 ## Local implementation commits
 
@@ -188,9 +189,9 @@ Closed in `feature/flutter-parity-workspace`:
 - Settings groups language, theme, autosave and explicit workspace save/import/
   export. Autosave preference and layouts round-trip independently of Qt settings.
 
-Deferred items remain in the gap list above: detached native graph windows,
-additional Qt display/view conveniences, unrecognized external diagnostics,
-Flutter installer/release identity and Windows/hardware validation. No Qt settings,
+The later Windows follow-up below closes detached graphs, additional table
+conveniences and installer/runtime validation. Further view conveniences,
+unrecognized external diagnostics and hardware validation remain open. No Qt settings,
 backend behavior or canonical CSV schema changed in this follow-up.
 
 Validation for this follow-up uses the cached SDK dependencies with
@@ -204,3 +205,65 @@ translations take precedence over broad message patterns. The embedded map sizes
 to short content and caps its scrolling body for larger maps, removing the fixed
 470-pixel card height. Protocol area/format tokens and Qt code are unchanged.
 Native acceptance verification of these fixes remains with Grok Bot.
+
+## Windows feature completion and installed acceptance (2026-10-24)
+
+Added column hide/restore and compact density, raw map quick writes and shortcuts,
+map row trends, graph settings persistence/reset and separate native viewers,
+template search, activity log filters/copy/export, master raw TX/RX capture and
+statistics, and explicit Qt configuration migration. Template conversion now
+handles blank inherited unit/interval/order fields; all 26 bundled templates
+(3226 rows) validate. UTF-8 cloud cache loading is explicit on Windows.
+
+Viewers receive bounded samples through owned subprocess pipes and never open a
+second Modbus connection. Session shutdown closes their pipes and waits for exit.
+Graph content scrolls at small window sizes; the detached surface follows theme.
+Tables keep lazy rows and persisted column layouts rather than adding more fixed
+toolbar rows. Canonical CSV and the Qt GUI remain unchanged.
+
+| Windows check | Result |
+| --- | --- |
+| Toolchain | Windows x64; Flutter 3.47.8 / Dart 3.13.7; Python 3.12; VS 2022 C++ toolset; NSIS 3.11. |
+| Static / Flutter tests | Analyzer clean; 61 widget/controller tests passed; targeted Python Ruff clean. |
+| Python regression | 509 passed, 3 skipped across bridge/online, backend/models, simulator/gateway/sniffer, logger, templates, cloud and updates; subsequent bridge/online additions: 45 passed, 1 skipped. |
+| Native integration | Both desktop and parity test files passed separately on Windows using real subprocess bridges and local TCP simulation. |
+| Release packaging | Windows Release and Qt/numpy-free frozen bridge built; independent `ModbusConnectorFlutter` NSIS package produced. |
+| Frozen installed backend | Tested from an unrelated working directory without Python override: separate simulator/master, read/write, traffic, expression, CSV logger, public/custom templates, and EOF listener/process cleanup passed. |
+| Installed UI | Chinese layout inspected at 1280×800; real local demo connected, polled, wrote/reread a holding register; raw traffic/statistics displayed; detached graph received ongoing samples while main controls remained available; closing the main window during polling exited all three owned processes (main, bridge and graph). |
+| Preservation | Hashes of the four pre-existing Qt settings/cloud/cache/custom-template files unchanged after installation. Flutter owns separate install registration, shortcuts and data. |
+
+Installer: `dist/modbus-connector-flutter-0.16.0+6-windows-x64-setup.exe`.
+Installed location: `%LOCALAPPDATA%\Programs\ModbusConnectorFlutter`.
+All 103 installed payload files match the final Release SHA-256 hashes.
+Run `flutter_app/tool/verify_windows_bundle.py --bundle <installed directory>`
+to repeat isolated frozen-backend acceptance. Local evidence logs are under the
+ignored `tools/` directory. The portable Release directory remains usable.
+
+This acceptance uses local TCP simulation and test WebDAV fixtures. No physical
+RTU/USB device, external WebDAV account, multi-monitor DPI or audible alarm was
+validated. Automatic Flutter updates remain manual until separately identified
+Flutter assets and an upgrade handoff are implemented and published.
+
+Template-open repair: Qt templates omit default kind/format/scale/offset fields;
+the adapter now emits explicit defaults required by Flutter restoration. Master
+maps retain up to 4096 rows instead of silently truncating to 512, including the
+1832-row EMS template. Open errors and the 64-tab limit remain visible in the
+dialog. A native Windows regression restores every public template and clicks
+Open latest for public, custom and the largest catalog template, checking row
+counts, selected disconnected tabs, retained connection parameters and dialog closure.
+Form listeners attach only after every restored value is loaded, avoiding an early
+change listener overwriting the rest of a template's connection defaults. Large-map protocol/CSV
+round trips cover 1832/4096 rows; logging and simulator limits remain separate.
+Installed-only root cause: frozen Windows Python ignored `PYTHONIOENCODING` and
+decoded raw UTF-8 Chinese resource paths using its system code page, reporting
+template-not-found with garbled filenames. Bridge main now explicitly configures
+stdin/stdout/stderr as UTF-8. Frozen acceptance sends unescaped Unicode like Dart
+instead of ASCII JSON escapes; all public templates must load and plan all rows.
+Subprocess regressions force GBK and cp1252 to verify the protocol remains UTF-8.
+Windows repair acceptance: bridge/online tests passed (50 passed, 1 skipped),
+Flutter tests passed (61), analyzer clean, and native template integration passed.
+The rebuilt installed bundle passed all 26 public templates with raw Unicode
+requests. Manual installed-UI verification selected the Chinese Xinghuan outdoor
+unit template, clicked Open latest, and confirmed a new selected disconnected
+tab with populated Chinese register names and addresses. All 103 installed
+payload files matched the rebuilt Release bundle.

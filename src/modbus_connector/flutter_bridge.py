@@ -13,6 +13,8 @@ import math
 import socket
 import sys
 import time
+from collections import deque
+from datetime import datetime
 from typing import Any, TextIO, cast, get_args
 
 from serial.tools import list_ports
@@ -46,11 +48,28 @@ def text(data: dict[str, Any], key: str, default: str = "") -> str:
 class Bridge:
     def __init__(self) -> None:
         self.backend = ModbusBackend()
+        self.traffic: deque[dict[str, Any]] = deque(maxlen=256)
+        self.tx_bytes = 0
+        self.rx_bytes = 0
+        self.operations = 0
+        self.errors = 0
+        self.total_ms = 0.0
+        self.backend.traffic_hook = self._capture_traffic
         self.logger = FlutterLogger()
         self.devices = FlutterDevices()
         self.online = FlutterOnline()
         self.demo: SimBackend | None = None
         self._demo_started = 0.0
+
+    def _capture_traffic(self, direction: str, packet: bytes) -> None:
+        if direction == "tx":
+            self.tx_bytes += len(packet)
+        else:
+            self.rx_bytes += len(packet)
+        self.traffic.append({
+            "direction": direction, "hex": packet[:4096].hex(" ").upper(),
+            "length": len(packet), "time": datetime.now().astimezone().isoformat(),
+        })
 
     def close(self) -> None:
         self.online.close()
@@ -194,6 +213,7 @@ class Bridge:
             "render_rows",
         ):
             from .flutter_registers import (
+                MAX_REGISTER_ROWS,
                 bounded,
                 csv_command,
                 encode,
@@ -207,8 +227,8 @@ class Bridge:
             if command == "encode_values":
                 return {"values": encode(data)}
             raw_rows = data.get("rows")
-            if not isinstance(raw_rows, list) or not 1 <= len(raw_rows) <= 512:
-                raise ValueError("rows must contain 1..512 rows")
+            if not isinstance(raw_rows, list) or not 1 <= len(raw_rows) <= MAX_REGISTER_ROWS:
+                raise ValueError("rows must contain 1..4096 rows")
             unit = bounded(data.get("unit", 1), "unit", 1, 247)
             rows = [row_from_json(row, unit) for row in raw_rows]
             if command == "render_rows":
@@ -345,6 +365,22 @@ class Bridge:
         return {**result, "elapsed_ms": round((time.monotonic() - started) * 1000, 2)}
 
     def respond(self, request: object) -> dict[str, Any]:
+        self.traffic.clear()
+        started = time.monotonic()
+        response = self._respond(request)
+        if self.traffic:
+            self.operations += 1
+            self.errors += not response["ok"]
+            self.total_ms += (time.monotonic() - started) * 1000
+        response["traffic"] = list(self.traffic)
+        response["statistics"] = {
+            "tx_bytes": self.tx_bytes, "rx_bytes": self.rx_bytes,
+            "operations": self.operations, "errors": self.errors,
+            "average_ms": self.total_ms / self.operations if self.operations else 0,
+        }
+        return response
+
+    def _respond(self, request: object) -> dict[str, Any]:
         request_id = request.get("id") if isinstance(request, dict) else None
         try:
             if not isinstance(request, dict):
@@ -412,6 +448,11 @@ def serve(source: TextIO, sink: TextIO) -> None:
 
 
 def main() -> None:
+    # PyInstaller ignores PYTHONIOENCODING; redirected Windows stdin can use the
+    # ANSI code page. The Flutter pipe protocol is always UTF-8, including paths.
+    sys.stdin.reconfigure(encoding="utf-8", errors="strict")
+    sys.stdout.reconfigure(encoding="utf-8", errors="strict")
+    sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
     logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
     try:
         serve(sys.stdin, sys.stdout)

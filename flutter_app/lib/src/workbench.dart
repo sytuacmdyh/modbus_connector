@@ -1,10 +1,14 @@
 import 'translations.dart';
 
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'file_paths.dart';
 
 import 'live_chart.dart';
 import 'scanner.dart';
@@ -15,6 +19,7 @@ import 'graph_dialog.dart';
 import 'advanced_dialog.dart';
 import 'session_controller.dart';
 import 'write_dialog.dart';
+import 'traffic_dialog.dart';
 
 class Workbench extends StatefulWidget {
   const Workbench({
@@ -41,6 +46,9 @@ class _WorkbenchState extends State<Workbench> {
   final _logScroll = ScrollController();
   final _serialFocus = FocusNode();
   bool _refreshingPorts = false;
+  String _logFilter = '';
+  bool _errorsOnly = false;
+  bool _showLogFilter = false;
   final _connectionForm = GlobalKey<FormState>();
   final _host = TextEditingController(text: '127.0.0.1');
   final _port = TextEditingController(text: '502');
@@ -79,7 +87,6 @@ class _WorkbenchState extends State<Workbench> {
       'interval': _interval,
     }.entries) {
       if (saved[e.key] is String) e.value.text = saved[e.key] as String;
-      e.value.addListener(_saveDraft);
     }
     _transport =
         saved['transport'] as String? ??
@@ -101,6 +108,20 @@ class _WorkbenchState extends State<Workbench> {
     if (!saved.containsKey('unit')) _unit.text = '${session.unit}';
     if (!saved.containsKey('interval')) {
       _interval.text = '${session.intervalMs}';
+    }
+    // Restore every field before edits can save the partially initialized form.
+    for (final controller in [
+      _host,
+      _port,
+      _serial,
+      _baud,
+      _unit,
+      _timeout,
+      _address,
+      _count,
+      _interval,
+    ]) {
+      controller.addListener(_saveDraft);
     }
     _address.addListener(_rangeEdited);
     _count.addListener(_rangeEdited);
@@ -704,7 +725,16 @@ class _WorkbenchState extends State<Workbench> {
   }
 
   Widget _logs() {
-    final logs = session.logs.toList(growable: false);
+    final logs = session.logs
+        .where(
+          (l) =>
+              (!_errorsOnly || l.isError) &&
+              tr(l.message).toLowerCase().contains(_logFilter.toLowerCase()),
+        )
+        .toList(growable: false);
+    String logText() => logs
+        .map((l) => '${l.time.toIso8601String()}  ${tr(l.message)}')
+        .join('\n');
     final colors = Theme.of(context).colorScheme;
     return Card(
       child: Column(
@@ -720,6 +750,54 @@ class _WorkbenchState extends State<Workbench> {
                 ),
                 const Spacer(),
                 IconButton(
+                  tooltip: tr('Filter activity'),
+                  icon: Icon(
+                    _showLogFilter
+                        ? Icons.filter_alt
+                        : Icons.filter_alt_outlined,
+                    size: 18,
+                  ),
+                  onPressed: () => setState(() {
+                    _showLogFilter = !_showLogFilter;
+                    if (!_showLogFilter) {
+                      _logFilter = '';
+                      _errorsOnly = false;
+                    }
+                  }),
+                ),
+                PopupMenuButton<String>(
+                  tooltip: tr('Export log'),
+                  icon: const Icon(Icons.more_horiz, size: 18),
+                  onSelected: (action) async {
+                    final text = logText();
+                    if (action == 'copy') {
+                      await Clipboard.setData(ClipboardData(text: text));
+                    } else {
+                      final path = await chooseFilePath(
+                        context,
+                        save: true,
+                        title: 'Export activity log',
+                        extension: 'txt',
+                        suggestedName: 'activity.txt',
+                      );
+                      if (path == null) return;
+                      try {
+                        await File(path).writeAsString(text, flush: true);
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: LText(userError(e))),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'copy', child: LText('Copy log')),
+                    PopupMenuItem(value: 'export', child: LText('Export log')),
+                  ],
+                ),
+                IconButton(
                   tooltip: tr('Clear log'),
                   onPressed: session.clearLog,
                   icon: const Icon(Icons.delete_sweep_outlined, size: 18),
@@ -727,6 +805,28 @@ class _WorkbenchState extends State<Workbench> {
               ],
             ),
           ),
+          if (_showLogFilter)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      decoration: InputDecoration(
+                        labelText: tr('Filter activity'),
+                      ),
+                      onChanged: (value) => setState(() => _logFilter = value),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: tr('Errors only'),
+                    isSelected: _errorsOnly,
+                    icon: const Icon(Icons.error_outline),
+                    onPressed: () => setState(() => _errorsOnly = !_errorsOnly),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: logs.isEmpty
                 ? const Center(
@@ -841,6 +941,15 @@ class _WorkbenchState extends State<Workbench> {
                                 onPressed: () => showDialog<void>(
                                   context: context,
                                   builder: (_) => GraphDialog(session: session),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: tr('Bus traffic'),
+                                icon: const Icon(Icons.swap_calls),
+                                onPressed: () => showDialog<void>(
+                                  context: context,
+                                  builder: (_) =>
+                                      TrafficDialog(session: session),
                                 ),
                               ),
                               IconButton(

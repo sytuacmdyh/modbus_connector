@@ -90,7 +90,22 @@ beside the Flutter executable. It never changes existing Python packaging.
 Re-run it after rebuilding Flutter. Distribute the **entire Release directory**,
 including `data/`, Flutter/plugin DLLs and `bridge/`; the EXE alone is insufficient.
 The target may need the Microsoft Visual C++ 2015–2022 x64 Redistributable. This
-build produces a portable directory, without an installer or code signing.
+build produces a portable directory. To wrap it in an independent per-user
+installer (NSIS must be installed), run from the repository root:
+
+```powershell
+.venv/Scripts/python.exe packaging/windows/build_installer.py --flutter `
+  --bundle flutter_app/build/windows/x64/runner/Release --version 0.16.0+6
+.venv/Scripts/python.exe flutter_app/tool/verify_windows_bundle.py `
+  --bundle flutter_app/build/windows/x64/runner/Release
+```
+
+The installer uses `ModbusConnectorFlutter` for its installation directory,
+uninstall registration and shortcuts. It preserves the Qt installation and all
+settings outside its directory. It is not code signed. The verification script
+starts the frozen bridge from an unrelated directory without a Python override,
+uses separate simulator/master processes and isolated temporary data, and checks
+read/write, traffic, expressions, logging, templates and EOF cleanup.
 
 Bridge lookup order: runtime `MODBUS_PYTHON`, compile-time
 `--dart-define=MODBUS_PYTHON=...`, adjacent frozen `bridge/modbus_bridge[.exe]`,
@@ -172,18 +187,31 @@ resource lifecycle are in [BRIDGE_PROTOCOL.md](BRIDGE_PROTOCOL.md).
 Desktop file operations use native choosers with editable-path fallback on
 unsupported hosts. The named map is embedded below the master quick view; its
 toolbar button scrolls to it. Map and sniffer column widths/order persist; drag
-headers or their edges, or use the header movement/reset menu. Map polling stops
+headers or their edges, or use the header movement/reset menu. That menu also
+hides/restores columns and switches compact row height, with all preferences
+persisted per session. Map polling stops
 with the session connection. Device-mode serial forms include port discovery and
 manual entry. Sniffer views support filters, hiding/restoring and per-unit graphs;
 simulator rules offer keyboard prefix completion. Settings groups language, theme,
 autosave and workspace files. With autosave off, use Save workspace to persist
 preferences. Scanner results restore with the workspace. Graphs export PNG and CSV;
-hover selects the nearest timestamp and click pins the cursor. Additional Qt
-display/view conveniences, detached graph windows and translation of unrecognized
-external diagnostics remain deferred.
+hover selects the nearest timestamp and click pins the cursor. Graph selection,
+normalization and time window persist. Open separate window creates an owned
+native graph viewer without another bus connection; closing the session closes
+its viewers. The master toolbar opens raw TX/RX traffic with direction/hex
+filters, display pause, copy/export and cumulative communication statistics.
+Map context actions provide raw zero/one/increment/decrement/toggle and trend
+controls; Ctrl+C copies display, Ctrl+0/1/+/−/T performs the corresponding raw
+action on one selected writable row. Templates have manufacturer/name search.
+Activity logs support filtering, errors only, copy and export. Settings and the
+workspace menu explicitly import a Qt JSON configuration into disconnected
+Flutter tabs, preserving the original file and separate Qt data.
+Translation of unrecognized external diagnostics remains incomplete.
 
 Update checking and manual download are wired. Automatic Flutter installation
 is unavailable on every platform: the existing NSIS asset installs the Qt product.
-Windows runtime/high-DPI/physical COM checks remain a user verification step.
+Windows x64 build, installation, native integration and installed release UI
+were verified on 2026-10-24. Physical COM, multi-monitor DPI and audio audibility
+still require hardware verification.
 See [FLUTTER_STATUS.md](../docs/FLUTTER_STATUS.md) for the detailed feature and
 validation inventory, including hardware and UI gaps.
