@@ -848,6 +848,12 @@ class _WorkbenchState extends State<Workbench> {
                                       LoggingDialog(session: session),
                                 ),
                               ),
+                              if (session.registerMap.polling)
+                                IconButton(
+                                  tooltip: tr('Stop map polling'),
+                                  icon: const Icon(Icons.stop_circle_outlined),
+                                  onPressed: session.registerMap.stop,
+                                ),
                               IconButton(
                                 tooltip: tr('Register map / CSV / snapshots'),
                                 icon: const Icon(Icons.table_view),

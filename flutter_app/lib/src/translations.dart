@@ -8,6 +8,7 @@ String tr(String value) => appLanguage.value == 'zh_CN'
     ? (flutterChinese[value] ?? qtChinese[value] ?? value)
     : value;
 const flutterChinese = <String, String>{
+  'Stop map polling': '停止映射轮询',
   'Workspace': '工作区',
   'New session': '新建会话',
   'Session mode': '会话模式',

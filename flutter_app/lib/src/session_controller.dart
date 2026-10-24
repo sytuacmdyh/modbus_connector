@@ -1,3 +1,5 @@
+import 'register_map_controller.dart';
+
 import 'dart:async';
 import 'dart:collection';
 
@@ -56,7 +58,11 @@ class LogEntry {
 }
 
 class SessionController extends ChangeNotifier {
-  SessionController(this.bridge) {
+  SessionController(this.bridge, {DateTime Function()? clock}) {
+    registerMap = RegisterMapController(this, clock: clock);
+    registerMap.addListener(() {
+      if (!_disposed) notifyListeners();
+    });
     bridge.onDiagnostic = (line) {
       if (_disposed) return;
       _log(line, isError: true);
@@ -65,6 +71,7 @@ class SessionController extends ChangeNotifier {
     bridge.onExit = () {
       if (_disposed || _closing) return;
       connected = false;
+      registerMap.stop();
       _cancelLogger();
       description = 'Disconnected';
       stopPolling();
@@ -73,6 +80,7 @@ class SessionController extends ChangeNotifier {
     };
   }
   final BridgeTransport bridge;
+  late final RegisterMapController registerMap;
   Map<String, dynamic> connectionConfig = {};
   final Map<String, dynamic> draft = {};
   final List<Map<String, dynamic>> registers = [];
@@ -353,8 +361,8 @@ class SessionController extends ChangeNotifier {
     return result;
   }
 
-  void beginTool() {
-    stopPolling();
+  void beginTool({bool stopQuickPolling = true}) {
+    if (stopQuickPolling) stopPolling();
     toolActive = true;
     notifyListeners();
   }
@@ -536,6 +544,7 @@ class SessionController extends ChangeNotifier {
 
   Future<void> disconnect() async {
     if (disconnecting || _closing) return;
+    registerMap.stop();
     _cancelLogger();
     disconnecting = true;
     connected = false;
@@ -687,6 +696,7 @@ class SessionController extends ChangeNotifier {
 
   Future<void> _shutdownOwned() async {
     _closing = true;
+    registerMap.stop();
     _cancelLogger();
     ++_epoch;
     stopPolling();
@@ -697,6 +707,7 @@ class SessionController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    registerMap.dispose();
     _timer?.cancel();
     _cancelLogger();
     bridge.onDiagnostic = null;

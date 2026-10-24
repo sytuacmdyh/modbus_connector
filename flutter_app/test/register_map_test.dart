@@ -36,6 +36,55 @@ class MapBridge extends FakeBridge {
 }
 
 void main() {
+  testWidgets(
+    'session map keeps polling after dialog closes, stops on disconnect',
+    (tester) async {
+      final bridge = MapBridge();
+      final session = SessionController(
+        bridge,
+        clock: () => tester.binding.clock.now(),
+      );
+      session.registers.add({
+        'name': 'X',
+        'kind': 'holding_registers',
+        'address': 0,
+        'count': 1,
+        'format': 'dec',
+      });
+      await session.connect({'timeout': 0.1}, 1);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => RegisterMapDialog(session: session),
+              ),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Poll map'));
+      await tester.pump();
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+      final count = bridge.calls.length;
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      expect(session.registerMap.polling, isTrue);
+      expect(bridge.calls.length, greaterThan(count));
+      await session.disconnect();
+      expect(session.registerMap.polling, isFalse);
+      final stopped = bridge.calls.length;
+      await tester.pump(const Duration(seconds: 1));
+      expect(bridge.calls.length, stopped);
+      session.dispose();
+    },
+  );
+
   test(
     'map cancellation suppresses stale data and raw snapshots detect changes',
     () async {

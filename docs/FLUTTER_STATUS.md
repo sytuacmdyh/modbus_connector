@@ -93,9 +93,11 @@ external account. No physical Modbus/serial device was available.
 
 ## Remaining parity and validation gaps
 
-- Named-map polling currently runs while its dialog is open and stops on close.
-  The quick range, background logger and device services continue independently;
-  Qt's permanently visible full register table is not reproduced yet.
+- The register map remains a dialog rather than Qt's permanently visible table.
+  Polling now belongs to the session, survives closing/reopening the dialog and
+  stops on disconnect, bridge exit, mode change or session shutdown. A main-view
+  Stop map polling control remains available. Quick reads and logging share the
+  serialized bus and skip busy ticks without cancelling map polling.
 - Native file choosers, table column sizing/reordering, batch/context-menu actions,
   extensive shortcuts, inline enum editors and some editing/validation polish
   remain below the Qt UI. Scanner preferences persist; scanner result history is
@@ -135,3 +137,9 @@ this inventory. Earlier per-chunk validation notes remain in Git history.
 Setup, running, native packaging and exact standalone integration commands:
 [flutter_app/README.md](../flutter_app/README.md). The pre-existing untracked
 `docs/FLUTTER_MIGRATION_BRIEF.md` was left untouched.
+
+## Remaining-gap follow-up chunks
+
+- Session-owned register-map polling: analyzer clean; 12 targeted map/session
+  tests pass, including dialog close and disconnect cancellation. No new bridge
+  commands or Qt changes.
