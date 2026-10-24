@@ -27,7 +27,9 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
   loopback `SimBackend` demo. Flutter schedules at most one transaction, suppresses
   cancelled poll results and waits for in-flight I/O before disconnecting.
   Protocol: `flutter_app/BRIDGE_PROTOCOL.md`; run/build/package instructions:
-  `flutter_app/README.md`. Python tests: `tests/test_flutter_bridge.py`.
+  `flutter_app/README.md`. `flutter_app/tool/build_bridge.py` freezes the native
+  `packaging/flutter_bridge_entry.py` into an adjacent `bridge/` directory with
+  PyInstaller, excluding Qt/numpy. Python tests: `tests/test_flutter_bridge.py`.
   Flutter checks: `flutter analyze`, `flutter test` from `flutter_app/`;
   desktop integration test additionally needs a display and Python interpreter.
 
