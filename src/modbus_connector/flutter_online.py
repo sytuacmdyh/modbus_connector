@@ -13,7 +13,7 @@ from . import __version__
 from .cloud_sync import CloudSyncError, WebDavClient, WebDavSettings
 from .flutter_catalog import flutter_directory, public_catalog, public_template
 from .flutter_registers import bounded
-from .update_check import RELEASES_URL, check_for_update
+from .update_check import RELEASES_URL, UpdateCheckError, check_for_update
 
 
 def message(exc: Exception) -> str:
@@ -126,7 +126,18 @@ class FlutterOnline:
             self._thread.start()
             return {"started": True}
         if command == "update_check":
-            release = check_for_update()
+            try:
+                release = check_for_update()
+            except UpdateCheckError as exc:
+                return {
+                    "current": __version__,
+                    "release": None,
+                    "url": self._release_url,
+                    "newer": False,
+                    "install_supported": False,
+                    "install_reason": message(exc),
+                    "error": message(exc),
+                }
             if release:
                 self._release_url = release.url
             return {

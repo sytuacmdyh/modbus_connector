@@ -29,6 +29,15 @@ def version_tuple(version: str) -> tuple[int, int, int]:
     return int(match[1]), int(match[2]), int(match[3])
 
 
+def application_version_tuple(version: str) -> tuple[int, int, int]:
+    """Numeric X.Y.Z prefix of the running app (beta suffixes are ignored)."""
+    core = version.removeprefix("v").split("-", 1)[0].split("+", 1)[0]
+    match = re.fullmatch(r"([0-9]+)\.([0-9]+)\.([0-9]+)", core)
+    if match is None:
+        raise UpdateCheckError("Unsupported release version: {version}", version=version)
+    return int(match[1]), int(match[2]), int(match[3])
+
+
 @dataclass(frozen=True)
 class ReleaseAsset:
     url: str
@@ -47,7 +56,7 @@ class ReleaseInfo:
         return f"{RELEASES_URL}/tag/{self.tag}"
 
     def is_newer_than(self, current: str) -> bool:
-        return version_tuple(self.tag) > version_tuple(current)
+        return version_tuple(self.tag) > application_version_tuple(current)
 
 
 def check_for_update() -> ReleaseInfo | None:

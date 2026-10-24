@@ -555,7 +555,7 @@ def test_logger_expressions_share_safe_engine_without_changing_map_csv(
     assert reply["ok"] and reply["result"]["expressions"][0]["numeric"] == 25
     assert reply["result"]["expressions"][1]["error"]
     assert request(bridge, "logger_stop")["ok"]
-    content = path.read_text()
+    content = path.read_text(encoding="utf-8")
     if fmt == "csv":
         import csv
 
