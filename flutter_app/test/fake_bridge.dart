@@ -8,6 +8,8 @@ class FakeBridge extends BridgeTransport {
   bool closed = false;
   Completer<BridgeReply>? heldRead;
   Completer<BridgeReply>? heldConnect;
+  Completer<BridgeReply>? heldPorts;
+  List<Map<String, dynamic>> serialPorts = [];
   int value = 100;
 
   @override
@@ -27,14 +29,20 @@ class FakeBridge extends BridgeTransport {
       case 'read':
         if (heldRead != null) return heldRead!.future;
         return BridgeReply({
-          'values': List.filled(command['count'] as int, value),
+          'values': List.filled(
+            command['count'] as int,
+            command['kind'] == 'coils' || command['kind'] == 'discrete_inputs'
+                ? value != 0
+                : value,
+          ),
           'elapsed_ms': 1.2,
         }, connected);
       case 'write':
         value = (command['values'] as List).first as int;
         return BridgeReply({}, connected);
       case 'ports':
-        return BridgeReply({'ports': <Map<String, dynamic>>[]}, connected);
+        if (heldPorts != null) return heldPorts!.future;
+        return BridgeReply({'ports': serialPorts}, connected);
     }
     throw StateError('Unexpected command: $command');
   }

@@ -28,6 +28,8 @@ class _WorkbenchState extends State<Workbench> {
   final _pageScroll = ScrollController();
   final _tableScroll = ScrollController();
   final _logScroll = ScrollController();
+  final _serialFocus = FocusNode();
+  bool _refreshingPorts = false;
   final _connectionForm = GlobalKey<FormState>();
   final _host = TextEditingController(text: '127.0.0.1');
   final _port = TextEditingController(text: '502');
@@ -68,6 +70,7 @@ class _WorkbenchState extends State<Workbench> {
   @override
   void dispose() {
     _lifecycle.dispose();
+    _serialFocus.dispose();
     _pageScroll.dispose();
     _tableScroll.dispose();
     _logScroll.dispose();
@@ -101,10 +104,12 @@ class _WorkbenchState extends State<Workbench> {
     bool enabled = true,
     String? Function(String?)? validator,
     VoidCallback? onSubmit,
+    FocusNode? focusNode,
   }) => SizedBox(
     width: width,
     child: TextFormField(
       controller: controller,
+      focusNode: focusNode,
       enabled: enabled,
       validator: validator,
       decoration: InputDecoration(labelText: label),
@@ -187,33 +192,41 @@ class _WorkbenchState extends State<Workbench> {
   }
 
   Future<void> _ports() async {
+    setState(() => _refreshingPorts = true);
     final ports = await session.ports();
-    if (!mounted || session.error != null) return;
+    if (!mounted) return;
+    setState(() => _refreshingPorts = false);
+    if (session.error != null) return;
     final selected = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
         title: const Text('Serial ports'),
-        children: ports.isEmpty
-            ? [
-                const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text(
-                    'No serial ports found. You can type a port manually.',
-                  ),
-                ),
-              ]
-            : ports
-                  .map(
-                    (p) => SimpleDialogOption(
-                      onPressed: () =>
-                          Navigator.pop(context, p['port'] as String),
-                      child: Text('${p['port']} · ${p['description']}'),
-                    ),
-                  )
-                  .toList(),
+        children: [
+          if (ports.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'No serial ports found. You can type a port manually.',
+              ),
+            )
+          else
+            ...ports.map(
+              (p) => SimpleDialogOption(
+                onPressed: () => Navigator.pop(context, p['port'] as String),
+                child: Text('${p['port']} · ${p['description']}'),
+              ),
+            ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
       ),
     );
-    if (selected != null) _serial.text = selected;
+    if (mounted && selected != null) {
+      _serial.text = selected;
+      _serialFocus.requestFocus();
+    }
   }
 
   Future<void> _edit(int index) async {
@@ -237,6 +250,7 @@ class _WorkbenchState extends State<Workbench> {
 
   Widget _connection({required bool compact}) {
     final locked = session.connected || session.busy || session.disconnecting;
+    final connecting = session.busy && !session.connected && !_refreshingPorts;
     return Card(
       child: Padding(
         padding: EdgeInsets.all(compact ? 12 : 18),
@@ -277,6 +291,7 @@ class _WorkbenchState extends State<Workbench> {
                   'Serial port',
                   _serial,
                   160,
+                  focusNode: _serialFocus,
                   enabled: !locked,
                   validator: (v) =>
                       v!.trim().isEmpty ? 'Enter COM3 or /dev/ttyUSB0' : null,
@@ -285,7 +300,13 @@ class _WorkbenchState extends State<Workbench> {
                 IconButton(
                   tooltip: 'Find serial ports',
                   onPressed: locked ? null : _ports,
-                  icon: const Icon(Icons.refresh),
+                  icon: _refreshingPorts
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh),
                 ),
                 _field(
                   'Baud',
@@ -337,14 +358,12 @@ class _WorkbenchState extends State<Workbench> {
                 onSubmit: _connect,
               ),
               FilledButton.icon(
-                onPressed: session.disconnecting
+                onPressed: session.disconnecting || _refreshingPorts
                     ? null
-                    : (session.connected || session.busy)
+                    : (session.connected || connecting)
                     ? () => unawaited(session.disconnect())
                     : _connect,
-                icon:
-                    session.disconnecting ||
-                        (session.busy && !session.connected)
+                icon: session.disconnecting || connecting
                     ? const SizedBox(
                         width: 16,
                         height: 16,
@@ -356,7 +375,7 @@ class _WorkbenchState extends State<Workbench> {
                       ? 'Disconnecting…'
                       : session.connected
                       ? 'Disconnect'
-                      : session.busy
+                      : connecting
                       ? 'Cancel connection'
                       : 'Connect',
                 ),

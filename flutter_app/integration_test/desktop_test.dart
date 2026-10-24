@@ -6,11 +6,13 @@ import 'package:modbus_desktop/src/bridge_client.dart';
 import 'package:modbus_desktop/src/session_controller.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
     'desktop → stdio Python → real simulator: read, write, poll, reconnect',
     (tester) async {
+      await binding.setSurfaceSize(const Size(900, 650));
+      addTearDown(() => binding.setSurfaceSize(null));
       final session = SessionController(ProcessBridge());
       await tester.pumpWidget(ModbusApp(controller: session));
       // Drive the visible connect controls, then exercise the same controller used
@@ -38,6 +40,9 @@ void main() {
       expect(session.values.take(2), [true, false]);
       await session.write(1, 1);
       expect(session.values[1], true);
+      session.setQuery(const ReadQuery(kind: 'discrete_inputs', count: 50));
+      await session.read();
+      expect(session.values.take(4), [true, false, false, true]);
       session.setQuery(const ReadQuery(kind: 'input_registers', count: 50));
       session.intervalMs = 100;
       session.startPolling();
@@ -55,6 +60,16 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Live trend · @0'), findsOneWidget);
+      final table = find.byKey(const ValueKey('register-list'));
+      expect(tester.getRect(table).bottom, lessThanOrEqualTo(650));
+      expect(
+        tester.getRect(find.widgetWithText(Card, 'Activity')).bottom,
+        lessThanOrEqualTo(650),
+      );
+      await tester.tap(find.text('2').first);
+      await tester.pumpAndSettle();
+      expect(session.selected, 2);
+      expect(find.text('Live trend · @2'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await session.disconnect();
       expect(session.connected, isFalse);

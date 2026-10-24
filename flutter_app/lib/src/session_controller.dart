@@ -64,6 +64,7 @@ class SessionController extends ChangeNotifier {
     bridge.onExit = () {
       if (_disposed || _closing) return;
       connected = false;
+      description = 'Disconnected';
       stopPolling();
       _setError('Python bridge stopped. Reconnect to recover.');
       notifyListeners();
@@ -155,6 +156,7 @@ class SessionController extends ChangeNotifier {
         stopPolling();
         error = null;
         values = [];
+        elapsedMs = null;
         samples.clear();
         _lastSample = null;
         timeoutSeconds = (config['timeout'] as num).toDouble();
@@ -197,6 +199,7 @@ class SessionController extends ChangeNotifier {
     if (busy || polling) return;
     query = next;
     values = [];
+    elapsedMs = null;
     selected = 0;
     samples.clear();
     _lastSample = null;
@@ -300,8 +303,10 @@ class SessionController extends ChangeNotifier {
   Future<List<Map<String, dynamic>>> ports() async {
     if (busy || disconnecting || _closing) return [];
     var result = <Map<String, dynamic>>[];
-    await _run((_) async {
+    await _run((epoch) async {
       final reply = await bridge.request({'command': 'ports'});
+      if (epoch != _epoch || _closing) return;
+      error = null;
       result = (reply.result['ports'] as List).cast<Map<String, dynamic>>();
     });
     return result;

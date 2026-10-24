@@ -158,6 +158,7 @@ void main() {
       expect(session.connected, isFalse);
       expect(session.polling, isFalse);
       expect(session.error, contains('Reconnect'));
+      expect(session.description, 'Disconnected');
       await session.shutdown();
       expect(bridge.closed, isTrue);
     },
