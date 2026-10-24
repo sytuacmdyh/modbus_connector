@@ -28,8 +28,14 @@ class LiveChart extends StatelessWidget {
               children: [
                 Icon(Icons.show_chart, size: 18, color: colors.primary),
                 const SizedBox(width: 8),
-                Text('Live trend · @$address'),
-                const Spacer(),
+                Expanded(
+                  child: Text(
+                    'Live trend · @$address',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Text(
                   samples.isEmpty ? '—' : samples.last.value.toStringAsFixed(0),
                   style: Theme.of(context).textTheme.titleMedium,

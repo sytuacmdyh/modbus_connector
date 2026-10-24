@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/material.dart';
@@ -24,6 +25,9 @@ class Workbench extends StatefulWidget {
 
 class _WorkbenchState extends State<Workbench> {
   SessionController get session => widget.controller;
+  final _pageScroll = ScrollController();
+  final _tableScroll = ScrollController();
+  final _logScroll = ScrollController();
   final _connectionForm = GlobalKey<FormState>();
   final _host = TextEditingController(text: '127.0.0.1');
   final _port = TextEditingController(text: '502');
@@ -64,6 +68,9 @@ class _WorkbenchState extends State<Workbench> {
   @override
   void dispose() {
     _lifecycle.dispose();
+    _pageScroll.dispose();
+    _tableScroll.dispose();
+    _logScroll.dispose();
     for (final controller in [
       _host,
       _port,
@@ -228,16 +235,16 @@ class _WorkbenchState extends State<Workbench> {
     }
   }
 
-  Widget _connection() {
+  Widget _connection({required bool compact}) {
     final locked = session.connected || session.busy || session.disconnecting;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: EdgeInsets.all(compact ? 12 : 18),
         child: Form(
           key: _connectionForm,
           child: Wrap(
             spacing: 12,
-            runSpacing: 16,
+            runSpacing: compact ? 12 : 16,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               _dropdown<String>(
@@ -363,7 +370,7 @@ class _WorkbenchState extends State<Workbench> {
     );
   }
 
-  Widget _controls() {
+  Widget _controls({required bool compact}) {
     final editable =
         !session.busy && !session.polling && !session.disconnecting;
     return Column(
@@ -379,12 +386,17 @@ class _WorkbenchState extends State<Workbench> {
               _kind,
               areas,
               editable ? (v) => setState(() => _kind = v) : null,
-              230,
+              compact ? 180 : 230,
             ),
-            _field('Start · 0-based', _address, 125, enabled: editable),
-            _field('Count', _count, 80, enabled: editable),
-            _field('Interval, ms', _interval, 110, enabled: editable),
+            _field('Start · 0-based', _address, 110, enabled: editable),
+            _field('Count', _count, 75, enabled: editable),
+            _field('Interval, ms', _interval, 100, enabled: editable),
             OutlinedButton.icon(
+              style: compact
+                  ? OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    )
+                  : null,
               onPressed: session.canRead && !session.polling
                   ? () {
                       if (_prepareQuery()) unawaited(session.read());
@@ -394,6 +406,11 @@ class _WorkbenchState extends State<Workbench> {
               label: const Text('Read'),
             ),
             FilledButton.tonalIcon(
+              style: compact
+                  ? FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    )
+                  : null,
               onPressed: session.polling
                   ? session.stopPolling
                   : session.canRead
@@ -431,18 +448,27 @@ class _WorkbenchState extends State<Workbench> {
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
             child: Row(
               children: [
-                Text(
-                  areas[session.query.kind]!.split(' · ').first,
-                  style: Theme.of(context).textTheme.titleMedium,
+                Expanded(
+                  child: Text(
+                    areas[session.query.kind]!.split(' · ').first,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                 ),
-                const Spacer(),
-                Text(
-                  !_queryMatches
-                      ? 'Read to apply range'
-                      : session.elapsedMs == null
-                      ? 'Select a row to chart'
-                      : '${session.elapsedMs!.toStringAsFixed(1)} ms',
-                  style: Theme.of(context).textTheme.labelMedium,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    !_queryMatches
+                        ? 'Read to apply range'
+                        : session.elapsedMs == null
+                        ? 'Select a row to chart'
+                        : '${session.elapsedMs!.toStringAsFixed(1)} ms',
+                    textAlign: TextAlign.end,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
                 ),
               ],
             ),
@@ -461,86 +487,93 @@ class _WorkbenchState extends State<Workbench> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: session.query.count,
-              itemExtent: 44,
-              itemBuilder: (context, index) {
-                final raw = index < session.values.length
-                    ? session.values[index]
-                    : null;
-                final value = raw is bool ? (raw ? 1 : 0) : raw as int?;
-                return Material(
-                  color: index == session.selected
-                      ? colors.primaryContainer.withValues(alpha: 0.45)
-                      : Colors.transparent,
-                  child: InkWell(
-                    onTap: () => session.select(index),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 18),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 32,
-                            child: index == session.selected
-                                ? Icon(
-                                    Icons.show_chart,
-                                    size: 17,
-                                    color: colors.primary,
-                                  )
-                                : null,
-                          ),
-                          SizedBox(
-                            width: 80,
-                            child: Text('${session.query.address + index}'),
-                          ),
-                          Expanded(
-                            child: Text(
-                              value == null ? '—' : '$value',
-                              style: const TextStyle(
-                                fontFeatures: [FontFeature.tabularFigures()],
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 100,
-                            child: Text(
-                              value == null
-                                  ? '—'
-                                  : '0x${value.toRadixString(16).padLeft(4, '0').toUpperCase()}',
-                              style: TextStyle(
-                                color: colors.onSurfaceVariant,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures(),
-                                ],
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 48,
-                            child: IconButton(
-                              tooltip: session.query.writable
-                                  ? 'Write address ${session.query.address + index}'
-                                  : 'Read-only area',
-                              onPressed:
-                                  session.canRead &&
-                                      session.query.writable &&
-                                      _queryMatches
-                                  ? () => _edit(index)
+            child: Scrollbar(
+              controller: _tableScroll,
+              thumbVisibility: true,
+              child: ListView.builder(
+                key: const ValueKey('register-list'),
+                controller: _tableScroll,
+                primary: false,
+                itemCount: session.query.count,
+                itemExtent: 44,
+                itemBuilder: (context, index) {
+                  final raw = index < session.values.length
+                      ? session.values[index]
+                      : null;
+                  final value = raw is bool ? (raw ? 1 : 0) : raw as int?;
+                  return Material(
+                    color: index == session.selected
+                        ? colors.primaryContainer.withValues(alpha: 0.45)
+                        : Colors.transparent,
+                    child: InkWell(
+                      onTap: () => session.select(index),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 32,
+                              child: index == session.selected
+                                  ? Icon(
+                                      Icons.show_chart,
+                                      size: 17,
+                                      color: colors.primary,
+                                    )
                                   : null,
-                              icon: Icon(
-                                session.query.writable
-                                    ? Icons.edit_outlined
-                                    : Icons.lock_outline,
-                                size: 17,
+                            ),
+                            SizedBox(
+                              width: 80,
+                              child: Text('${session.query.address + index}'),
+                            ),
+                            Expanded(
+                              child: Text(
+                                value == null ? '—' : '$value',
+                                style: const TextStyle(
+                                  fontFeatures: [FontFeature.tabularFigures()],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                            SizedBox(
+                              width: 100,
+                              child: Text(
+                                value == null
+                                    ? '—'
+                                    : '0x${value.toRadixString(16).padLeft(4, '0').toUpperCase()}',
+                                style: TextStyle(
+                                  color: colors.onSurfaceVariant,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              width: 48,
+                              child: IconButton(
+                                tooltip: session.query.writable
+                                    ? 'Write address ${session.query.address + index}'
+                                    : 'Read-only area',
+                                onPressed:
+                                    session.canRead &&
+                                        session.query.writable &&
+                                        _queryMatches
+                                    ? () => _edit(index)
+                                    : null,
+                                icon: Icon(
+                                  session.query.writable
+                                      ? Icons.edit_outlined
+                                      : Icons.lock_outline,
+                                  size: 17,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
           if (session.busy)
@@ -578,25 +611,35 @@ class _WorkbenchState extends State<Workbench> {
                 ? const Center(
                     child: Text('Connection and error events appear here'),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
-                    itemCount: logs.length,
-                    itemBuilder: (context, i) {
-                      final log = logs[i];
-                      final time = log.time.toIso8601String().substring(11, 19);
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: SelectableText(
-                          '$time  ${log.message}',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: log.isError
-                                    ? colors.error
-                                    : colors.onSurfaceVariant,
-                              ),
-                        ),
-                      );
-                    },
+                : Scrollbar(
+                    controller: _logScroll,
+                    thumbVisibility: true,
+                    child: ListView.builder(
+                      key: const ValueKey('activity-list'),
+                      controller: _logScroll,
+                      primary: false,
+                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+                      itemCount: logs.length,
+                      itemBuilder: (context, i) {
+                        final log = logs[i];
+                        final time = log.time.toIso8601String().substring(
+                          11,
+                          19,
+                        );
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: SelectableText(
+                            '$time  ${log.message}',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: log.isError
+                                      ? colors.error
+                                      : colors.onSurfaceVariant,
+                                ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
           ),
         ],
@@ -609,141 +652,174 @@ class _WorkbenchState extends State<Workbench> {
     listenable: session,
     builder: (context, _) {
       final colors = Theme.of(context).colorScheme;
+      final compact = MediaQuery.sizeOf(context).width < 1100;
+      final gap = compact ? 10.0 : 16.0;
       return Scaffold(
         body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.hub_outlined, color: colors.primary),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Modbus Connector',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(width: 20),
-                    Icon(
-                      Icons.circle,
-                      size: 8,
-                      color: session.connected
-                          ? colors.primary
-                          : colors.outline,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        session.description,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
-                    PopupMenuButton<ThemeMode>(
-                      tooltip: 'Appearance',
-                      initialValue: widget.themeMode,
-                      icon: const Icon(Icons.contrast),
-                      onSelected: widget.onThemeChanged,
-                      itemBuilder: (_) => ThemeMode.values
-                          .map(
-                            (mode) => PopupMenuItem(
-                              value: mode,
-                              child: Text(
-                                '${mode.name[0].toUpperCase()}${mode.name.substring(1)}',
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context)
+                .copyWith(scrollbars: false),
+            child: Padding(
+              padding: EdgeInsets.all(compact ? 12 : 20),
+              child: Scrollbar(
+                controller: _pageScroll,
+                child: CustomScrollView(
+                  controller: _pageScroll,
+                  primary: false,
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.hub_outlined, color: colors.primary),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Modbus Connector',
+                                style: Theme.of(context).textTheme.titleLarge,
                               ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _connection(),
-                if (session.error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Material(
-                      color: colors.errorContainer,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 14),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 18,
-                              color: colors.onErrorContainer,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                session.error!,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: colors.onErrorContainer,
+                              const SizedBox(width: 20),
+                              Icon(
+                                Icons.circle,
+                                size: 8,
+                                color: session.connected
+                                    ? colors.primary
+                                    : colors.outline,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  session.description,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                              PopupMenuButton<ThemeMode>(
+                                tooltip: 'Appearance',
+                                initialValue: widget.themeMode,
+                                icon: const Icon(Icons.contrast),
+                                onSelected: widget.onThemeChanged,
+                                itemBuilder: (_) => ThemeMode.values
+                                    .map(
+                                      (mode) => PopupMenuItem(
+                                        value: mode,
+                                        child: Text(
+                                          '${mode.name[0].toUpperCase()}${mode.name.substring(1)}',
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: gap),
+                          _connection(compact: compact),
+                          if (session.error != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: Material(
+                                color: colors.errorContainer,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 14),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.error_outline,
+                                        size: 18,
+                                        color: colors.onErrorContainer,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          session.error!,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: colors.onErrorContainer,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Dismiss error',
+                                        onPressed: session.clearError,
+                                        icon: const Icon(Icons.close, size: 18),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                            IconButton(
-                              tooltip: 'Dismiss error',
-                              onPressed: session.clearError,
-                              icon: const Icon(Icons.close, size: 18),
-                            ),
-                          ],
-                        ),
+                          SizedBox(height: gap),
+                          _controls(compact: compact),
+                          SizedBox(height: gap),
+                        ],
                       ),
                     ),
-                  ),
-                const SizedBox(height: 18),
-                _controls(),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final chart = LiveChart(
-                        samples: session.samples.toList(growable: false),
-                        address: session.query.address + session.selected,
-                      );
-                      if (constraints.maxWidth >= 800) {
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(flex: 5, child: _table()),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              flex: 3,
-                              child: Column(
+                    SliverLayoutBuilder(
+                      builder: (context, constraints) {
+                        final wide = constraints.crossAxisExtent >= 800;
+                        // Reserve usable pane viewports when chrome grows (errors,
+                        // form validation or text scaling); the page then scrolls.
+                        final height = math.max(
+                          wide ? 340.0 : 480.0,
+                          constraints.viewportMainAxisExtent -
+                              constraints.precedingScrollExtent,
+                        );
+                        final chart = LiveChart(
+                          samples: session.samples.toList(growable: false),
+                          address: session.query.address + session.selected,
+                        );
+                        if (wide) {
+                          return SliverToBoxAdapter(
+                            child: SizedBox(
+                              height: height,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Expanded(child: chart),
-                                  const SizedBox(height: 16),
-                                  Expanded(child: _logs()),
+                                  Expanded(flex: 5, child: _table()),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    flex: 3,
+                                    child: Column(
+                                      children: [
+                                        Expanded(child: chart),
+                                        const SizedBox(height: 16),
+                                        Expanded(child: _logs()),
+                                      ],
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
-                          ],
-                        );
-                      }
-                      return Column(
-                        children: [
-                          Expanded(child: _table()),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            height: 170,
-                            child: Row(
+                          );
+                        }
+                        return SliverToBoxAdapter(
+                          child: SizedBox(
+                            height: height,
+                            child: Column(
                               children: [
-                                Expanded(child: chart),
-                                const SizedBox(width: 12),
-                                Expanded(child: _logs()),
+                                Expanded(child: _table()),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  height: 170,
+                                  child: Row(
+                                    children: [
+                                      Expanded(child: chart),
+                                      const SizedBox(width: 12),
+                                      Expanded(child: _logs()),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
                           ),
-                        ],
-                      );
-                    },
-                  ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
