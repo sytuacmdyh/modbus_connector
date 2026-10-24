@@ -38,6 +38,14 @@ def application_version_tuple(version: str) -> tuple[int, int, int]:
     return int(match[1]), int(match[2]), int(match[3])
 
 
+def comparable_version_tuple(version: str) -> tuple[int, int, int]:
+    """Stable tag parsing with prerelease fallback for in-app comparisons."""
+    try:
+        return version_tuple(version)
+    except UpdateCheckError:
+        return application_version_tuple(version)
+
+
 @dataclass(frozen=True)
 class ReleaseAsset:
     url: str
@@ -56,7 +64,7 @@ class ReleaseInfo:
         return f"{RELEASES_URL}/tag/{self.tag}"
 
     def is_newer_than(self, current: str) -> bool:
-        return version_tuple(self.tag) > application_version_tuple(current)
+        return comparable_version_tuple(self.tag) > application_version_tuple(current)
 
 
 def check_for_update() -> ReleaseInfo | None:
