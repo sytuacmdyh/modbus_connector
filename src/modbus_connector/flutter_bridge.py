@@ -18,6 +18,7 @@ from typing import Any, TextIO, cast, get_args
 from serial.tools import list_ports
 
 from .backend import ModbusBackend, ModbusExceptionError
+from .flutter_logging import FlutterLogger
 from .models import RegisterKind, RtuParams, ScanProbe, TcpParams, describe_connection
 from .sim_backend import SimBackend, SimTcpParams
 
@@ -43,10 +44,12 @@ def text(data: dict[str, Any], key: str, default: str = "") -> str:
 class Bridge:
     def __init__(self) -> None:
         self.backend = ModbusBackend()
+        self.logger = FlutterLogger()
         self.demo: SimBackend | None = None
         self._demo_started = 0.0
 
     def close(self) -> None:
+        self.logger.close()
         self.backend.disconnect()
         if self.demo is not None:
             self.demo.stop()
@@ -114,6 +117,8 @@ class Bridge:
         if command in ("disconnect", "shutdown"):
             self.close()
             return {}
+        if command.startswith("logger_"):
+            return self.logger.dispatch(data)
         if command in ("csv_parse", "csv_export", "encode_values", "read_rows"):
             from .flutter_registers import bounded, csv_command, encode, render, row_from_json
             if command.startswith("csv_"):

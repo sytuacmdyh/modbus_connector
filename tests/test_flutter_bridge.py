@@ -189,3 +189,31 @@ def test_register_tools_scaling_csv_and_nonfinite(bridge: Bridge, modbus_server:
                    mapping={'n': 'name', 't': 'kind', 'a': 'address'})['ok']
     assert not request(bridge, 'read_rows', rows=[row, {'address': -1}])['ok']
     assert not request(bridge, 'encode_values', row=row, text='nan')['ok']
+
+
+def test_logger_wide_csv_jsonl_and_disconnect(bridge: Bridge, tmp_path) -> None:
+    rows = [{'name': 'Speed', 'address': 0, 'scale': 0.1}, {'name': 'State', 'address': 1}]
+    path = tmp_path / 'samples.csv'
+    assert request(bridge, 'logger_start', rows=rows, path=str(path), interval_ms=100)['ok']
+    assert request(bridge, 'logger_sample', values=[[100], [3]])['result']['rows_written'] == 1
+    assert request(bridge, 'logger_sample', values=[[200], [4]])['result']['rows_written'] == 1
+    assert '10' in path.read_text() and 'Speed@0/u1' in path.read_text()
+    assert not request(bridge, 'logger_sample', values=[[100]])['ok']
+    assert request(bridge, 'disconnect')['ok']
+    assert not request(bridge, 'logger_status')['result']['active']
+    path = tmp_path / 'samples.jsonl'
+    assert request(bridge, 'logger_start', rows=rows, path=str(path), format='jsonl')['ok']
+    assert request(bridge, 'logger_sample', values=[[100], [3]])['ok']
+    records = [json.loads(line) for line in path.read_text().splitlines()]
+    assert records[0]['name'] == 'Speed' and records[0]['value'] == '10'
+    assert records[1]['name'] == 'State'
+
+
+def test_alarm_priority_and_scaling(bridge: Bridge, modbus_server: int) -> None:
+    assert request(bridge, 'connect', transport='tcp', host='127.0.0.1', port=modbus_server)['ok']
+    row = {'address': 0, 'scale': 0.1, 'alarms': [
+        {'condition': 'in_range', 'value': 9, 'value2': 11, 'color': 'yellow', 'sound': True},
+        {'condition': 'gt', 'value': 1, 'color': 'red'},
+    ]}
+    alarm = request(bridge, 'read_rows', rows=[row])['result']['rows'][0]['alarm']
+    assert alarm['color'] == 'yellow' and alarm['sound']

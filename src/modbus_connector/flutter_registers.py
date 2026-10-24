@@ -59,7 +59,7 @@ def row_from_json(data: object, unit: int = 1) -> RegisterRow:
     count = bounded(data.get("count", 1), "count", 1, 2000 if bit else 125)
     if address + count > 65536 or (not bit and count < register_width(fmt)):
         raise ValueError("Invalid row range or count smaller than display width")
-    unit_id = bounded(data.get("unit_id") or unit, "unit_id", 1, 247)
+    unit_id = bounded(unit if data.get("unit_id") is None else data["unit_id"], "unit_id", 1, 247)
     return RegisterRow(
         name=str(data.get("name", "")),
         kind=cast(RegisterKind, kind),

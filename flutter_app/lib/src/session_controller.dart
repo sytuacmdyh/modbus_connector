@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import 'bridge_client.dart';
 
@@ -64,6 +65,7 @@ class SessionController extends ChangeNotifier {
     bridge.onExit = () {
       if (_disposed || _closing) return;
       connected = false;
+      _cancelLogger();
       description = 'Disconnected';
       stopPolling();
       _setError('Python bridge stopped. Reconnect to recover.');
@@ -81,6 +83,12 @@ class SessionController extends ChangeNotifier {
   bool disconnecting = false;
   bool polling = false;
   bool toolActive = false;
+  bool logging = false;
+  int loggedSamples = 0;
+  Timer? _loggerTimer;
+  int _loggerGeneration = 0;
+  final Map<String, Object?> _activeAlarms = {};
+  Map<String, dynamic> loggingSettings = {};
   String description = 'Disconnected';
   String? error;
   int unit = 1;
@@ -164,6 +172,12 @@ class SessionController extends ChangeNotifier {
       final reply = await bridge.request(request, timeout: deadline);
       if (epoch != _epoch || _closing) return;
       result = reply.result;
+      if (request['command'] == 'read_rows') {
+        observeAlarms(
+          (reply.result['rows'] as List).cast<Map<String, dynamic>>(),
+          (request['rows'] as List).cast<Map<String, dynamic>>(),
+        );
+      }
       error = null;
     });
     return result;
@@ -178,6 +192,95 @@ class SessionController extends ChangeNotifier {
   void endTool() {
     toolActive = false;
     if (!_disposed) notifyListeners();
+  }
+
+  void observeAlarms(
+    List<Map<String, dynamic>> results,
+    List<Map<String, dynamic>> rows,
+  ) {
+    for (var i = 0; i < results.length; i++) {
+      final row = rows[i];
+      final key =
+          '${row['unit_id'] ?? unit}/${row['kind']}/${row['address']}/${row['name']}';
+      final alarm = results[i]['alarm'] as Map?;
+      final signature = alarm?.toString();
+      if (_activeAlarms[key] != signature && alarm != null) {
+        if (alarm['log'] == true) {
+          _log(
+            'ALARM ${row['name']} @${row['address']}: ${results[i]['display']}',
+            isError: true,
+          );
+        }
+        if (alarm['sound'] == true) {
+          unawaited(SystemSound.play(SystemSoundType.alert));
+        }
+      }
+      _activeAlarms[key] = signature;
+    }
+  }
+
+  Future<void> startLogging(
+    Map<String, dynamic> settings,
+    List<Map<String, dynamic>> rows,
+  ) async {
+    if (logging || busy || !connected) return;
+    final frozen = rows.map((row) => Map<String, dynamic>.of(row)).toList();
+    final result = await command({
+      'command': 'logger_start',
+      ...settings,
+      'rows': frozen,
+    });
+    if (result == null) return;
+    loggingSettings = Map.of(settings);
+    logging = true;
+    loggedSamples = 0;
+    final generation = ++_loggerGeneration;
+    Future<void> capture() async {
+      if (!logging || busy || disconnecting || toolActive || _closing) return;
+      await _run((epoch) async {
+        final samples = <List>[];
+        for (final row in frozen) {
+          final reply = await bridge.request({
+            'command': 'read_rows',
+            'unit': unit,
+            'rows': [row],
+          }, timeout: deadline);
+          if (generation != _loggerGeneration || epoch != _epoch || _closing) {
+            return;
+          }
+          final results = (reply.result['rows'] as List)
+              .cast<Map<String, dynamic>>();
+          observeAlarms(results, [row]);
+          samples.add(results.single['values'] as List);
+        }
+        final reply = await bridge.request({
+          'command': 'logger_sample',
+          'values': samples,
+        });
+        loggedSamples = reply.result['rows_written'] as int;
+      });
+      if (error != null) await stopLogging();
+    }
+
+    _loggerTimer = Timer.periodic(
+      Duration(milliseconds: settings['interval_ms'] as int),
+      (_) => unawaited(capture()),
+    );
+    unawaited(capture());
+    notifyListeners();
+  }
+
+  void _cancelLogger() {
+    _loggerTimer?.cancel();
+    logging = false;
+    ++_loggerGeneration;
+  }
+
+  Future<void> stopLogging() async {
+    _cancelLogger();
+    notifyListeners();
+    await _operation?.future;
+    if (!_closing && !disconnecting) await command({'command': 'logger_stop'});
   }
 
   Future<void> connect(Map<String, dynamic> config, int unitId) =>
@@ -204,6 +307,7 @@ class SessionController extends ChangeNotifier {
 
   Future<void> disconnect() async {
     if (disconnecting || _closing) return;
+    _cancelLogger();
     disconnecting = true;
     connected = false;
     description = 'Disconnecting…';
@@ -346,6 +450,7 @@ class SessionController extends ChangeNotifier {
 
   Future<void> _shutdownOwned() async {
     _closing = true;
+    _cancelLogger();
     ++_epoch;
     stopPolling();
     await _operation?.future;
@@ -356,6 +461,7 @@ class SessionController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _timer?.cancel();
+    _cancelLogger();
     bridge.onDiagnostic = null;
     bridge.onExit = null;
     unawaited(shutdown());

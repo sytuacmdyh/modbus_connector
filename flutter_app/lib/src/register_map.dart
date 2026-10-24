@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'session_controller.dart';
 import 'tool_widgets.dart';
+import 'logging_dialog.dart';
 
 const displayFormats = [
   'dec',
@@ -481,6 +482,8 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
   late String order = widget.row?['order'] as String? ?? 'ABCD';
   late bool bitmask = widget.row?['bitmask'] == true;
   String? error;
+  late List<Map<String, dynamic>> alarms =
+      (widget.row?['alarms'] as List? ?? []).cast<Map<String, dynamic>>();
   @override
   void initState() {
     super.initState();
@@ -563,6 +566,7 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
       'unit': fields['unit']!.text,
       'value_names': names,
       'bitmask': bitmask,
+      'alarms': alarms,
     });
   }
 
@@ -611,6 +615,16 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
                   lines: 3,
                 ),
               ],
+            ),
+            TextButton(
+              onPressed: () async {
+                final edited = await showDialog<List<Map<String, dynamic>>>(
+                  context: context,
+                  builder: (_) => AlarmRulesDialog(rules: alarms),
+                );
+                if (edited != null && mounted) setState(() => alarms = edited);
+              },
+              child: Text('Alarm rules (${alarms.length})'),
             ),
             CheckboxListTile(
               title: const Text('Names label bits 0–15'),

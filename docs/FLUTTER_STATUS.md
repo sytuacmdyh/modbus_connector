@@ -146,3 +146,17 @@ read and left unchanged, including its pre-existing untracked Git state.
 - Remaining: logging/alarm editor; mode panels; richer graphs; templates/state;
   help/i18n; cloud/update. Native file chooser, per-row poll scheduling and
   expression rows remain below full Qt parity.
+
+## Parity push — chunk 4: logger and alarms
+
+- CSV (wide snapshots) and JSONL logger dialog with path, append/replace
+  confirmation, selectable rows/metadata fields and sampling interval. Uses the
+  existing Qt-free DataLogger; flushes samples and validates append headers.
+  Logging can acquire samples without manual polling and skips busy ticks.
+- Alarm rule editor: all Qt conditions, range bounds, ordered priority, red/yellow,
+  entry log and best-effort system sound; shared Python evaluation after scaling.
+- Stop cancels future samples and waits for active I/O; disconnect/EOF close files.
+- Linux: analyze clean; 18 Flutter tests passed (including stop-during-sample and
+  alarm transitions); 28 Python bridge tests passed (CSV/JSONL/throttling/alarms).
+- Remaining: mode panels; graph enhancements; templates/state; help/i18n;
+  cloud/update. Sound playback still depends on desktop audio configuration.

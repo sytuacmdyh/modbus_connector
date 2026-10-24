@@ -87,3 +87,22 @@ Register map commands (additive v1):
 Flutter reads/writes CSV files, retains raw named snapshots in the session, and
 compares snapshots without issuing writes. The register map has independent named
 rows and polling; the quick contiguous range remains available in the master view.
+
+Logger commands:
+
+- `logger_start`: `{path,format:"csv"|"jsonl",interval_ms,append,fields,rows}`.
+  Path is local to the owned bridge; append defaults true. Validates rows/settings
+  before opening. CSV columns are timestamp + fixed row labels; incompatible
+  existing CSV headers fail. JSONL fields: timestamp/name/address/kind, plus value.
+- `logger_sample`: `{values:[[raw,...],...]}` in the frozen row order. Validates
+  shape/ranges, renders engineering values, throttles by monotonic interval,
+  flushes the existing DataLogger. CSV writes one wide row; JSONL one per register
+  row. Returns `{active,rows_written}`.
+- `logger_status`, `logger_stop`: return `{active,rows_written}`; stop closes file.
+  Disconnect/EOF/shutdown also close it. Flutter logging reads selected rows on a
+  bounded timer, skips busy ticks and suppresses late samples after Stop.
+
+`read_rows` evaluates each row's ordered alarm rules on its scaled primary value.
+The result alarm contains condition/value/value2/color/log/sound, or null. Flutter
+colors the map row and emits log/sound only on alarm entry; recovery permits a
+subsequent entry. System sound availability depends on the Linux desktop.
