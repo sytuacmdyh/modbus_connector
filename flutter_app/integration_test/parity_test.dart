@@ -78,8 +78,22 @@ void main() {
         'offset': 0,
         'unit': 'rpm',
       });
+      master.registers.add({
+        'name': 'Adjacent',
+        'address': 1,
+        'kind': 'holding_registers',
+        'count': 1,
+        'format': 'dec',
+      });
+      master.expressions.add({'name': 'Double counter', 'text': '[Counter]*2'});
+      master.mapGrouped = true;
       final map = RegisterMapController(master);
       await map.read();
+      expect(master.registerResults, hasLength(2));
+      expect(
+        master.expressionResults.single['numeric'],
+        (master.registerResults.first['numeric'] as num) * 2,
+      );
       map.capture('before');
       await tester.pump(const Duration(milliseconds: 350));
       await map.read();

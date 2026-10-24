@@ -17,11 +17,12 @@ class ModbusApp extends StatefulWidget {
 }
 
 class _ModbusAppState extends State<ModbusApp> {
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode get _themeMode => appTheme.value;
   @override
   void initState() {
     super.initState();
     appLanguage.addListener(_languageChanged);
+    appTheme.addListener(_languageChanged);
   }
 
   void _languageChanged() {
@@ -54,6 +55,7 @@ class _ModbusAppState extends State<ModbusApp> {
   @override
   void dispose() {
     appLanguage.removeListener(_languageChanged);
+    appTheme.removeListener(_languageChanged);
     super.dispose();
   }
 
@@ -67,12 +69,12 @@ class _ModbusAppState extends State<ModbusApp> {
     home: widget.controller == null
         ? SessionWorkspace(
             themeMode: _themeMode,
-            onThemeChanged: (mode) => setState(() => _themeMode = mode),
+            onThemeChanged: (mode) => appTheme.value = mode,
           )
         : Workbench(
             controller: widget.controller!,
             themeMode: _themeMode,
-            onThemeChanged: (mode) => setState(() => _themeMode = mode),
+            onThemeChanged: (mode) => appTheme.value = mode,
           ),
   );
 }

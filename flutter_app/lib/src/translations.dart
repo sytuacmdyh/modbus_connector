@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'qt_translations.dart';
 
 final appLanguage = ValueNotifier<String>('en');
+final appTheme = ValueNotifier<ThemeMode>(ThemeMode.system);
 String tr(String value) => appLanguage.value == 'zh_CN'
     ? (flutterChinese[value] ?? qtChinese[value] ?? value)
     : value;

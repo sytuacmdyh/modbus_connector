@@ -81,7 +81,9 @@ Register map commands (additive v1):
 - `csv_parse`: `{text,preview:true}` returns `{header,mapping}`. With optional
   `mapping` (source column → canonical field), returns `{rows}`. Uses Qt's shared
   CSV parser. Essential fields: name/kind/address.
-- `csv_export`: `{rows,columns?}` returns `{text}` using canonical CSV fields.
+- `csv_export`: `{rows,columns?,include_values?}` returns `{text}` using canonical
+  CSV fields. Optional `value` column renders raw `rows[].values` (or a sniffer
+  scalar `value`) with the row format/scaling; missing samples export empty cells.
   Columns can be selected; no filesystem access in these commands.
 
 Flutter reads/writes CSV files, retains raw named snapshots in the session, and
@@ -104,8 +106,8 @@ Logger commands:
 
 `read_rows` evaluates each row's ordered alarm rules on its scaled primary value.
 The result alarm contains condition/value/value2/color/log/sound, or null. Flutter
-colors the map row and emits log/sound only on alarm entry; recovery permits a
-subsequent entry. System sound availability depends on the Linux desktop.
+colors the map row, emits log/sound on alarm entry and logs recovery when the
+previous rule enabled logging; recovery permits a subsequent entry. System sound availability depends on the Linux desktop.
 
 Device modes:
 
@@ -150,7 +152,8 @@ Template commands:
 Public catalog is shared/read-only. Custom histories reuse CustomTemplateStore in
 `~/.modbus_connector/flutter/custom_templates`, isolated from Qt personal templates.
 `MODBUS_FLUTTER_HOME` overrides that Flutter root for testing/portable deployments.
-Flutter workspace files are schema 1 (`tabs`, `active_tab`) and written atomically
+Flutter workspace files are schema 1 (`tabs`, `active_tab`, `language`, `theme_mode`)
+and written atomically
 by Dart to `flutter/settings.json`. They never include cloud settings/credentials,
 never auto-connect, and do not overwrite Qt settings. Import is staged before
 closing/replacing sessions. Corrupt startup state disables automatic overwrites.

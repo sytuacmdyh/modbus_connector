@@ -294,6 +294,7 @@ class _DevicePanelState extends State<DevicePanel> {
     if (reply != null && mounted) {
       setState(() {
         session.deviceRunning = true;
+        if (session.mode == 'sniffer') session.sniffed.clear();
         localError = null;
       });
     }
@@ -399,6 +400,7 @@ class _DevicePanelState extends State<DevicePanel> {
       final result = await session.command({
         'command': 'csv_export',
         'rows': rows,
+        'include_values': true,
       });
       if (result != null) {
         await File(path).writeAsString(result['text'] as String, flush: true);
@@ -546,7 +548,11 @@ class _DevicePanelState extends State<DevicePanel> {
                           children: [
                             IconButton(
                               tooltip: tr('Set value'),
-                              onPressed: session.busy
+                              onPressed:
+                                  session.busy ||
+                                      (row['rule_text'] as String? ?? '')
+                                          .trim()
+                                          .isNotEmpty
                                   ? null
                                   : () => setValue(i),
                               icon: const Icon(Icons.edit_note),

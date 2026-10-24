@@ -262,3 +262,11 @@ read and left unchanged, including its pre-existing untracked Git state.
 - Logger column labels now freeze the effective session unit correctly.
 - Linux: analyze clean; 26 Flutter tests and 37 bridge/online tests passed,
   including scheduling, grouped slicing/fallback and cancelled late errors.
+
+## Final parity refinements
+
+- CSV exports can include current formatted values, including sniffer exports.
+  Alarm recovery is logged; unavailable system sound is ignored without crashing.
+  Theme preference persists; simulator expression rows prevent manual value edits.
+- Analyze clean and 26 Flutter tests passed; 38 bridge/online tests passed. Native
+  verification and the consolidated parity inventory follow in the final commit.

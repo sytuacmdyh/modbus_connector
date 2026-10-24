@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import math
 from dataclasses import asdict
 from typing import Any, cast, get_args
@@ -103,9 +105,15 @@ def render(row: RegisterRow, raw: list[int | bool], options: dict[str, Any]) -> 
         display = format_scaled_values(numeric, row.scale, row.offset, row.unit)
     primary = numeric[0] * row.scale + row.offset if numeric else None
     names = value_names_from_json(options.get("value_names"))
-    if len(raw) == 1 and options.get("bitmask"):
+    named = row.kind in ("coils", "discrete_inputs") or row.format in ("dec", "s16", "hex")
+    if (
+        len(raw) == 1
+        and options.get("bitmask")
+        and row.kind not in ("coils", "discrete_inputs")
+        and named
+    ):
         display = format_bitmask_value(int(raw[0]), names)
-    elif len(raw) == 1 and names:
+    elif len(raw) == 1 and names and named:
         display = format_named_value(names, raw[0]) or display
     alarm = (
         evaluate_alarm(primary, alarm_rules_from_json(options.get("alarms")))
@@ -186,12 +194,31 @@ def csv_command(data: dict[str, Any]) -> dict[str, Any]:
         for row in rows
     ]
     columns = data.get("columns")
-    from .models import CSV_COLUMNS
+    from .models import CSV_COLUMNS, row_to_csv_record
 
     if columns is not None and (
-        not isinstance(columns, list) or not columns or any(c not in CSV_COLUMNS for c in columns)
+        not isinstance(columns, list)
+        or not columns
+        or any(c not in [*CSV_COLUMNS, "value"] for c in columns)
     ):
         raise ValueError("Unknown CSV columns")
+    if data.get("include_values") or (columns is not None and "value" in columns):
+        columns = columns or [*CSV_COLUMNS, "value"]
+        buffer = io.StringIO()
+        writer = csv.DictWriter(
+            buffer, fieldnames=columns, lineterminator="\n", extrasaction="ignore"
+        )
+        writer.writeheader()
+        for row, display, raw_row in zip(rows, displays, raw_rows, strict=True):
+            record = row_to_csv_record(row, display)
+            raw = raw_row.get("values")
+            if raw is None and "value" in raw_row:
+                raw = [raw_row["value"]]
+            record["value"] = (
+                render(row, raw, raw_row)["display"] if isinstance(raw, list) and raw else ""
+            )
+            writer.writerow(record)
+        return {"text": buffer.getvalue()}
     return {"text": rows_to_csv(rows, displays, columns)}
 
 

@@ -433,3 +433,22 @@ def test_grouped_reads_reuse_planner_and_fall_back_per_row(
 
     monkeypatch.setattr(bridge.backend, "read", fail_group)
     assert request(bridge, "read_rows", rows=rows, grouped=True)["result"]["rows"] == result
+
+
+def test_csv_exports_display_values_and_preserves_importable_metadata(bridge: Bridge) -> None:
+    import csv
+
+    rows = [
+        {"name": "Temperature", "address": 0, "scale": 0.1, "unit": "C", "values": [123]},
+        {"name": "Sniffed", "address": 1, "format": "hex", "value": 255},
+        {"name": "Missing", "address": 2},
+    ]
+    exported = request(bridge, "csv_export", rows=rows, include_values=True)["result"]["text"]
+    records = list(csv.DictReader(io.StringIO(exported)))
+    assert "12.3" in records[0]["value"]
+    assert "FF" in records[1]["value"].upper()
+    assert records[2]["value"] == ""
+    imported = request(bridge, "csv_parse", text=exported)["result"]["rows"]
+    assert len(imported) == 3 and imported[0]["scale"] == 0.1
+    selected = request(bridge, "csv_export", rows=rows[:1], columns=["name", "value"])
+    assert list(csv.DictReader(io.StringIO(selected["result"]["text"])))[0]["name"] == "Temperature"

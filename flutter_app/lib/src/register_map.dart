@@ -270,7 +270,7 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
   }
 
   Future<void> csvExport() async {
-    final columns = <String>{...csvColumns};
+    final columns = <String>{...csvColumns, 'value'};
     final chosen = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -280,7 +280,7 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
             width: 450,
             child: Wrap(
               children: [
-                for (final c in csvColumns)
+                for (final c in [...csvColumns, 'value'])
                   FilterChip(
                     label: LText(c),
                     selected: columns.contains(c),
@@ -316,8 +316,14 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
     try {
       final result = await widget.session.command({
         'command': 'csv_export',
-        'rows': model.rows,
-        'columns': csvColumns.where(columns.contains).toList(),
+        'rows': List.generate(
+          model.rows.length,
+          (i) => <String, dynamic>{
+            ...model.rows[i],
+            if (i < model.results.length) 'values': model.results[i]['values'],
+          },
+        ),
+        'columns': [...csvColumns, 'value'].where(columns.contains).toList(),
       });
       if (result == null) return;
       await File(path).writeAsString(result['text'] as String, flush: true);

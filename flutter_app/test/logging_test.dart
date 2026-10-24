@@ -77,7 +77,11 @@ void main() {
       {'alarm': null},
     ], rows);
     session.observeAlarms(triggered, rows);
-    expect(session.logs.length, 2);
+    expect(session.logs.length, 3);
+    expect(
+      session.logs.any((l) => l.message.contains('ALARM cleared')),
+      isTrue,
+    );
     session.dispose();
   });
 }

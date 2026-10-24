@@ -46,6 +46,7 @@ class WorkspaceController extends ChangeNotifier {
     'tabs': sessions.map((s) => s.state()).toList(),
     'active_tab': selected,
     'language': appLanguage.value,
+    'theme_mode': appTheme.value.name,
   };
   Future<void> save({String? path}) async {
     try {
@@ -89,6 +90,9 @@ class WorkspaceController extends ChangeNotifier {
       if (data?['language'] == 'en' || data?['language'] == 'zh_CN') {
         appLanguage.value = data!['language'] as String;
       }
+      for (final theme in ThemeMode.values) {
+        if (theme.name == data?['theme_mode']) appTheme.value = theme;
+      }
       stateError = null;
       _allowAutoSave = true;
     } catch (e) {
@@ -100,6 +104,7 @@ class WorkspaceController extends ChangeNotifier {
   }
 
   void openState(Map<String, dynamic> state, {String? templateId}) {
+    if (closing || sessions.length >= 64) return;
     final session = SessionController(bridgeFactory());
     session.restore(state);
     session.customTemplateId = templateId;
@@ -111,7 +116,7 @@ class WorkspaceController extends ChangeNotifier {
   int selected = 0;
   bool closing = false;
   void add() {
-    if (closing) return;
+    if (closing || sessions.length >= 64) return;
     sessions.add(SessionController(bridgeFactory()));
     selected = sessions.length - 1;
     notifyListeners();

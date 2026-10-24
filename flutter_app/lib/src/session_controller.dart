@@ -96,6 +96,7 @@ class SessionController extends ChangeNotifier {
   Timer? _loggerTimer;
   int _loggerGeneration = 0;
   final Map<String, Object?> _activeAlarms = {};
+  final Map<String, bool> _alarmLogs = {};
   Map<String, dynamic> loggingSettings = {};
   String description = 'Disconnected';
   String? error;
@@ -381,6 +382,12 @@ class SessionController extends ChangeNotifier {
       }
       final alarm = results[i]['alarm'] as Map?;
       final signature = alarm?.toString();
+      if (alarm == null &&
+          _activeAlarms[key] != null &&
+          _alarmLogs[key] == true) {
+        _log('ALARM cleared ${row['name']} @${row['address']}');
+      }
+      _alarmLogs[key] = alarm?['log'] == true;
       if (_activeAlarms[key] != signature && alarm != null) {
         if (alarm['log'] == true) {
           _log(
@@ -389,7 +396,9 @@ class SessionController extends ChangeNotifier {
           );
         }
         if (alarm['sound'] == true) {
-          unawaited(SystemSound.play(SystemSoundType.alert));
+          unawaited(
+            SystemSound.play(SystemSoundType.alert).catchError((Object _) {}),
+          );
         }
       }
       _activeAlarms[key] = signature;
