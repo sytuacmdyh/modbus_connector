@@ -19,20 +19,27 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
 
 ## Архитектура
 
-- Flutter desktop UI lives in `flutter_app/` alongside the existing PySide6 GUI.
-  Material 3 Windows/Linux runners communicate with `flutter_bridge.py` using
-  request/reply NDJSON over an owned subprocess's stdio. The bridge imports only
-  Qt-free backends; stdout is protocol-only. Requests validate unit/address/count
-  and write ranges before I/O. EOF/shutdown disconnects and stops the optional
-  loopback `SimBackend` demo. Flutter schedules at most one transaction, suppresses
-  cancelled poll results and waits for in-flight I/O before disconnecting.
-  Protocol: `flutter_app/BRIDGE_PROTOCOL.md`; run/build/package instructions:
-  `flutter_app/README.md`. `flutter_app/tool/build_bridge.py` freezes the native
-  `packaging/flutter_bridge_entry.py` into an adjacent `bridge/` directory with
-  PyInstaller, excluding Qt/numpy. Python tests: `tests/test_flutter_bridge.py`.
-  Flutter checks: `flutter analyze`, `flutter test` from `flutter_app/`;
-  desktop integration test additionally needs a display and Python interpreter.
-
+- Flutter desktop UI lives in `flutter_app/` alongside the PySide6 GUI. Each
+  independent Master/Simulator/Sniffer/Gateway tab owns an NDJSON stdio subprocess
+  (`flutter_bridge.py`); stdout is protocol-only. Qt-free adapters
+  `flutter_registers.py`, `flutter_logging.py`, `flutter_devices.py`,
+  `flutter_catalog.py`, `flutter_online.py` reuse the existing backends/models,
+  DataLogger, templates, WebDAV and update checker. Validate ranges before I/O;
+  EOF/shutdown stops all services, rule timers, logging and connections.
+  Flutter serializes transactions per session, checks cancellation between read
+  groups and discards late results/errors/alarms. Tab/window shutdown waits for I/O.
+  Workspace state/custom histories/cloud cache live separately under
+  `~/.modbus_connector/flutter` (`MODBUS_FLUTTER_HOME` override), never Qt settings.
+  Public templates remain shared/read-only. Utility cloud/template/update dialogs
+  own separate bridges; cloud password saving is opt-in. Flutter update install is
+  unsupported because current NSIS assets install Qt, not Flutter.
+  Protocol: `flutter_app/BRIDGE_PROTOCOL.md`; setup/package: `flutter_app/README.md`;
+  current parity gaps/verification: `docs/FLUTTER_STATUS.md`.
+  `flutter_app/tool/build_bridge.py` freezes `packaging/flutter_bridge_entry.py`
+  with template data into adjacent `bridge/`, excluding Qt/numpy.
+  Python: `tests/test_flutter_bridge.py`, `tests/test_flutter_online.py`.
+  Flutter: `flutter analyze`, `flutter test`; run each native desktop integration
+  file separately with a display and `MODBUS_PYTHON` pointing at an installed venv.
 
 - Application updates: Help → Check for updates uses `update_check.py` (Qt-free,
   stdlib HTTPS, public GitHub Releases API for `sytuacmdyh/modbus_connector`)

@@ -15,11 +15,13 @@ all Modbus logic runs in a separate thread (QThread), so the GUI never freezes.
 Release notes automatically summarize commits since the previous stable tag,
 with one full changelog link. No per-version Markdown file is required.
 
-## Flutter desktop MVP
+## Flutter desktop
 
 A separate Material 3 client is available in [`flutter_app/`](flutter_app/README.md),
 with complete Windows/Linux runners and a Qt-free Python subprocess bridge.
-It supports TCP/RTU, register reads/writes, live polling, a chart and a local TCP demo.
+It provides independent master/simulator/sniffer/gateway tabs, rich register maps,
+scanning, CSV/snapshots, logging/alarms, graphs, templates, separate workspace
+persistence, English/Chinese help, WebDAV sync and manual update checks.
 The existing PySide6 application remains available. See the
 [migration status](docs/FLUTTER_STATUS.md) for validation and current scope.
 
@@ -934,6 +936,3 @@ On Linux you get four files:
 the zip, a portable `ModbusConnector.AppImage` (chmod +x and run — no
 installation, any distro) and `modbus-connector_<version>_amd64.deb`
 (`sudo dpkg -i …` installs to /opt with an app-menu entry on Debian/Ubuntu).
-
-Flutter desktop parity work is tracked in [docs/FLUTTER_STATUS.md](docs/FLUTTER_STATUS.md).
-The Flutter UI supports independent session tabs, each owning a Python bridge.

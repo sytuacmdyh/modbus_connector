@@ -1,11 +1,25 @@
-# Modbus Connector — Flutter desktop MVP
+# Modbus Connector — Flutter desktop
 
-Material 3 desktop client with system/light/dark appearance, TCP and serial RTU,
-unsigned register/bit reads, single-register/coil writes, non-overlapping live
-polling, an activity log and one selected-row chart. The virtualized table handles
-up to 125 registers or 2,000 bits per read; the chart retains 300 samples and updates
-at most 10 Hz. All Modbus I/O uses the existing Qt-free Python `ModbusBackend` in
-an owned subprocess. The PySide6 application and its settings remain independent.
+Material 3 Windows/Linux client with independent Master, Simulator, Sniffer and
+Gateway session tabs. Each tab owns a Qt-free Python subprocess over NDJSON;
+closing a tab waits for its active transaction and releases its resources.
+The PySide6 application remains available with its existing settings and packaging.
+
+The master workspace provides a quick contiguous range and a richer **Register
+map / CSV / snapshots** tool: named rows, all Qt formats and byte orders,
+scaling/units, engineering-value writes, bit/enum labels, grouped reads, per-row
+poll intervals, expressions and alarms. Toolbar tools include unit/address
+scanning, CSV/JSONL logging, multi-series graphs and advanced Modbus functions.
+The top **Workspace** menu opens templates/history, cloud sync, update checks,
+and workspace save/import/export. The mode picker changes the active session;
+use New session to run a simulator or gateway alongside a master.
+
+Flutter data lives in `~/.modbus_connector/flutter/` (Windows:
+`%USERPROFILE%\.modbus_connector\flutter`). `MODBUS_FLUTTER_HOME` overrides it.
+Workspace autosave restores disconnected tabs, maps and preferences; cloud
+credentials are stored separately and saving the password requires opt-in.
+Public templates reuse the bundled catalog; custom histories and cloud cache
+are separate from Qt. English/Chinese UI and help are available from the top bar.
 
 The minimum content size is **900×650 logical pixels**. The table and activity
 log scroll independently; the workspace also scrolls when validation messages or
@@ -51,8 +65,9 @@ retries, or Disconnect then Connect starts a fresh connection.
 For hardware choose TCP (default port 502) or RTU (default transport). RTU accepts
 manual `COM3`/device paths, port discovery, custom baud, 7/8 bits, N/E/O parity,
 1/2 stop bits, unit 1–247 and timeout 0.1–60 s. All addresses are **0-based PDU**,
-not 40001-style reference numbers. Each write changes one raw unsigned 16-bit
-register or coil. Disconnect gates controls immediately and waits for the active
+not 40001-style reference numbers. Quick-range writes change a raw unsigned 16-bit register or coil. The named
+register map also supports multi-register engineering-value writes with inverse
+scaling and byte-order encoding. Disconnect gates controls immediately and waits for the active
 transaction; Cancel connection uses the same path. The timeout includes the
 existing backend's retries, so disconnection may take several device timeouts.
 
@@ -75,7 +90,7 @@ beside the Flutter executable. It never changes existing Python packaging.
 Re-run it after rebuilding Flutter. Distribute the **entire Release directory**,
 including `data/`, Flutter/plugin DLLs and `bridge/`; the EXE alone is insufficient.
 The target may need the Microsoft Visual C++ 2015–2022 x64 Redistributable. This
-MVP produces a portable directory, without an installer or code signing.
+build produces a portable directory, without an installer or code signing.
 
 Bridge lookup order: runtime `MODBUS_PYTHON`, compile-time
 `--dart-define=MODBUS_PYTHON=...`, adjacent frozen `bridge/modbus_bridge[.exe]`,
@@ -128,24 +143,39 @@ runtime libraries are still required.
 From the repository root, with Python `pytest` installed:
 
 ```bash
-.venv/bin/python -m pytest tests/test_flutter_bridge.py tests/test_backend.py tests/test_backend_serial.py
+.venv/bin/python -m pytest tests/test_flutter_bridge.py tests/test_flutter_online.py tests/test_backend.py tests/test_backend_serial.py
 ```
 
 From `flutter_app/`, the desktop integration test opens a real window and starts
 the actual Python bridge plus simulator. On Linux without a display:
 
 ```bash
-MODBUS_PYTHON="$PWD/../.venv/bin/python" xvfb-run -a flutter test integration_test/desktop_test.dart -d linux
+export MODBUS_PYTHON="$PWD/../.venv/bin/python"
+export MODBUS_FLUTTER_HOME="$(mktemp -d)"
+xvfb-run -a flutter test integration_test/desktop_test.dart -d linux
+xvfb-run -a flutter test integration_test/parity_test.dart -d linux
 ```
 
 On Windows, retain `$env:MODBUS_PYTHON` and use
 `flutter test integration_test/desktop_test.dart -d windows`. Unit/widget tests
 use a fake transport to exercise cancellation, polling, layout and editing; this
-integration test validates real process transport, all writable areas, 10 Hz
-polling, the chart, error recovery, reconnect and shutdown. Protocol details and
+first integration test validates real process transport, all writable areas,
+10 Hz polling, the chart, error recovery, reconnect and shutdown. The parity
+test additionally covers separate simulator/master processes, expression rules,
+grouped map reads, snapshots, logging, templates and persistence. Run these
+files separately: one combined Linux invocation failed while launching its
+second native app; both standalone commands passed. Protocol details and
 resource lifecycle are in [BRIDGE_PROTOCOL.md](BRIDGE_PROTOCOL.md).
 
-Deferred: multiple sessions, persistence/import/export, display decoding beyond
-raw decimal/hex, scanner, sniffer/gateway/simulator management, templates, cloud,
-alarms, localization and application updates. See
-[FLUTTER_STATUS.md](../docs/FLUTTER_STATUS.md) for completed validation.
+## Current parity limits
+
+File dialogs currently take editable local paths. Named-map polling runs while
+that tool is open; the quick range, logger and device services run independently
+of tool dialogs. Some advanced Qt table/sniffer/simulator conveniences, detached
+graph windows, graph image export and dynamic-message translations remain.
+
+Update checking and manual download are wired. Automatic Flutter installation
+is unavailable on every platform: the existing NSIS asset installs the Qt product.
+Windows runtime/high-DPI/physical COM checks remain a user verification step.
+See [FLUTTER_STATUS.md](../docs/FLUTTER_STATUS.md) for the detailed feature and
+validation inventory, including hardware and UI gaps.

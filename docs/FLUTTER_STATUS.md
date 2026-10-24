@@ -1,280 +1,137 @@
-# Flutter desktop migration status
+# Flutter desktop parity status
 
-Implemented on `feature/flutter-ui-migration`, 2026-10-24. The MVP is available
-in `flutter_app/`; the existing PySide6 application is retained. Changes are
-committed locally. Nothing was pushed and no PR was opened.
+Branch: `feature/flutter-ui-migration`. Updated 2026-10-24. Work is committed
+locally; no push or PR. The PySide6 application, its settings, dependencies and
+Windows installer remain available. Flutter now implements the main interactive
+workflows below. It still has the explicit parity gaps listed later in this file.
 
-## Working MVP
+## Delivered feature surface
 
-- Material 3 system/light/dark UI with a minimal desktop layout and complete
-  Windows/Linux runner projects, application title/icon, and minimum window size.
-  At 900×650 logical pixels the compact controls leave usable table/chart/log
-  panes; table and log have independent visible scrollbars. Validation banners
-  and larger text can scroll the workspace instead of shrinking/clipping panes.
-  Linux applies the minimum to the Flutter content, matching Windows client sizing.
-- TCP host/port and serial RTU port discovery/manual entry, baud, parity, data
-  bits, stop bits, unit and timeout. Enter connects; loading disables settings.
-  Port refresh has its own progress state, clears old errors on success, offers
-  selection/cancel/empty states, and focuses the selected serial port. Reconnect
-  and range changes clear stale latency; bridge exit resets the connection label.
-- Four register areas, 0-based start/count, decimal/hex values, validated single
-  holding-register/coil write dialogs, and Escape to cancel. Pending range edits
-  disable writes until a read applies the new range.
-- Live polling from 100 ms, one transaction at a time, with no request backlog.
-  Stop discards late results/errors; Disconnect gates controls immediately and
-  waits for the active transaction. Failed reads stop polling; reconnect clears
-  errors, and an exited bridge can be restarted by connecting again.
-- A virtualized table (up to 125 registers / 2,000 bits), bounded activity log,
-  and selected-row chart with timestamps, 300 samples and at most 10 Hz updates.
-- Qt-free Python NDJSON subprocess bridge reusing `ModbusBackend` directly.
-  Strict range/type validation precedes bus I/O. EOF/shutdown closes resources;
-  app exit closes stdin with bounded cleanup and a process-termination fallback.
-- Local demo using the existing `SimBackend` over actual loopback TCP, including
-  writable holding/coils and animated input registers. No hardware is needed.
-- Native PyInstaller bridge bundling helper for Windows and Linux. Release apps
-  locate the adjacent bridge independently of working directory, without Python
-  being installed on the destination machine.
+| Area | Flutter implementation |
+| --- | --- |
+| Sessions | Independent Master/Simulator/Sniffer/Gateway tabs and owned bridge processes; inactive tabs keep working; tab/window shutdown waits for active I/O and releases services. |
+| Master connections | TCP, serial RTU with discovery/manual port entry, RTU over TCP/UDP, timeout/unit/serial parameters, real loopback demo. Quick reads/writes in all four areas; read-only areas cannot write. |
+| Scanner | Unit and address scans, editable probe list, range/area controls, progress, Stop, identification, alternate decoded formats, selected unit/range application and insertion of disjoint checked hits into the register map. |
+| Register map | Named rows across units/areas; counts, all Qt display formats/byte orders, scaling/units, engineering-value writes, enum/bit labels, 16-bit editor, checked rows, per-row polling intervals, adjacent/overlap grouped reads with individual fallback. |
+| CSV / snapshots | CSV import preview and column mapping using the shared parser; selectable export columns including current formatted values; named raw snapshots and differences retaining added/removed row identities. |
+| Expressions / advanced master | Safe AST expressions over latest scaled map values, individual errors, alarms/graph curves; device identification, diagnostics, FC 0x16 masks and FC 0x17 combined read/write. |
+| Data logger | Selected register rows, CSV wide snapshots or JSONL, metadata selection, interval, append/replace confirmation, incompatible-header rejection, flush/close. Samples can be acquired independently of map polling. |
+| Alarms | Shared ordered conditions/ranges and red/yellow colors, entry/recovery logging, reentry and best-effort system alert sound. Scaled primary values drive evaluation. |
+| Simulator | TCP, RTU over TCP and serial listeners; any/specific unit, editable map, datastore writes while stopped, external-master updates, tick interval, t/prev/[name]/rand/randint expression rules running in the bridge. |
+| Sniffer | Passive serial capture, per-unit recovered maps, editable register names, traffic, graph values, CSV with values and explicit map recovery after event overflow. |
+| Gateway | TCP, RTU over TCP or serial listener; TCP/RTU/RTU over TCP/UDP target; unit allowlist, traffic/status and clean stop. Reuses GatewayBackend. |
+| Graphs | Multiple selectable curves from reads/maps/logging/sniffer/expressions; min/max/mean/latest/hover values, shared or normalized scale, time window, pause, pan/zoom, clear, timestamped sample CSV. |
+| Templates | Shared read-only public catalog; separate custom save/new-version/history/open-old-version/rename/delete with confirmation and final-version protection. Opens disconnected tabs. |
+| Settings | Separate atomic Flutter workspace autosave and manual export/import; tabs/active tab, drafts, maps/expressions, mode configuration, logger/scanner preferences, recovered sniffer state, theme and language. Invalid import preserves sessions; corrupt startup state disables automatic overwrite. |
+| Help / language / appearance | English/Chinese picker and current-feature guide; centralized text widgets/dictionaries, generated Qt Chinese dictionary without importing Qt; system/light/dark theme. |
+| Cloud | Separate WebDAV settings/password opt-in, consumer/publisher mode, test, current/history download, public publication and version activation, cancellable background tasks. Downloads update only Flutter's public cache. |
+| Updates | Manual stable-release check, notes/current/latest, explicit errors and releases-page launch. UI/API explicitly report automatic Flutter installation as unsupported. |
 
-## Validation completed on Linux
+The 900×650 Material 3 workspace retains independent scrolling panes. Most tools
+are dialogs with wrapping controls and scrollable content. File operations
+currently use editable paths. All addresses are zero-based PDU addresses.
 
-Environment: Flutter 3.47.8 stable / Dart 3.13.7; Python 3.13.5 for development and
-Python 3.11.17 for the frozen bridge; x64 Linux with GTK 3 and Xvfb.
+## Architecture and storage
+
+Flutter uses the existing Qt-free synchronous Python backends through an owned
+NDJSON subprocess per session. New adapters reuse models/CSV/expression/alarm
+logic, DataLogger, SimBackend, SnifferBackend, GatewayBackend, custom templates,
+WebDAV and the stable release checker. No Qt or numpy is needed by the bridge.
+The request limit is bounded at 2,097,152 characters, sufficient for full 512-row
+maps; oversize-frame recovery remains supported. Protocol additions are in
+[BRIDGE_PROTOCOL.md](../flutter_app/BRIDGE_PROTOCOL.md).
+
+Each session serializes transactions, skips busy timer ticks and cancels between
+read groups. Stop suppresses late read/error/alarm/graph effects. Disconnect and
+shutdown wait for active I/O; EOF closes connections, servers, logger files and
+simulator rule timers. Template/cloud/update dialogs own a separate utility
+bridge, preserving ongoing bus sessions.
+
+Flutter data uses `~/.modbus_connector/flutter` (Windows:
+`%USERPROFILE%\.modbus_connector\flutter`), overridable with `MODBUS_FLUTTER_HOME`:
+
+- `settings.json`: schema-1 workspace; sessions always restore disconnected.
+- `custom_templates/`: personal version histories, separate from Qt histories.
+- `cloud_templates.json`: validated, atomically replaced public catalog overlay.
+- `cloud.json`: separate settings; password saved only with explicit opt-in.
+
+Workspace exports and public cloud publication exclude cloud credentials. Cloud
+transfers never replace sessions or personal templates. Consumer mode rejects
+backend writes before network access; server permissions still apply.
+
+## Linux verification
+
+Environment: Flutter 3.47.8 stable / Dart 3.13.7; Python 3.13.5 development and
+Python 3.11.17 frozen bridge; x64 Linux, GTK 3, Xvfb.
 
 | Check | Result |
 | --- | --- |
-| `flutter analyze` | Clean; no suppressed Dart diagnostics |
-| `flutter test` | 12 controller/widget tests passed |
-| `flutter build linux --release` | Built `flutter_app/build/linux/x64/release/bundle/modbus_desktop` |
-| `flutter test integration_test/desktop_test.dart -d linux` under Xvfb | Passed with the real bridge and TCP simulator |
-| Native Linux release at 900×650 under Xvfb | Visually checked RTU form, demo connection, table/chart/log and polling |
-| Python bridge + backend + serial regression tests | 80 passed |
-| Ruff on all new Python files | Passed |
-| Native bridge freeze using `tool/build_bridge.py` | Passed |
-| Frozen bridge from `/tmp` | Handshake, serial discovery, TCP demo read/write and shutdown passed |
-| Packaged release app from `/tmp`, without `MODBUS_PYTHON` | Opened, found its frozen bridge and connected to Local demo; visually inspected |
+| `flutter analyze` | Clean. |
+| `flutter test` | 26 tests passed. Controllers/widgets cover independent tabs, cancellation, scanner, maps/scheduling/snapshots/bits, logging/alarms, modes, graphs, persistence, Chinese/help and cloud task cancellation. Existing minimum-size/large-table/text-scale tests retained. |
+| Broad Python regression | 524 passed across bridge/online, backend/serial/models, simulator/gateway/sniffer, logger, custom templates, WebDAV, updates/install and Qt runtime tests. |
+| Existing PySide6 GUI regression | 33 passed in separate offscreen processes (`test_main_window_tabs.py`, `test_session_widget.py`) with settings isolated in temporary storage. Qt 6.10.3 runtime check also passed in the broad suite. |
+| Latest bridge/online regression | 39 passed after final CSV, frame-capacity and custom-sniffer-state refinements. Includes real TCP/gateway, pseudo-terminal sniffer, WebDAV HTTP fixture, invalid requests, grouped slicing/fallback, files and shutdown. |
+| Ruff | New/changed Python adapters and tests clean. |
+| Native desktop integration | Both `desktop_test.dart` and `parity_test.dart` passed independently under Xvfb, using real bridge processes. |
+| `flutter build linux --release` | Passed; executable under `flutter_app/build/linux/x64/release/bundle/`. |
+| Native bridge freeze | PyInstaller build passed, including public template data and excluding Qt/numpy. |
+| Frozen bridge from `/tmp` | Independent simulator/master, grouped reads, expressions, logger, bundled/custom templates, cloud settings and EOF cleanup passed without `MODBUS_PYTHON`. |
+| Packaged release from `/tmp` | Found adjacent frozen bridge without Python override; demo connected/read; master, named map/scaled/bitmask values and scanner visually inspected at 900×650. |
 
-The desktop integration test runs at 900×650 with the real bridge and covers all
-four areas, register/coil writes, animated 50-register polling at 100 ms, chart
-selection/samples, pane bounds, Modbus exceptions, refused TCP connection,
-disconnect/reconnect, unexpected bridge exit/restart, and shutdown. Widget tests
-cover TCP validation/cancellation, RTU parameters and port-refresh recovery,
-Enter/Escape, write validation, all four areas, polling controls, pending-range
-write gating, table virtualization, and reaching the last of 2,000 rows at the
-900×650 minimum. Layout tests also exercise validation/error states, independent
-log scrolling, 150% display scale and larger text. Controller tests verify that
-late transactions cannot revive a cancelled connection.
+`desktop_test.dart` covers four areas, writes, 10 Hz polling, chart, protocol
+errors, refused connections, disconnect/reconnect, bridge exit/restart and cleanup.
+`parity_test.dart` covers separate simulator/master tabs, simulator expressions,
+grouped map reads, scaled master expressions, snapshots, CSV logger/templates,
+workspace save and closing one tab while the other remains running.
 
-The Python 3.13 regression run emitted one asyncio transport-finalizer warning
-from the existing TCP test fixture. Tests passed. This box's system Python lacks
-its shared library, so standalone freezing used an isolated uv-managed Python
-3.11 runtime. This does not affect source-mode operation.
+Run the native integration files separately. A combined invocation failed when
+launching its second native app (debug connection/log reader); both standalone
+commands passed. Xvfb desktop checks emitted GTK accessibility/window-teardown
+warnings; there were no Flutter layout failures in the verified scenarios.
+Desktop sound audibility was not verified. WebDAV uses a local fixture, not an
+external account. No physical Modbus/serial device was available.
 
-## Run / build
+## Remaining parity and validation gaps
 
-See [flutter_app/README.md](../flutter_app/README.md) for complete Windows
-PowerShell and Linux setup, development, testing and release-bundle commands.
-See [BRIDGE_PROTOCOL.md](../flutter_app/BRIDGE_PROTOCOL.md) for the protocol and
-cancellation behavior.
+- Named-map polling currently runs while its dialog is open and stops on close.
+  The quick range, background logger and device services continue independently;
+  Qt's permanently visible full register table is not reproduced yet.
+- Native file choosers, table column sizing/reordering, batch/context-menu actions,
+  extensive shortcuts, inline enum editors and some editing/validation polish
+  remain below the Qt UI. Scanner preferences persist; scanner result history is
+  not a full Qt-equivalent saved scanner window.
+- Sniffer lacks Qt's complete per-row format editing, multiword views, sparklines
+  and per-unit filtered log experience. Names/values, raw graph data, traffic and
+  CSV are usable. Device-mode forms accept manually typed serial ports.
+- Simulator lacks the complete Qt template-menu workflow, enum/bit convenience
+  editors, expression autocomplete and per-row rule-error presentation. Rules,
+  map edits and external master traffic work. Public templates primarily open
+  master maps; loading them is not an automatic simulator-map conversion.
+- Expression rows use latest register-map values; expression selection/output is
+  not integrated into the logger. Some Qt row/display options are not exported
+  by the shared canonical CSV schema.
+- Graphs remain in-window dialogs; detached native graph windows and image export
+  are not implemented. Hover/sample selection is approximate in time.
+- Some dynamic technical errors, freeform prompts and tool captions still fall
+  back to English; English/Chinese localization is substantial, not complete.
+- Automatic Flutter install/update, a Flutter-specific installer/product identity,
+  code signing and release workflow remain. Existing NSIS assets install the Qt
+  product and are deliberately not launched by Flutter on Linux or Windows.
+- Windows compilation/runtime, copied release bundle without Python, DPI/audio,
+  COM hardware and shutdown remain user-verified later. Existing Windows runner
+  and setup/package instructions are retained; no Windows binary is claimed.
+- Physical RTU, USB timing, multi-client load and a broad Linux distribution/perf
+  matrix require validation beyond loopback/pseudo-terminal tests on this box.
 
-Linux development, from the repository root after installing the Python package:
+## Local implementation commits
 
-```bash
-export MODBUS_PYTHON="$PWD/.venv/bin/python"
-cd flutter_app
-flutter run -d linux
-```
+The parity push is split into 13 implementation commits, in delivery order:
+sessions; scanner; register/CSV/snapshot tools; logger/alarms; device modes;
+graphs; templates/state; help/language; cloud/updates; expressions/advanced
+functions/cancellation; grouped scheduling; CSV/alarm/theme refinements; full-map
+protocol capacity/sniffer snapshots. The final documentation commit consolidates
+this inventory. Earlier per-chunk validation notes remain in Git history.
 
-Windows requires Flutter, Python 3.11+ x64, and Visual Studio 2022 with Desktop
-development with C++, CMake and the Windows SDK. Install this repository into a
-Python venv, set `MODBUS_PYTHON` to its `Scripts\python.exe`, then run
-`flutter run -d windows` from `flutter_app/`. For distribution, run
-`flutter build windows --release`, then the documented `tool/build_bridge.py`
-command on Windows, and ship the complete Release directory.
-
-## Remaining validation and deferred scope
-
-Windows compilation, packaged execution/high-DPI/close behavior and physical
-serial hardware require a Windows/hardware pass; Linux cannot produce a Windows
-binary. Both platform folders are complete generated native projects with the
-small title/icon/minimum-size customizations. No Windows binary is claimed.
-Linux packaging was tested on this box, without a broad distribution matrix or
-formal frame-time benchmark. Physical RTU was not available; parameter forwarding
-and existing backend serial behavior are covered by tests.
-
-Deferred beyond MVP: multiple sessions, persistence/import/export, richer display
-formats/scaling, scanner, sniffer/gateway/simulator management, templates, cloud
-sync, alarms, localization, application updates, installers and code signing.
-Flutter does not modify existing Qt settings. The original migration brief was
-read and left unchanged, including its pre-existing untracked Git state.
-
-## Parity push — chunk 1: sessions
-
-- Added independent session tabs, each owning its controller and bridge process.
-  Inactive sessions keep polling; tab controls/forms remain mounted when switching.
-  Close waits for in-flight I/O and releases only that tab's process. Last-tab close
-  creates a disconnected session. Window exit awaits all sessions.
-- Linux verification: `flutter analyze` clean; `flutter test` 13 passed, including
-  independent connections and closing a tab while another tab continues reading.
-- Remaining: scanner; richer register tools; logger/alarms; mode panels; graph;
-  templates/persistence; help/localization; cloud/update surfaces.
-
-## Parity push — chunk 2: scanner
-
-- Usable unit/address scanner dialog: editable/add/remove probes, range and area
-  selection, progress/hits, Stop, device identification and apply unit/range.
-- Reuses backend scan semantics, including two-register address probes and
-  single-register fallback. Flutter sends individual probes to permit Stop
-  between transactions; stopped results cannot appear late.
-- Linux: `flutter analyze` clean, `flutter test` 14 passed; Python bridge 25 passed
-  against a real TCP fixture, including invalid probes and absent addresses.
-- Remaining: register tools; logger/alarms; mode panels; graph; templates/state;
-  help/i18n; cloud/update. Scanner hit CSV/multiple disjoint-row insertion awaits
-  the richer register map.
-
-## Parity push — chunk 3: register map, CSV and snapshots
-
-- Register-map tool alongside the quick range: named rows across independent
-  areas/units, editable counts, all Qt display formats and byte orders, scaling,
-  engineering-unit writes, enum/bit labels, 16-bit editor, and cancellable map poll.
-- CSV file import with explicit column mapping and export with column selection,
-  using the existing Python CSV model. Files use editable paths in Flutter.
-- Named raw-value snapshots and difference viewer; comparison never writes.
-- Python decoding/encoding stays shared with Qt. All rows validate before I/O;
-  nonfinite decoded primary values are represented as null on the wire.
-- Linux: analyze clean; 16 Flutter tests passed, including cancellation/snapshot
-  and row-width/bit-editor checks; 26 Python bridge tests passed; Ruff clean.
-- Remaining: logging/alarm editor; mode panels; richer graphs; templates/state;
-  help/i18n; cloud/update. Native file chooser, per-row poll scheduling and
-  expression rows remain below full Qt parity.
-
-## Parity push — chunk 4: logger and alarms
-
-- CSV (wide snapshots) and JSONL logger dialog with path, append/replace
-  confirmation, selectable rows/metadata fields and sampling interval. Uses the
-  existing Qt-free DataLogger; flushes samples and validates append headers.
-  Logging can acquire samples without manual polling and skips busy ticks.
-- Alarm rule editor: all Qt conditions, range bounds, ordered priority, red/yellow,
-  entry log and best-effort system sound; shared Python evaluation after scaling.
-- Stop cancels future samples and waits for active I/O; disconnect/EOF close files.
-- Linux: analyze clean; 18 Flutter tests passed (including stop-during-sample and
-  alarm transitions); 28 Python bridge tests passed (CSV/JSONL/throttling/alarms).
-- Remaining: mode panels; graph enhancements; templates/state; help/i18n;
-  cloud/update. Sound playback still depends on desktop audio configuration.
-
-## Parity push — chunk 5: simulator, sniffer, gateway
-
-- Session-mode picker (next to New session); mode changes release owned services.
-- Simulator TCP/RTU-over-TCP/serial listen forms, unit/tick controls, editable map,
-  engineering-value edits and expression rules (t/prev/[name]/rand/randint). Rules
-  run in the bridge while other tabs are active; external master writes update UI.
-- Passive serial sniffer with per-unit recovered maps, register names, traffic,
-  CSV export and explicit map recovery after bounded-event overflow.
-- Gateway listen/target forms, TCP/RTU-over-TCP/serial, RTU-over-UDP target,
-  unit filters, live events and clean stop. Master gained RTU TCP/UDP transports.
-- Linux Python bridge: 31 tests passed, including external TCP simulator/rules,
-  real gateway read/write and a real pseudo-terminal serial sniffer. Analyze clean;
-  mode start/stop/minimum-window widget verification added. Physical RTU remains
-  hardware validation; sniffer formatted multiword views/trends still need polish.
-- Remaining: richer graphs; templates/state; help/i18n; cloud/update surfaces.
-
-## Parity push — chunk 6: graphs
-
-- Multi-series graph for quick-range reads, named register maps, logger sampling
-  and sniffer traffic. Select curves, inspect min/max/mean/latest or hovered value,
-  normalize individual curves, pause chart updates, choose time window, pan/zoom,
-  clear history and export timestamped samples as CSV.
-- History is bounded (1000 samples per curve, at most 2048 curves, at most 10 Hz).
-  The compact selected-register chart remains in the master workspace.
-- Linux: analyze clean; 20 Flutter tests passed, including graph controls at
-  900×650. Session state serialization groundwork also landed for the next chunk.
-- Remaining: persistence/templates; help/i18n; cloud/update. Charts are dialogs
-  within the native window; detached native graph windows and image export remain.
-
-## Parity push — chunk 7: templates and persistence
-
-- Flutter-owned atomic workspace store, autosave and manual export/import. Restores
-  tabs, active tab, connection drafts, ranges/maps, simulator/device configuration,
-  logger settings and sniffer names/values in disconnected sessions. Invalid import
-  preserves current sessions; corrupt startup state disables automatic overwrites.
-- Public template catalog loads full maps and serial defaults into new tabs.
-  Custom save/new-version, history/open-old-version, rename, template/version
-  deletion with confirmation and final-version protection reuse the Python store.
-- Flutter settings/custom histories live under `~/.modbus_connector/flutter` (or
-  `MODBUS_FLUTTER_HOME`), separate from all Qt settings/personal templates.
-  Bundling now collects public template package data.
-- Linux: 32 Python bridge tests passed; analyze clean and 21 Flutter tests passed,
-  including independent storage, disconnected restore and invalid import retention.
-- Remaining: help/i18n; cloud/update. Native file chooser, scheduled per-row
-  polling, master expression rows, detached graph windows remain below Qt parity.
-
-## Parity push — chunk 8: help and localization
-
-- English/Chinese language picker with persisted language, centralized visible
-  text widgets and common field/tooltip labels. Reuses Qt's Chinese dictionary
-  through a reproducible AST extraction tool that never imports Qt.
-- English/Chinese feature guide covers session ownership, register/CSV/snapshot
-  workflows, logger/alarms, device modes, graphs and separate storage/templates.
-  It describes the Flutter implementation's actual behavior.
-- Linux: analyze clean; localization/help widget verification added. Dynamic
-  technical messages, freeform file prompts and some tool-specific captions still
-  fall back to English; the translation dictionaries can be extended incrementally.
-- Remaining: cloud/update surfaces and final native Linux integration/build pass.
-
-## Parity push — chunk 9: cloud and updates
-
-- Cloud dialog: separate connection/password opt-in settings, consumer/publisher
-  mode, test, current/history download, public-catalog publication and version
-  activation with confirmation. Backend enforces consumer mode before network.
-- Cancellable background transfer task with status polling and bounded HTTP;
-  cancel waits for a network/checkpoint boundary before dialog close. Flutter cache
-  overlays the public catalog; downloads never replace sessions/custom templates.
-- Update dialog: manual stable-release check, plain release notes/current/latest,
-  explicit errors and releases-page launch. Automatic install is intentionally
-  unavailable: existing NSIS assets install the Qt product, not Flutter. A separate
-  Flutter installer/identity and Windows runtime verification remain required.
-- Utility dialogs own separate bridges, so master/device sessions keep running.
-- Linux Python: 34 bridge/online tests passed, including a real WebDAV fixture,
-  consumer write rejection before network, publication/history/download, password
-  omission and cancellation. Dialog/widget and final native validation follow.
-
-## Additional parity: expressions and advanced master tools
-
-- Master expression rows over the latest scaled register-map values, with shared
-  safe AST parsing, visible per-expression errors, alarms, graph curves and state.
-- Advanced master dialog for device identification, diagnostics, FC 0x16 mask
-  writes and FC 0x17 combined read/write with protocol range validation.
-- Scanner shows alternate decoded formats and inserts disjoint checked hits into
-  the named map. Snapshot comparison now retains added/removed row identities.
-- Cancellation also suppresses late map alarm/graph/error side effects.
-- Native Linux release built; original and parity integration tests passed under
-  Xvfb when launched separately. One combined invocation failed while launching
-  its second app (debug connection); separate commands are the verified route.
-- Broad Qt-free Python regression: 512 passed before these additional commands;
-  bridge/online now 36 passed. Additional validation continues below.
-
-## Additional parity: grouped reads and per-row scheduling
-
-- Map checkboxes include/exclude rows from Read/Poll; optional per-row polling
-  intervals run on a single scheduler without overlapping I/O or queued ticks.
-- Optional adjacent/overlap grouping reuses the Python planner, preserves each
-  row's decoding, isolates explicit per-row intervals and retries failed groups
-  individually. Flutter checks cancellation between planned groups.
-- Logger column labels now freeze the effective session unit correctly.
-- Linux: analyze clean; 26 Flutter tests and 37 bridge/online tests passed,
-  including scheduling, grouped slicing/fallback and cancelled late errors.
-
-## Final parity refinements
-
-- CSV exports can include current formatted values, including sniffer exports.
-  Alarm recovery is logged; unavailable system sound is ignored without crashing.
-  Theme preference persists; simulator expression rows prevent manual value edits.
-- Analyze clean and 26 Flutter tests passed; 38 bridge/online tests passed. Native
-  verification and the consolidated parity inventory follow in the final commit.
-
-## Final protocol capacity check
-
-- Raised the bounded request frame limit to 2 Mi characters for full 512-row maps,
-  CSV and template payloads; oversize-frame recovery remains tested.
-- Custom template snapshots also retain recovered sniffer names/values.
-- Frozen bridge and packaged release independently exercised from `/tmp` without
-  a Python override; master/map/scanner visually checked at 900×650.
+Setup, running, native packaging and exact standalone integration commands:
+[flutter_app/README.md](../flutter_app/README.md). The pre-existing untracked
+`docs/FLUTTER_MIGRATION_BRIEF.md` was left untouched.
