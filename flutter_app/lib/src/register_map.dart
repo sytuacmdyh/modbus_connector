@@ -629,7 +629,10 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                 ),
               ],
             ),
-            if (model.reading) const LinearProgressIndicator(),
+            SizedBox(
+              height: 4,
+              child: model.reading ? const LinearProgressIndicator() : null,
+            ),
             if (message != null) LText(message!),
             if (widget.session.error != null)
               LText(widget.session.error!, maxLines: 2),

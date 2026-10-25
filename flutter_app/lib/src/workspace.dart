@@ -519,13 +519,19 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                     index: workspace.selected,
                     children: [
                       for (final session in workspace.sessions)
-                        Workbench(
+                        TickerMode(
                           key: ObjectKey(session),
-                          controller: session,
-                          manageLifecycle: false,
-                          onOpenDemo: () => unawaited(openDemo()),
-                          themeMode: widget.themeMode,
-                          onThemeChanged: widget.onThemeChanged,
+                          enabled: identical(
+                            session,
+                            workspace.sessions[workspace.selected],
+                          ),
+                          child: Workbench(
+                            controller: session,
+                            manageLifecycle: false,
+                            onOpenDemo: () => unawaited(openDemo()),
+                            themeMode: widget.themeMode,
+                            onThemeChanged: widget.onThemeChanged,
+                          ),
                         ),
                     ],
                   ),

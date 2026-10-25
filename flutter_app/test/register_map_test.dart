@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:modbus_desktop/src/bridge_client.dart';
+import 'package:modbus_desktop/src/desktop_table.dart';
 import 'package:modbus_desktop/src/register_map.dart';
 import 'package:modbus_desktop/src/session_controller.dart';
 
@@ -49,6 +50,76 @@ class ExpressionMapBridge extends MapBridge {
 }
 
 void main() {
+  testWidgets('read progress does not shift the table under the pointer', (
+    tester,
+  ) async {
+    final bridge = MapBridge();
+    final session = SessionController(bridge);
+    await session.connect({'timeout': 0.1}, 1);
+    session.registers.add({
+      'name': 'x',
+      'kind': 'holding_registers',
+      'address': 0,
+      'count': 1,
+    });
+    await tester.pumpWidget(
+      MaterialApp(home: RegisterMapDialog(session: session)),
+    );
+    await tester.pumpAndSettle();
+    final before = tester.getTopLeft(find.byType(DesktopTable));
+    bridge.held = Completer<BridgeReply>();
+    final reading = session.registerMap.read();
+    await tester.pump();
+    expect(tester.getTopLeft(find.byType(DesktopTable)), before);
+    bridge.held!.complete(
+      const BridgeReply({
+        'rows': [
+          {
+            'values': [1],
+            'numeric': 1,
+            'display': '1',
+          },
+        ],
+      }, true),
+    );
+    await reading;
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.byType(DesktopTable)), before);
+    await tester.pumpWidget(const SizedBox());
+    session.dispose();
+  });
+
+  test(
+    'large map publishes a bounded number of UI updates per read cycle',
+    () async {
+      final bridge = MapBridge();
+      final session = SessionController(bridge);
+      await session.connect({'timeout': 0.1}, 1);
+      session.registers.addAll(
+        List.generate(
+          248,
+          (i) => <String, dynamic>{
+            'name': 'row $i',
+            'kind': 'holding_registers',
+            'address': i,
+            'count': 1,
+          },
+        ),
+      );
+      var updates = 0;
+      session.addListener(() => updates++);
+      await session.registerMap.read();
+      expect(session.registerResults, hasLength(248));
+      expect(session.histories, hasLength(248));
+      expect(
+        bridge.calls.where((c) => c['command'] == 'read_rows'),
+        hasLength(248),
+      );
+      expect(updates, lessThanOrEqualTo(6));
+      session.dispose();
+    },
+  );
+
   test('quick value actions use raw first words, clamp and reject read-only/missing values', () async {
     final bridge = MapBridge();
     final session = SessionController(bridge);

@@ -311,3 +311,34 @@ the workspace byte for byte. Installed Chinese UI restored the existing two tabs
 and 248-row device map. Opening a demo added an isolated tab; live trends and a
 keyboard-entered 23.5 °C write/readback were verified. Hardware serial I/O was not
 part of this demo validation.
+
+## Windows UI responsiveness (2026-10-25)
+
+Independent map reads used to publish busy changes for every bridge request,
+rebuilding the workbench, connection form, tab chip and visible table repeatedly.
+Map acquisition now publishes at cycle boundaries, retaining serialized I/O,
+per-group cancellation and immediate disconnect/bridge-exit handling. Progress
+keeps a fixed height so the table does not jump under the pointer. Inactive tabs
+mute animation tickers while their connections and acquisition remain active.
+
+A native Windows Profile benchmark uses the real Python bridge, 248 independent
+rows and a controlled 2 ms response delay. Over three read cycles UI notifications
+fell from 1500 to 12. Mean frame build time fell from 7.092 to 1.299 ms; the 90th
+percentile fell from 11.472 to 3.293 ms. Build-budget misses fell from 3 to 0.
+With 1000 samples per history, continuous table flings measured 1.594 ms at the
+90th percentile, and repeated client-area resizing measured 12.626 ms, both under
+the 16.7 ms budget with no build-budget misses. These are local machine results,
+not physical-device or multi-monitor performance guarantees. Run the reproducible
+Profile command in `flutter_app/README.md`; the benchmark emits JSON frame data.
+
+Validation: Flutter analyze clean; the full 68-test suite passed, followed by the
+11-test map suite including the added progress-position regression. Native demo
+and TCP simulator/parity files passed separately. Regressions cover bounded UI
+notifications, hidden-tab animation quiescence, active-read cancellation and
+table position stability. No Python backend or register protocol behavior changed.
+The frozen bridge bundle verifier passed. The Release installer updated the local
+Flutter application; all 103 payload files matched the build and the workspace
+was unchanged by installation. Installed UI checks covered the existing 248-row
+map's scrolling, native window dragging, demo polling and switching back to the
+device tab while the demo was running. All three maps and connection settings
+matched their pre-install backup after those checks.

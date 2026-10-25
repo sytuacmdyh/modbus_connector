@@ -38,7 +38,10 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
   settings (no separate quick-range controls/table/chart); scanner address hits
   feed the map. `desktop_table.dart` virtualizes map/sniffer
   rows and persists column layouts/visibility/density in session drafts. Master
-  raw traffic is bounded and attached to bridge replies; traffic filtering/pause
+  map reads publish UI changes at cycle boundaries; per-group bridge commands
+  suppress busy notifications while preserving I/O serialization/cancellation.
+  Inactive workspace tabs mute animation tickers without stopping acquisition.
+  Master raw traffic is bounded and attached to bridge replies; traffic filtering/pause
   never stops acquisition. `graph_window_host.dart` owns pipe-fed native graph
   viewers without extra bus connections; session shutdown waits for them. Explicit
   Qt JSON import stages converted disconnected tabs before replacing sessions;

@@ -270,13 +270,14 @@ class SessionController extends ChangeNotifier {
   Future<void> _run(
     Future<void> Function(int epoch) action, {
     bool Function()? accept,
+    bool notify = true,
   }) async {
     if (busy || disconnecting || _closing) return;
     busy = true;
     final done = Completer<void>();
     _operation = done;
     final epoch = _epoch;
-    notifyListeners();
+    if (notify) notifyListeners();
     try {
       await action(epoch);
     } catch (exception) {
@@ -287,34 +288,41 @@ class SessionController extends ChangeNotifier {
       busy = false;
       _operation = null;
       done.complete();
-      if (!_disposed) notifyListeners();
+      if (!_disposed && notify) notifyListeners();
     }
   }
 
   Future<Map<String, dynamic>?> command(
     Map<String, dynamic> request, {
     bool Function()? accept,
+    bool notify = true,
   }) async {
     Map<String, dynamic>? result;
-    await _run((epoch) async {
-      final reply = await bridge.request(
-        request,
-        timeout:
-            request['command'] == 'diagnostics' &&
-                request['action'] == 'counters'
-            ? deadline * 10
-            : deadline,
-      );
-      if (epoch != _epoch || _closing || (accept != null && !accept())) return;
-      result = reply.result;
-      if (request['command'] == 'read_rows') {
-        observeAlarms(
-          (reply.result['rows'] as List).cast<Map<String, dynamic>>(),
-          (request['rows'] as List).cast<Map<String, dynamic>>(),
+    await _run(
+      (epoch) async {
+        final reply = await bridge.request(
+          request,
+          timeout:
+              request['command'] == 'diagnostics' &&
+                  request['action'] == 'counters'
+              ? deadline * 10
+              : deadline,
         );
-      }
-      if (request['command'] != 'device_status') error = null;
-    }, accept: accept);
+        if (epoch != _epoch || _closing || (accept != null && !accept())) {
+          return;
+        }
+        result = reply.result;
+        if (request['command'] == 'read_rows') {
+          observeAlarms(
+            (reply.result['rows'] as List).cast<Map<String, dynamic>>(),
+            (request['rows'] as List).cast<Map<String, dynamic>>(),
+          );
+        }
+        if (request['command'] != 'device_status') error = null;
+      },
+      accept: accept,
+      notify: notify,
+    );
     return result;
   }
 
@@ -474,19 +482,26 @@ class SessionController extends ChangeNotifier {
     if (!_closing && !disconnecting) await command({'command': 'logger_stop'});
   }
 
-  Future<void> evaluateExpressions({bool Function()? accept}) async {
+  Future<void> evaluateExpressions({
+    bool Function()? accept,
+    bool notify = true,
+  }) async {
     if (expressions.isEmpty) return;
     final values = <String, num>{};
     for (var i = 0; i < registers.length && i < registerResults.length; i++) {
       final value = registerResults[i]['numeric'];
       if (value is num) values[registers[i]['name'] as String? ?? ''] = value;
     }
-    final reply = await command({
-      'command': 'evaluate_expressions',
-      'expressions': expressions,
-      'map_grouped': mapGrouped,
-      'values': values,
-    }, accept: accept);
+    final reply = await command(
+      {
+        'command': 'evaluate_expressions',
+        'expressions': expressions,
+        'map_grouped': mapGrouped,
+        'values': values,
+      },
+      accept: accept,
+      notify: notify,
+    );
     if (reply != null) {
       expressionResults = (reply['rows'] as List).cast<Map<String, dynamic>>();
       observeAlarms(
@@ -500,7 +515,7 @@ class SessionController extends ChangeNotifier {
           },
         ),
       );
-      if (!_disposed) notifyListeners();
+      if (!_disposed && notify) notifyListeners();
     }
   }
 

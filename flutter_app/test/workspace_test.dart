@@ -8,6 +8,53 @@ import 'package:modbus_desktop/src/workspace.dart';
 import 'fake_bridge.dart';
 
 void main() {
+  testWidgets('background reads keep running without animating hidden tabs', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final workspace = WorkspaceController(bridgeFactory: FakeBridge.new);
+    final session = workspace.sessions.first;
+    await session.connect({'transport': 'demo', 'timeout': 0.1}, 1);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionWorkspace(
+          controller: workspace,
+          themeMode: ThemeMode.light,
+          onThemeChanged: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final bridge = session.bridge as FakeBridge;
+    bridge.heldRead = Completer<BridgeReply>();
+    final reading = session.registerMap.read();
+    await tester.pump();
+    expect(session.registerMap.reading, isTrue);
+    workspace.add();
+    await tester.pumpAndSettle();
+    expect(session.registerMap.reading, isTrue);
+    expect(tester.binding.transientCallbackCount, 0);
+    session.registerMap.stop();
+    bridge.heldRead!.complete(
+      const BridgeReply({
+        'rows': [
+          {
+            'values': [1],
+            'numeric': 1,
+            'display': '1',
+          },
+        ],
+      }, true),
+    );
+    await reading;
+    await workspace.shutdown();
+    await tester.pumpWidget(const SizedBox());
+    workspace.dispose();
+  });
+
   testWidgets('demo connection choice preserves the original form', (
     tester,
   ) async {

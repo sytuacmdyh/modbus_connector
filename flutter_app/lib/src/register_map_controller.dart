@@ -94,13 +94,19 @@ class RegisterMapController extends ChangeNotifier {
             ? results[i]
             : {'values': null, 'display': '—', 'numeric': null, 'alarm': null},
       );
+      // Publish the cycle's start/end, not every serialized bus transaction.
+      // Independent maps can contain thousands of requests per cycle.
       List<List<int>> groups = List.generate(indices.length, (i) => [i]);
       if (session.mapGrouped) {
-        final plan = await session.command({
-          'command': 'plan_reads',
-          'rows': indices.map((i) => rows[i]).toList(),
-          'unit': session.unit,
-        }, accept: accept);
+        final plan = await session.command(
+          {
+            'command': 'plan_reads',
+            'rows': indices.map((i) => rows[i]).toList(),
+            'unit': session.unit,
+          },
+          accept: accept,
+          notify: false,
+        );
         if (!accept()) return;
         if (plan == null) {
           stop();
@@ -111,12 +117,16 @@ class RegisterMapController extends ChangeNotifier {
             .toList();
       }
       for (final group in groups) {
-        final reply = await session.command({
-          'command': 'read_rows',
-          'unit': session.unit,
-          'grouped': session.mapGrouped,
-          'rows': group.map((i) => rows[indices[i]]).toList(),
-        }, accept: accept);
+        final reply = await session.command(
+          {
+            'command': 'read_rows',
+            'unit': session.unit,
+            'grouped': session.mapGrouped,
+            'rows': group.map((i) => rows[indices[i]]).toList(),
+          },
+          accept: accept,
+          notify: false,
+        );
         if (!accept()) return;
         if (reply == null) {
           stop();
@@ -132,7 +142,7 @@ class RegisterMapController extends ChangeNotifier {
       results
         ..clear()
         ..addAll(next);
-      await session.evaluateExpressions(accept: accept);
+      await session.evaluateExpressions(accept: accept, notify: false);
     } finally {
       reading = false;
       session.endTool();

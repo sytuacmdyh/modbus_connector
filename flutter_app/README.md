@@ -184,6 +184,17 @@ files separately: one combined Linux invocation failed while launching its
 second native app; both standalone commands passed. Protocol details and
 resource lifecycle are in [BRIDGE_PROTOCOL.md](BRIDGE_PROTOCOL.md).
 
+Windows frame-time regression (Profile mode, real bridge, 248 independent rows,
+2 ms response pacing, full 1000-point histories, scrolling and resize):
+
+```powershell
+flutter drive --driver=test_driver/performance_driver.dart --target=integration_test/performance_test.dart -d windows --profile
+```
+
+Keep `MODBUS_PYTHON` set to the installed Python environment. The JSON report is
+written to `build/integration_response_data.json`. Profile builds avoid debug
+instrumentation skew; this benchmark also caps UI notifications per read cycle.
+
 ## Current parity limits
 
 Desktop file operations use native choosers with editable-path fallback on
