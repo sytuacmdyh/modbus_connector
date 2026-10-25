@@ -2,7 +2,6 @@ import 'translations.dart';
 
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/material.dart';
@@ -10,7 +9,6 @@ import 'package:flutter/services.dart';
 
 import 'file_paths.dart';
 
-import 'live_chart.dart';
 import 'scanner.dart';
 import 'register_map.dart';
 import 'logging_dialog.dart';
@@ -18,7 +16,6 @@ import 'device_panel.dart';
 import 'graph_dialog.dart';
 import 'advanced_dialog.dart';
 import 'session_controller.dart';
-import 'write_dialog.dart';
 import 'traffic_dialog.dart';
 
 class Workbench extends StatefulWidget {
@@ -42,7 +39,6 @@ class _WorkbenchState extends State<Workbench> {
   SessionController get session => widget.controller;
   final _mapKey = GlobalKey();
   final _pageScroll = ScrollController();
-  final _tableScroll = ScrollController();
   final _logScroll = ScrollController();
   final _serialFocus = FocusNode();
   bool _refreshingPorts = false;
@@ -56,19 +52,10 @@ class _WorkbenchState extends State<Workbench> {
   final _baud = TextEditingController(text: '9600');
   final _unit = TextEditingController(text: '1');
   final _timeout = TextEditingController(text: '3');
-  final _address = TextEditingController(text: '0');
-  final _count = TextEditingController(text: '50');
-  final _interval = TextEditingController(text: '500');
   String _transport = 'rtu';
   String _parity = 'N';
   int _bits = 8;
   int _stop = 1;
-  String _kind = 'holding_registers';
-  String? _queryError;
-  bool get _queryMatches =>
-      session.query.kind == _kind &&
-      session.query.address == int.tryParse(_address.text) &&
-      session.query.count == int.tryParse(_count.text);
   AppLifecycleListener? _lifecycle;
 
   @override
@@ -82,9 +69,6 @@ class _WorkbenchState extends State<Workbench> {
       'baud': _baud,
       'unit': _unit,
       'timeout': _timeout,
-      'address': _address,
-      'count': _count,
-      'interval': _interval,
     }.entries) {
       if (saved[e.key] is String) e.value.text = saved[e.key] as String;
     }
@@ -100,31 +84,11 @@ class _WorkbenchState extends State<Workbench> {
         : 'N';
     _bits = saved['bits'] == 7 ? 7 : 8;
     _stop = saved['stop'] == 2 ? 2 : 1;
-    _kind = session.query.kind;
-    if (!saved.containsKey('address')) {
-      _address.text = '${session.query.address}';
-    }
-    if (!saved.containsKey('count')) _count.text = '${session.query.count}';
     if (!saved.containsKey('unit')) _unit.text = '${session.unit}';
-    if (!saved.containsKey('interval')) {
-      _interval.text = '${session.intervalMs}';
-    }
     // Restore every field before edits can save the partially initialized form.
-    for (final controller in [
-      _host,
-      _port,
-      _serial,
-      _baud,
-      _unit,
-      _timeout,
-      _address,
-      _count,
-      _interval,
-    ]) {
+    for (final controller in [_host, _port, _serial, _baud, _unit, _timeout]) {
       controller.addListener(_saveDraft);
     }
-    _address.addListener(_rangeEdited);
-    _count.addListener(_rangeEdited);
     if (widget.manageLifecycle) {
       _lifecycle = AppLifecycleListener(
         onExitRequested: () async {
@@ -148,34 +112,18 @@ class _WorkbenchState extends State<Workbench> {
         'baud': _baud,
         'unit': _unit,
         'timeout': _timeout,
-        'address': _address,
-        'count': _count,
-        'interval': _interval,
       }.entries)
         e.key: e.value.text,
     });
   }
-
-  void _rangeEdited() => setState(() {});
 
   @override
   void dispose() {
     _lifecycle?.dispose();
     _serialFocus.dispose();
     _pageScroll.dispose();
-    _tableScroll.dispose();
     _logScroll.dispose();
-    for (final controller in [
-      _host,
-      _port,
-      _serial,
-      _baud,
-      _unit,
-      _timeout,
-      _address,
-      _count,
-      _interval,
-    ]) {
+    for (final controller in [_host, _port, _serial, _baud, _unit, _timeout]) {
       controller.dispose();
     }
     super.dispose();
@@ -258,30 +206,6 @@ class _WorkbenchState extends State<Workbench> {
     );
   }
 
-  bool _prepareQuery() {
-    try {
-      final address = int.tryParse(_address.text) ?? -1;
-      final count = int.tryParse(_count.text) ?? -1;
-      final interval = int.tryParse(_interval.text) ?? -1;
-      final query = ReadQuery(kind: _kind, address: address, count: count);
-      query.validate();
-      if (interval < 100 || interval > 60000) {
-        throw 'Poll interval must be 100–60000 ms';
-      }
-      if (session.query.kind != _kind ||
-          session.query.address != address ||
-          session.query.count != count) {
-        session.setQuery(query);
-      }
-      session.intervalMs = interval;
-      setState(() => _queryError = null);
-      return true;
-    } catch (error) {
-      setState(() => _queryError = error.toString());
-      return false;
-    }
-  }
-
   Future<void> _ports() async {
     setState(() => _refreshingPorts = true);
     final ports = await session.ports();
@@ -317,25 +241,6 @@ class _WorkbenchState extends State<Workbench> {
     if (mounted && selected != null) {
       _serial.text = selected;
       _serialFocus.requestFocus();
-    }
-  }
-
-  Future<void> _edit(int index) async {
-    if (!session.canRead || !session.query.writable || !_queryMatches) return;
-    final address = session.query.address + index;
-    final isBit = session.query.isBit;
-    final current = index < session.values.length ? session.values[index] : 0;
-    final wasPolling = session.polling;
-    session.stopPolling();
-    final value = await showDialog<int>(
-      context: context,
-      builder: (_) =>
-          WriteDialog(address: address, isBit: isBit, current: current),
-    );
-    if (!mounted) return;
-    if (value != null && session.canRead) await session.write(index, value);
-    if (wasPolling && session.canRead && session.error == null) {
-      session.startPolling();
     }
   }
 
@@ -503,223 +408,6 @@ class _WorkbenchState extends State<Workbench> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _controls({required bool compact}) {
-    final editable =
-        !session.busy && !session.polling && !session.disconnecting;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            _dropdown<String>(
-              'Function area',
-              _kind,
-              areas,
-              editable ? (v) => setState(() => _kind = v) : null,
-              compact ? 180 : 230,
-            ),
-            _field('Start · 0-based', _address, 110, enabled: editable),
-            _field('Count', _count, 75, enabled: editable),
-            _field('Interval, ms', _interval, 100, enabled: editable),
-            OutlinedButton.icon(
-              style: compact
-                  ? OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                    )
-                  : null,
-              onPressed: session.canRead && !session.polling
-                  ? () {
-                      if (_prepareQuery()) unawaited(session.read());
-                    }
-                  : null,
-              icon: const Icon(Icons.download, size: 18),
-              label: const LText('Read'),
-            ),
-            FilledButton.tonalIcon(
-              style: compact
-                  ? FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                    )
-                  : null,
-              onPressed: session.polling
-                  ? session.stopPolling
-                  : session.canRead
-                  ? () {
-                      if (_prepareQuery()) session.startPolling();
-                    }
-                  : null,
-              icon: Icon(
-                session.polling ? Icons.stop : Icons.play_arrow,
-                size: 18,
-              ),
-              label: LText(session.polling ? 'Stop polling' : 'Start polling'),
-            ),
-          ],
-        ),
-        if (_queryError != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: LText(
-              _queryError!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _table() {
-    final colors = Theme.of(context).colorScheme;
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: LText(
-                    areas[session.query.kind]!.split(' · ').first,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: LText(
-                    !_queryMatches
-                        ? 'Read to apply range'
-                        : session.elapsedMs == null
-                        ? 'Select a row to chart'
-                        : '${session.elapsedMs!.toStringAsFixed(1)} ms',
-                    textAlign: TextAlign.end,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelMedium,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            color: colors.surfaceContainerHighest,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            child: const Row(
-              children: [
-                SizedBox(width: 32),
-                SizedBox(width: 80, child: LText('Address')),
-                Expanded(child: LText('Value')),
-                SizedBox(width: 100, child: LText('Hex')),
-                SizedBox(width: 48),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Scrollbar(
-              controller: _tableScroll,
-              thumbVisibility: true,
-              child: ListView.builder(
-                key: const ValueKey('register-list'),
-                controller: _tableScroll,
-                primary: false,
-                itemCount: session.query.count,
-                itemExtent: 44,
-                itemBuilder: (context, index) {
-                  final raw = index < session.values.length
-                      ? session.values[index]
-                      : null;
-                  final value = raw is bool ? (raw ? 1 : 0) : raw as int?;
-                  return Material(
-                    color: index == session.selected
-                        ? colors.primaryContainer.withValues(alpha: 0.45)
-                        : Colors.transparent,
-                    child: InkWell(
-                      onTap: () => session.select(index),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 18),
-                        child: Row(
-                          children: [
-                            SizedBox(
-                              width: 32,
-                              child: index == session.selected
-                                  ? Icon(
-                                      Icons.show_chart,
-                                      size: 17,
-                                      color: colors.primary,
-                                    )
-                                  : null,
-                            ),
-                            SizedBox(
-                              width: 80,
-                              child: LText('${session.query.address + index}'),
-                            ),
-                            Expanded(
-                              child: LText(
-                                value == null ? '—' : '$value',
-                                style: const TextStyle(
-                                  fontFeatures: [FontFeature.tabularFigures()],
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 100,
-                              child: LText(
-                                value == null
-                                    ? '—'
-                                    : '0x${value.toRadixString(16).padLeft(4, '0').toUpperCase()}',
-                                style: TextStyle(
-                                  color: colors.onSurfaceVariant,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures(),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 48,
-                              child: IconButton(
-                                tooltip: session.query.writable
-                                    ? tr(
-                                        'Write address ${session.query.address + index}',
-                                      )
-                                    : tr('Read-only area'),
-                                onPressed:
-                                    session.canRead &&
-                                        session.query.writable &&
-                                        _queryMatches
-                                    ? () => _edit(index)
-                                    : null,
-                                icon: Icon(
-                                  session.query.writable
-                                      ? Icons.edit_outlined
-                                      : Icons.lock_outline,
-                                  size: 17,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          if (session.busy)
-            const LinearProgressIndicator(minHeight: 2)
-          else
-            const SizedBox(height: 2),
-        ],
       ),
     );
   }
@@ -997,11 +685,6 @@ class _WorkbenchState extends State<Workbench> {
                                         if (applied == true && mounted) {
                                           setState(() {
                                             _unit.text = '${session.unit}';
-                                            _kind = session.query.kind;
-                                            _address.text =
-                                                '${session.query.address}';
-                                            _count.text =
-                                                '${session.query.count}';
                                           });
                                         }
                                       }
@@ -1063,72 +746,8 @@ class _WorkbenchState extends State<Workbench> {
                                 ),
                               ),
                             ),
-                          SizedBox(height: gap),
-                          _controls(compact: compact),
-                          SizedBox(height: gap),
                         ],
                       ),
-                    ),
-                    SliverLayoutBuilder(
-                      builder: (context, constraints) {
-                        final wide = constraints.crossAxisExtent >= 800;
-                        // Reserve usable pane viewports when chrome grows (errors,
-                        // form validation or text scaling); the page then scrolls.
-                        final height = math.max(
-                          wide ? 340.0 : 480.0,
-                          constraints.viewportMainAxisExtent -
-                              constraints.precedingScrollExtent,
-                        );
-                        final chart = LiveChart(
-                          samples: session.samples.toList(growable: false),
-                          address: session.query.address + session.selected,
-                        );
-                        if (wide) {
-                          return SliverToBoxAdapter(
-                            child: SizedBox(
-                              height: height,
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Expanded(flex: 5, child: _table()),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    flex: 3,
-                                    child: Column(
-                                      children: [
-                                        Expanded(child: chart),
-                                        const SizedBox(height: 16),
-                                        Expanded(child: _logs()),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
-                        return SliverToBoxAdapter(
-                          child: SizedBox(
-                            height: height,
-                            child: Column(
-                              children: [
-                                Expanded(child: _table()),
-                                const SizedBox(height: 12),
-                                SizedBox(
-                                  height: 170,
-                                  child: Row(
-                                    children: [
-                                      Expanded(child: chart),
-                                      const SizedBox(width: 12),
-                                      Expanded(child: _logs()),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
@@ -1156,6 +775,12 @@ class _WorkbenchState extends State<Workbench> {
                             ),
                           ),
                         ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.only(top: gap),
+                        child: SizedBox(height: 200, child: _logs()),
                       ),
                     ),
                   ],

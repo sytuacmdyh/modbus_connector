@@ -422,6 +422,7 @@ class _ScannerDialogState extends State<ScannerDialog> {
           if (addresses && !scanner.running && selected.isNotEmpty)
             TextButton(
               onPressed: () {
+                final additions = <Map<String, dynamic>>[];
                 for (final hit in scanner.hits.where(
                   (h) => selected.contains(h['address']),
                 )) {
@@ -437,46 +438,38 @@ class _ScannerDialogState extends State<ScannerDialog> {
                     (r) =>
                         r['kind'] == kind &&
                         r['address'] == hit['address'] &&
-                        r['unit_id'] == row['unit_id'],
+                        (r['unit_id'] ?? widget.session.unit) == row['unit_id'],
                   )) {
-                    widget.session.registers.add(row);
+                    additions.add(row);
                   }
                 }
-                Navigator.pop(context);
+                if (widget.session.registers.length + additions.length >
+                    maxRegisterRows) {
+                  setState(
+                    () => scanner.error =
+                        'Register maps support at most 4096 rows.',
+                  );
+                  return;
+                }
+                widget.session.registers.addAll(additions);
+                widget.session.registerMap.changed();
+                Navigator.pop(context, true);
               },
               child: const LText('Add selected to register map'),
             ),
           if (scanner.running)
             FilledButton(onPressed: scanner.stop, child: const LText('Stop'))
           else ...[
-            TextButton(
-              onPressed: selected.isEmpty
-                  ? null
-                  : () {
-                      if (addresses) {
-                        final list = selected.toList()..sort();
-                        widget.session.unit = int.tryParse(unit.text) ?? 1;
-                        widget.session.setQuery(
-                          ReadQuery(
-                            kind: kind,
-                            address: list.first,
-                            count: (list.last - list.first + 1).clamp(
-                              1,
-                              kind == 'coils' || kind == 'discrete_inputs'
-                                  ? 2000
-                                  : 125,
-                            ),
-                          ),
-                        );
-                      } else {
+            if (!addresses)
+              TextButton(
+                onPressed: selected.isEmpty
+                    ? null
+                    : () {
                         widget.session.unit = selected.first;
-                      }
-                      Navigator.pop(context, true);
-                    },
-              child: LText(
-                addresses ? 'Open selected range' : 'Use selected unit',
+                        Navigator.pop(context, true);
+                      },
+                child: const LText('Use selected unit'),
               ),
-            ),
             FilledButton(
               onPressed: !widget.session.connected
                   ? null

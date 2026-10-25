@@ -1,7 +1,7 @@
 # Flutter desktop parity status
 
-Branch: `feature/flutter-parity-workspace`. Updated 2026-10-24. Work is committed
-locally; current Windows additions are uncommitted; no push or PR. The PySide6 application, its settings, dependencies and
+Branch: `feature/flutter-parity-workspace`. Updated 2026-10-25. Windows completion
+is committed locally; unified master workspace changes are uncommitted; no push or PR. The PySide6 application, its settings, dependencies and
 Windows installer remain available. Flutter now implements the main interactive
 workflows below. It still has the explicit parity gaps listed later in this file.
 
@@ -10,9 +10,9 @@ workflows below. It still has the explicit parity gaps listed later in this file
 | Area | Flutter implementation |
 | --- | --- |
 | Sessions | Independent Master/Simulator/Sniffer/Gateway tabs and owned bridge processes; inactive tabs keep working; tab/window shutdown waits for active I/O and releases services. |
-| Master connections | TCP, serial RTU with discovery/manual port entry, RTU over TCP/UDP, timeout/unit/serial parameters, real loopback demo. Quick reads/writes in all four areas; read-only areas cannot write. |
-| Scanner | Persisted/recalled latest scan results/progress/selection; unit and address scans, editable probe list, range/area controls, progress, Stop, identification, alternate decoded formats, selected unit/range application and insertion of disjoint checked hits into the register map. |
-| Register map | Embedded, virtualized table below the quick view, toolbar jump, persisted column widths/order and header reset/movement; named rows across units/areas; counts, all Qt display formats/byte orders, scaling/units, engineering-value writes, enum/bit labels, 16-bit editor, checked rows, per-row polling intervals, adjacent/overlap grouped reads with individual fallback. |
+| Master connections | TCP, serial RTU with discovery/manual port entry, RTU over TCP/UDP, timeout/unit/serial parameters, real loopback demo. Map reads/writes across all four areas; read-only areas cannot write. |
+| Scanner | Persisted/recalled latest scan results/progress/selection; unit and address scans, editable probe list, range/area controls, progress, Stop, identification, alternate decoded formats, selected unit application and insertion of disjoint checked hits into the register map. |
+| Register map | Primary virtualized table below the connection settings, toolbar jump, persisted column widths/order and header reset/movement; named rows across units/areas; counts, all Qt display formats/byte orders, scaling/units, engineering-value writes, enum/bit labels, 16-bit editor, checked rows, per-row polling intervals, adjacent/overlap grouped reads with individual fallback. |
 | CSV / snapshots | CSV import preview and column mapping using the shared parser; selectable export columns including current formatted values; named raw snapshots and differences retaining added/removed row identities. |
 | Expressions / advanced master | Safe AST expressions over latest scaled map values, individual errors, alarms/graph curves; device identification, diagnostics, FC 0x16 masks and FC 0x17 combined read/write. |
 | Data logger | Selected register/expression rows, CSV wide snapshots or JSONL, metadata selection, interval, append/replace confirmation, incompatible-header rejection, flush/close. Fresh map dependencies for expressions can be acquired independently of map polling. |
@@ -267,3 +267,18 @@ requests. Manual installed-UI verification selected the Chinese Xinghuan outdoor
 unit template, clicked Open latest, and confirmed a new selected disconnected
 tab with populated Chinese register names and addresses. All 103 installed
 payload files matched the rebuilt Release bundle.
+
+## Unified master workspace (2026-10-25)
+
+Removed the quick contiguous read/write controls, raw range table and single-row
+chart. Connection settings now lead directly into the register map; manual rows,
+templates, map reads/polling, writes and multi-series graphs share that workspace.
+Activity stays below the map. Address scanner results add selected addresses to
+the map, without a second range-opening action. Legacy query state remains readable
+for workspace compatibility; opening an old workspace never starts I/O.
+Validation: analyzer clean, all 62 Flutter tests passed, and the Windows native
+integration passed with manual row addition, real map read/write/reread, map
+poll/stop and reconnect through the local simulator. Rebuilt and installed the
+Windows Release; all 103 payload hashes matched. Existing workspace was bytewise
+unchanged by installation; its three tabs and 248-row map restored in the UI.
+Installed Chinese UI confirms connection settings lead directly into the map.

@@ -47,7 +47,7 @@ void main() {
     }
   });
 
-  testWidgets('existing activity and quick-area headers change language live', (
+  testWidgets('existing activity and register map change language live', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1280, 900);
@@ -79,11 +79,8 @@ void main() {
         ),
         findsOneWidget,
       );
-      for (final kind in areas.keys) {
-        session.setQuery(ReadQuery(kind: kind, count: 1));
-        await tester.pumpAndSettle();
-        expect(find.text(tr(areas[kind]!.split(' · ').first)), findsOneWidget);
-      }
+      expect(find.text(tr('Register map')), findsOneWidget);
+      expect(find.text(tr('Read map')), findsOneWidget);
     }
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());

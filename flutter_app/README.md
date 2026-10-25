@@ -5,8 +5,8 @@ Gateway session tabs. Each tab owns a Qt-free Python subprocess over NDJSON;
 closing a tab waits for its active transaction and releases its resources.
 The PySide6 application remains available with its existing settings and packaging.
 
-The master workspace provides a quick contiguous range and a richer **Register
-map / CSV / snapshots** tool: named rows, all Qt formats and byte orders,
+The master workspace uses **Register map / CSV / snapshots** for all read/write
+operations: named rows, all Qt formats and byte orders,
 scaling/units, engineering-value writes, bit/enum labels, grouped reads, per-row
 poll intervals, expressions and alarms. Toolbar tools include unit/address
 scanning, CSV/JSONL logging, multi-series graphs and advanced Modbus functions.
@@ -185,7 +185,7 @@ resource lifecycle are in [BRIDGE_PROTOCOL.md](BRIDGE_PROTOCOL.md).
 ## Current parity limits
 
 Desktop file operations use native choosers with editable-path fallback on
-unsupported hosts. The named map is embedded below the master quick view; its
+unsupported hosts. The named map is embedded directly below the connection settings; its
 toolbar button scrolls to it. Map and sniffer column widths/order persist; drag
 headers or their edges, or use the header movement/reset menu. That menu also
 hides/restores columns and switches compact row height, with all preferences

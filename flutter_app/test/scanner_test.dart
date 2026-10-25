@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:modbus_desktop/src/bridge_client.dart';
 import 'package:modbus_desktop/src/scanner.dart';
@@ -28,6 +29,62 @@ class ScanBridge extends FakeBridge {
 }
 
 void main() {
+  testWidgets('address scan results go directly into the register map', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final session = SessionController(ScanBridge());
+    session.unit = 7;
+    session.registers.add({
+      'name': 'Existing',
+      'kind': 'holding_registers',
+      'address': 5,
+      'count': 1,
+    });
+    session.scannerState.addAll({
+      'addresses': true,
+      'unit': 7,
+      'selected': [5, 9],
+      'hits': [
+        {
+          'address': 5,
+          'values': [10],
+        },
+        {
+          'address': 9,
+          'values': [20],
+        },
+      ],
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showDialog<bool>(
+              context: context,
+              builder: (_) => ScannerDialog(session: session),
+            ),
+            child: const Text('Open scanner'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open scanner'));
+    await tester.pumpAndSettle();
+    expect(find.text('Open selected range'), findsNothing);
+    await tester.tap(find.text('Add selected to register map'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ScannerDialog), findsNothing);
+    expect(session.registers.map((r) => r['address']), [5, 9]);
+    expect(session.registers.last['unit_id'], 7);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    session.dispose();
+  });
+
   test(
     'scanner finds hits, reports progress and cancels without stale results',
     () async {
