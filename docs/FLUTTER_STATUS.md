@@ -342,3 +342,40 @@ was unchanged by installation. Installed UI checks covered the existing 248-row
 map's scrolling, native window dragging, demo polling and switching back to the
 device tab while the demo was running. All three maps and connection settings
 matched their pre-install backup after those checks.
+
+## Selection column and mouse sweep (2026-10-25)
+
+Removed the separate polling checkbox column. Row/batch context actions retain
+enable/disable polling; disabled rows show a pause marker and muted name without
+losing their saved polling flags. Selection is temporary and independent of I/O.
+Old column IDs are ignored by the existing layout validator.
+
+Like Qt's checkbox sweep, dragging the left mouse button along the selection
+column inverts every crossed row once per gesture, including skipped rows and
+reverse movement. Edge auto-scroll supports long virtualized maps. The viewport
+owns the recognizer, so recycling the starting row does not cancel selection.
+The recognizer accepts mouse gestures only inside the current selection column,
+including reordered/resized columns; normal scrolling and row editing remain.
+Checkbox accessibility actions are retained. Native integration retires its
+synthetic mouse before subsequent touch-driven interactions to avoid stale hover
+state in the Windows accessibility bridge.
+
+Validation: Flutter analyze clean; all 72 unit/widget tests passed. Windows
+Profile integration passed real-bridge reads, mouse sweep, batch polling flags,
+pause markers and rereading, then full-history scrolling and window resizing.
+Widget regressions cover mixed initial states, skipped/reversed rows, ordinary
+clicks, other-column drags, edge auto-scroll across recycled rows and cleanup.
+The Release installer updated the local application; all 103 payload files
+matched the build. Installed UI checks verified four-row mouse sweep selection,
+repeat sweep deselection and the polling context menu on the existing 248-row
+map. All three tabs and the saved workspace remained unchanged after these checks.
+
+Batch polling now has explicit Enable polling / Disable polling toolbar buttons.
+They affect selected rows only and are disabled without a selection or during
+active I/O. Their presence is stable while sweeping, avoiding table movement.
+The map utility dialog scrolls its contents on small windows or larger text.
+Validation: analyzer clean, all 73 unit/widget tests passed, and Windows Profile
+integration passed selection, both buttons, real-bridge reads, scrolling and
+resizing. The new regression checks skipped reads, resuming reads, unselected-row
+isolation and saved polling flags. The installed Release UI also verified drag
+selection, cancellation pause markers and reenabling on three rows.

@@ -202,7 +202,16 @@ unsupported hosts. The named map is embedded directly below the connection setti
 toolbar button scrolls to it. Map and sniffer column widths/order persist; drag
 headers or their edges, or use the header movement/reset menu. That menu also
 hides/restores columns and switches compact row height, with all preferences
-persisted per session. Map polling stops
+persisted per session.
+The map has one selection checkbox column: hold the left mouse button and sweep
+along it to invert each crossed row once. Moving to the top/bottom edge continues
+selection while the table scrolls. This changes selection only. Use the toolbar's
+Enable polling / Disable polling buttons to change polling for the selected rows
+(also available in the row context menu and Selected rows menu);
+disabled rows show a pause marker beside their names. Existing polling flags are
+preserved when opening an older workspace; its removed polling column is ignored.
+
+Map polling stops
 with the session connection. Device-mode serial forms include port discovery and
 manual entry. Sniffer views support filters, hiding/restoring and per-unit graphs;
 simulator rules offer keyboard prefix completion. Settings groups language, theme,

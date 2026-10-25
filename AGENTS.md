@@ -41,6 +41,10 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
   map reads publish UI changes at cycle boundaries; per-group bridge commands
   suppress busy notifications while preserving I/O serialization/cancellation.
   Inactive workspace tabs mute animation tickers without stopping acquisition.
+  The map uses one selection checkbox column with mouse sweep toggling and edge
+  auto-scroll; polling flags stay separate in row/batch menus, with paused-name
+  markers. Sweep tracking belongs to the viewport so virtualized rows can leave
+  the screen without ending the gesture.
   Master raw traffic is bounded and attached to bridge replies; traffic filtering/pause
   never stops acquisition. `graph_window_host.dart` owns pipe-fed native graph
   viewers without extra bus connections; session shutdown waits for them. Explicit

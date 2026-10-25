@@ -51,7 +51,13 @@ class RegisterMapDialog extends StatelessWidget {
     content: SizedBox(
       width: 1000,
       height: 470,
-      child: RegisterMapPanel(session: session, autofocus: true),
+      child: SingleChildScrollView(
+        child: RegisterMapPanel(
+          session: session,
+          autofocus: true,
+          shrinkWrap: true,
+        ),
+      ),
     ),
     actions: [
       TextButton(
@@ -530,6 +536,28 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                   itemBuilder: (_) => rowActions(),
                   icon: const Icon(Icons.playlist_add_check),
                 ),
+                OutlinedButton.icon(
+                  key: const ValueKey('enable-selected-polling'),
+                  onPressed:
+                      model.reading ||
+                          widget.session.busy ||
+                          selectedRows.isEmpty
+                      ? null
+                      : () => batch('enable'),
+                  icon: const Icon(Icons.play_arrow, size: 18),
+                  label: const LText('Enable polling'),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('disable-selected-polling'),
+                  onPressed:
+                      model.reading ||
+                          widget.session.busy ||
+                          selectedRows.isEmpty
+                      ? null
+                      : () => batch('disable'),
+                  icon: const Icon(Icons.pause, size: 18),
+                  label: const LText('Disable polling'),
+                ),
                 FilterChip(
                   label: const LText('Group reads'),
                   selected: widget.session.mapGrouped,
@@ -643,7 +671,6 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                 shrinkWrap: widget.shrinkWrap,
                 columns: const [
                   TableColumnSpec('select', 'Select', 70),
-                  TableColumnSpec('poll', 'Poll enabled', 100),
                   TableColumnSpec('name', 'Name', 150),
                   TableColumnSpec('kind', 'Area', 160),
                   TableColumnSpec('address', 'Address', 95),
@@ -657,6 +684,12 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                 layout: desktopTableLayout(widget.session.draft, 'map_table'),
                 rowCount: model.rows.length,
                 selected: selectedRows.contains,
+                selectionColumn: 'select',
+                onToggleRows: (indices) => setState(() {
+                  for (final i in indices) {
+                    if (!selectedRows.add(i)) selectedRows.remove(i);
+                  }
+                }),
                 onRowMenu: rowMenu,
                 onRowTap: model.reading ? null : (i) => edit(i),
                 cellBuilder: (context, i, key) {
@@ -688,27 +721,18 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                           );
                   }
                   if (key == 'select') {
-                    return Checkbox(
-                      value: selectedRows.contains(i),
-                      onChanged: (v) => setState(() {
-                        if (v!) {
-                          selectedRows.add(i);
-                        } else {
-                          selectedRows.remove(i);
-                        }
-                      }),
-                    );
-                  }
-                  if (key == 'poll') {
-                    return Checkbox(
-                      value: row['poll_enabled'] != false,
-                      onChanged: model.reading
-                          ? null
-                          : (v) {
-                              model.stop();
-                              row['poll_enabled'] = v;
-                              model.changed();
-                            },
+                    return Tooltip(
+                      message: tr('Click or drag to toggle row selection'),
+                      child: Checkbox(
+                        value: selectedRows.contains(i),
+                        onChanged: (v) => setState(() {
+                          if (v!) {
+                            selectedRows.add(i);
+                          } else {
+                            selectedRows.remove(i);
+                          }
+                        }),
+                      ),
                     );
                   }
                   if (key == 'actions') {
@@ -768,6 +792,46 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                       : key == 'unit_id'
                       ? row[key] ?? widget.session.unit
                       : row[key] ?? '';
+                  if (key == 'name') {
+                    final paused = row['poll_enabled'] == false;
+                    return Tooltip(
+                      message: paused
+                          ? '${tr('$text')}\n${tr('Polling disabled; right-click to enable')}'
+                          : tr('$text'),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            child: paused
+                                ? ExcludeSemantics(
+                                    child: Icon(
+                                      Icons.pause_circle_outline,
+                                      size: 16,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          Expanded(
+                            child: LText(
+                              '$text',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: paused
+                                  ? TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
                   return Tooltip(
                     message: tr('$text'),
                     child: LText(

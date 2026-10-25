@@ -36,7 +36,7 @@ Map<String, dynamic> demoState() => {
     'map_interval': 500,
     'map_table': {
       'order': ['name', 'value', 'trend', 'actions', 'kind', 'address'],
-      'hidden': ['select', 'poll', 'format', 'count', 'unit_id'],
+      'hidden': ['select', 'format', 'count', 'unit_id'],
       'widths': {'name': 190, 'value': 140, 'trend': 110, 'actions': 185},
     },
   },

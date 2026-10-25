@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'translations.dart';
@@ -17,6 +20,16 @@ class TableColumnSpec {
   final double width;
 }
 
+class _SelectionDragRecognizer extends VerticalDragGestureRecognizer {
+  _SelectionDragRecognizer()
+    : super(supportedDevices: const {PointerDeviceKind.mouse});
+  bool Function(Offset)? canStart;
+
+  @override
+  bool isPointerAllowed(PointerEvent event) =>
+      canStart?.call(event.position) == true && super.isPointerAllowed(event);
+}
+
 /// Lazy rows, a shared horizontal viewport and stable, persisted column IDs.
 class DesktopTable extends StatefulWidget {
   const DesktopTable({
@@ -28,6 +41,8 @@ class DesktopTable extends StatefulWidget {
     this.onRowTap,
     this.onRowMenu,
     this.selected,
+    this.selectionColumn,
+    this.onToggleRows,
     this.shrinkWrap = false,
   });
   final List<TableColumnSpec> columns;
@@ -37,6 +52,8 @@ class DesktopTable extends StatefulWidget {
   final ValueChanged<int>? onRowTap;
   final void Function(int, Offset)? onRowMenu;
   final bool Function(int)? selected;
+  final String? selectionColumn;
+  final ValueChanged<List<int>>? onToggleRows;
 
   /// Size short tables to their rows; cap the scrolling body for long maps.
   final bool shrinkWrap;
@@ -47,6 +64,137 @@ class DesktopTable extends StatefulWidget {
 class _DesktopTableState extends State<DesktopTable> {
   final horizontal = ScrollController();
   final vertical = ScrollController();
+  final bodyKey = GlobalKey();
+  final _dragVisited = <int>{};
+  int? _dragLastRow;
+  Offset? _dragPosition;
+  Timer? _dragTimer;
+  double _rowHeight = 56;
+
+  void _endSelection() {
+    _dragTimer?.cancel();
+    _dragTimer = null;
+    _dragPosition = null;
+    _dragLastRow = null;
+    _dragVisited.clear();
+  }
+
+  void _selectThrough(int row) {
+    final start = _dragLastRow ?? row;
+    _dragLastRow = row;
+    final changed = <int>[];
+    for (
+      var i = start < row ? start : row;
+      i <= (start > row ? start : row);
+      i++
+    ) {
+      if (_dragVisited.add(i)) changed.add(i);
+    }
+    if (changed.isNotEmpty) widget.onToggleRows?.call(changed);
+  }
+
+  void _updateSelection({bool scroll = false}) {
+    final box = bodyKey.currentContext?.findRenderObject();
+    if (_dragPosition == null || box is! RenderBox || !vertical.hasClients) {
+      return;
+    }
+    final position = box.globalToLocal(_dragPosition!);
+    final keys = visible;
+    var left = 0.0;
+    for (final key in keys) {
+      final right = left + width(key);
+      if (key == widget.selectionColumn) {
+        if (position.dx < left || position.dx >= right) {
+          _dragLastRow = null;
+          return;
+        }
+        break;
+      }
+      left = right;
+    }
+    if (!keys.contains(widget.selectionColumn) || widget.rowCount == 0) return;
+    if (scroll) {
+      final dy = position.dy < 28
+          ? -_rowHeight * ((28 - position.dy) / 28).clamp(0, 1)
+          : position.dy > box.size.height - 28
+          ? _rowHeight * ((position.dy - box.size.height + 28) / 28).clamp(0, 1)
+          : 0.0;
+      if (dy != 0) {
+        vertical.jumpTo(
+          (vertical.offset + dy).clamp(0, vertical.position.maxScrollExtent),
+        );
+      }
+    }
+    final y = position.dy.clamp(0, box.size.height - 1);
+    final row = ((vertical.offset + y) / _rowHeight).floor();
+    if (row >= 0 && row < widget.rowCount) _selectThrough(row);
+  }
+
+  bool _canStartSelection(Offset global) {
+    final box = bodyKey.currentContext?.findRenderObject();
+    if (widget.onToggleRows == null ||
+        box is! RenderBox ||
+        !vertical.hasClients) {
+      return false;
+    }
+    final position = box.globalToLocal(global);
+    if (position.dy < 0 ||
+        position.dy >= box.size.height ||
+        (vertical.offset + position.dy) / _rowHeight >= widget.rowCount) {
+      return false;
+    }
+    var left = 0.0;
+    for (final key in visible) {
+      final right = left + width(key);
+      if (key == widget.selectionColumn) {
+        return position.dx >= left && position.dx < right;
+      }
+      left = right;
+    }
+    return false;
+  }
+
+  Widget _selectionBody(Widget child) => RawGestureDetector(
+    // Checkboxes retain their own accessible actions; the mouse-only sweep must
+    // not add a second set of scroll actions around the ListView's semantics.
+    excludeFromSemantics: true,
+    gestures: {
+      _SelectionDragRecognizer:
+          GestureRecognizerFactoryWithHandlers<_SelectionDragRecognizer>(
+            _SelectionDragRecognizer.new,
+            (recognizer) => recognizer
+              ..canStart = _canStartSelection
+              ..dragStartBehavior = DragStartBehavior.down
+              ..onStart = (details) {
+                _endSelection();
+                _dragPosition = details.globalPosition;
+                _updateSelection();
+                _dragTimer = Timer.periodic(
+                  const Duration(milliseconds: 40),
+                  (_) => _updateSelection(scroll: true),
+                );
+              }
+              ..onUpdate = (details) {
+                _dragPosition = details.globalPosition;
+                _updateSelection();
+              }
+              ..onEnd = (_) {
+                _endSelection();
+              }
+              ..onCancel = _endSelection,
+          ),
+    },
+    child: child,
+  );
+
+  @override
+  void didUpdateWidget(covariant DesktopTable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.rowCount != oldWidget.rowCount || widget.onToggleRows == null) {
+      _endSelection();
+    }
+  }
+
   List<String> get order {
     final keys = widget.columns.map((c) => c.key).toList();
     final saved = widget.layout['order'];
@@ -96,6 +244,7 @@ class _DesktopTableState extends State<DesktopTable> {
 
   @override
   void dispose() {
+    _endSelection();
     horizontal.dispose();
     vertical.dispose();
     super.dispose();
@@ -219,7 +368,9 @@ class _DesktopTableState extends State<DesktopTable> {
       final rowHeight =
           (widget.layout['compact'] == true ? 48.0 : 56.0) *
           MediaQuery.textScalerOf(context).scale(1).clamp(1, 2);
+      _rowHeight = rowHeight;
       final body = Scrollbar(
+        key: bodyKey,
         controller: vertical,
         thumbVisibility: true,
         child: ListView.builder(
@@ -280,10 +431,16 @@ class _DesktopTableState extends State<DesktopTable> {
                     height: (widget.rowCount * rowHeight + 14)
                         .clamp(14, 320)
                         .toDouble(),
-                    child: body,
+                    child: widget.onToggleRows == null
+                        ? body
+                        : _selectionBody(body),
                   )
                 else
-                  Expanded(child: body),
+                  Expanded(
+                    child: widget.onToggleRows == null
+                        ? body
+                        : _selectionBody(body),
+                  ),
               ],
             ),
           ),

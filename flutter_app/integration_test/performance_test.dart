@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:modbus_desktop/src/desktop_table.dart';
@@ -85,6 +86,36 @@ void main() {
           lessThan(16.7),
         );
       }
+      final checks = find.descendant(
+        of: find.byType(DesktopTable),
+        matching: find.byType(Checkbox),
+      );
+      final selection = await tester.startGesture(
+        tester.getCenter(checks.first),
+        kind: PointerDeviceKind.mouse,
+      );
+      await selection.moveTo(tester.getCenter(checks.at(2)));
+      await selection.up();
+      // Retire the synthetic mouse before later touch-driven button interactions.
+      await selection.removePointer();
+      await tester.pumpAndSettle();
+      expect(
+        tester.widgetList<Checkbox>(checks).where((c) => c.value == true),
+        hasLength(3),
+      );
+      expect(session.registers.every((r) => r['poll_enabled'] == true), isTrue);
+      await tester.tap(find.byKey(const ValueKey('disable-selected-polling')));
+      await tester.pumpAndSettle();
+      expect(
+        session.registers.where((r) => r['poll_enabled'] == false),
+        hasLength(3),
+      );
+      expect(find.byIcon(Icons.pause_circle_outline), findsNWidgets(3));
+      await tester.tap(find.byKey(const ValueKey('enable-selected-polling')));
+      await tester.pumpAndSettle();
+      expect(session.registers.every((r) => r['poll_enabled'] == true), isTrue);
+      await session.registerMap.read();
+      await tester.pumpAndSettle();
       // Scrolling after a long acquisition must stay cheap with full histories.
       final now = DateTime.now();
       for (final points in session.histories.values) {
