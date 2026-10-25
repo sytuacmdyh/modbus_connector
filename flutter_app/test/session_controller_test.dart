@@ -19,6 +19,13 @@ void main() {
   setUp(() {
     bridge = FakeBridge();
     session = SessionController(bridge);
+    session.registers.add({
+      'name': 'Value',
+      'kind': 'holding_registers',
+      'address': 2,
+      'count': 1,
+      'format': 'dec',
+    });
   });
   tearDown(() => session.dispose());
 
@@ -26,17 +33,17 @@ void main() {
     'read/write refreshes the table and read-only areas never write',
     () async {
       await session.connect(config, 12);
-      await session.read();
-      expect(session.values.length, 50);
+      await session.registerMap.read();
+      expect(session.registerResults.length, 1);
       expect(bridge.calls.last['unit'], 12);
-      await session.write(2, 456);
-      expect(session.values[2], 456);
+      await session.registerMap.quickValue(0, 'increment');
+      expect(session.registerResults.single['values'], [101]);
       expect(
         bridge.calls.where((c) => c['command'] == 'write').single['address'],
         2,
       );
-      session.setQuery(const ReadQuery(kind: 'input_registers'));
-      await session.write(0, 1);
+      session.registers.single['kind'] = 'input_registers';
+      await session.registerMap.quickValue(0, 'one');
       expect(bridge.calls.where((c) => c['command'] == 'write').length, 1);
     },
   );
@@ -46,30 +53,33 @@ void main() {
     (tester) async {
       await session.connect(config, 1);
       bridge.heldRead = Completer<BridgeReply>();
-      session.intervalMs = 100;
-      session.startPolling();
+      session.registerMap.start(100);
       await tester.pump(const Duration(seconds: 1));
-      expect(bridge.calls.where((c) => c['command'] == 'read').length, 1);
-      session.stopPolling();
+      expect(bridge.calls.where((c) => c['command'] == 'read_rows').length, 1);
+      session.registerMap.stop();
       bridge.heldRead!.complete(
         const BridgeReply({
-          'values': [999],
-          'elapsed_ms': 1,
+          'rows': [
+            {
+              'values': [999],
+              'numeric': 999,
+            },
+          ],
         }, true),
       );
       await tester.pump();
-      expect(session.values, isEmpty);
+      expect(session.registerResults, isEmpty);
       bridge.heldRead = Completer<BridgeReply>();
-      session.startPolling();
-      session.stopPolling();
+      session.registerMap.start(100);
+      session.registerMap.stop();
       bridge.heldRead!.completeError(
         const BridgeException('old error', connected: true),
       );
       await tester.pump();
       expect(session.error, isNull);
       bridge.heldRead = null;
-      await session.read();
-      expect(session.values.first, 100);
+      await session.registerMap.read();
+      expect(session.registerResults.single['values'], [100]);
     },
   );
 
@@ -78,27 +88,31 @@ void main() {
   ) async {
     await session.connect(config, 1);
     bridge.heldRead = Completer<BridgeReply>();
-    final reading = session.read();
+    final reading = session.registerMap.read();
     final disconnecting = session.disconnect();
     expect(session.connected, isFalse);
     expect(session.canRead, isFalse);
-    await session.read();
-    await session.write(0, 4);
-    expect(bridge.calls.last['command'], 'read');
+    await session.registerMap.read();
+    await session.registerMap.quickValue(0, 'one');
+    expect(bridge.calls.last['command'], 'read_rows');
     bridge.heldRead!.complete(
       const BridgeReply({
-        'values': [99],
-        'elapsed_ms': 1,
+        'rows': [
+          {
+            'values': [99],
+            'numeric': 99,
+          },
+        ],
       }, true),
     );
     await reading;
     await disconnecting;
     expect(bridge.calls.last['command'], 'disconnect');
-    expect(session.values, isEmpty);
+    expect(session.registerResults, isEmpty);
     bridge.heldRead = null;
     await session.connect(config, 1);
-    await session.read();
-    expect(session.values.first, 100);
+    await session.registerMap.read();
+    expect(session.registerResults.single['values'], [100]);
   });
 
   test('cancel during connect cannot revive session', () async {
@@ -120,35 +134,53 @@ void main() {
     (tester) async {
       await session.connect(config, 1);
       bridge.heldRead = Completer<BridgeReply>();
-      session.startPolling();
+      session.registerMap.start(100);
       bridge.heldRead!.completeError(
         const BridgeException('device timed out', connected: true),
       );
       await tester.pump();
-      expect(session.polling, isFalse);
+      expect(session.registerMap.polling, isFalse);
       expect(session.error, 'device timed out');
       bridge.heldRead = null;
-      await session.read();
+      await session.registerMap.read();
       expect(session.error, isNull);
       for (var i = 0; i < 320; i++) {
-        await session.read();
+        await session.registerMap.read();
       }
       expect(session.logs.length, lessThanOrEqualTo(300));
     },
   );
 
-  test('invalid ranges rejected, including last address overflow', () {
-    expect(
-      () => const ReadQuery(address: 65535, count: 2).validate(),
-      throwsA(isA<BridgeException>()),
-    );
-    expect(
-      () => const ReadQuery(count: 126).validate(),
-      throwsA(isA<BridgeException>()),
-    );
-    const ReadQuery(kind: 'coils', count: 2000).validate();
-    const ReadQuery(address: 65535, count: 1).validate();
+  test('old quick-range state is ignored without starting I/O', () {
+    session.restore({
+      'query': {'kind': 'coils', 'address': 4, 'count': 50},
+      'interval_ms': 100,
+      'draft': {
+        'address': '4',
+        'count': '50',
+        'interval': '100',
+        'host': 'plc.local',
+      },
+    });
+    expect(session.state().containsKey('query'), isFalse);
+    expect(session.state().containsKey('interval_ms'), isFalse);
+    expect(session.draft, {'host': 'plc.local'});
+    expect(bridge.calls, isEmpty);
   });
+
+  test(
+    'demo seeds an empty map but preserves an existing device map',
+    () async {
+      final original = session.registers.single;
+      await session.connect({'transport': 'demo', 'timeout': 0.1}, 1);
+      expect(session.registers.single, same(original));
+      await session.disconnect();
+      session.registers.clear();
+      await session.connect({'transport': 'demo', 'timeout': 0.1}, 1);
+      expect(session.registers, hasLength(6));
+      expect(session.registers.map((r) => r['kind']).toSet(), hasLength(4));
+    },
+  );
 
   test(
     'bridge crash stops polling and shutdown closes the owned transport',
@@ -156,7 +188,7 @@ void main() {
       await session.connect(config, 1);
       bridge.onExit!();
       expect(session.connected, isFalse);
-      expect(session.polling, isFalse);
+      expect(session.registerMap.polling, isFalse);
       expect(session.error, contains('Reconnect'));
       expect(session.description, 'Disconnected');
       await session.shutdown();

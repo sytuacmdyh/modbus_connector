@@ -54,19 +54,21 @@ extras are needed. `MODBUS_PYTHON` must name the actual interpreter executable,
 without embedded quotes or arguments. Paths with spaces work without a shell.
 Keep that terminal open when launching the development client.
 
-Choose **Local demo → Connect → Read** for an offline demonstration that uses the
-real backend and a loopback TCP simulator. Select **Input registers · 04**, set
-**100 ms**, then **Start polling** for a moving chart. Holding addresses 0–124 are
-writable and initially contain 100–224; coils are also writable. Click a row to
-chart it; use its pencil button to write (decimal or `0x` hex). Enter in a
-connection field connects; Escape cancels a dialog. Errors stop polling; Read
-retries, or Disconnect then Connect starts a fresh connection.
+Choose **Workspace → Local demo** for an offline demonstration. It opens a
+separate tab, connects a real loopback TCP simulator and polls six named rows
+across all four Modbus areas every 500 ms. Signal A/B move continuously; open the
+multi-series graph to inspect them. The scaled setpoint and counter are writable;
+the switch has an On/Off selector, while the contact and signal rows are read-only.
+Reconnect resets demo values. Closing the tab stops polling and its owned simulator.
+Selecting Local demo in a device connection form also opens a separate demo tab,
+preserving the original connection and map. Restored demo tabs stay disconnected
+until Connect; an empty demo map receives the example rows automatically.
 
 For hardware choose TCP (default port 502) or RTU (default transport). RTU accepts
 manual `COM3`/device paths, port discovery, custom baud, 7/8 bits, N/E/O parity,
 1/2 stop bits, unit 1–247 and timeout 0.1–60 s. All addresses are **0-based PDU**,
-not 40001-style reference numbers. Quick-range writes change a raw unsigned 16-bit register or coil. The named
-register map also supports multi-register engineering-value writes with inverse
+not 40001-style reference numbers. Row shortcuts change a raw unsigned 16-bit
+register or coil. The register map also supports multi-register engineering-value writes with inverse
 scaling and byte-order encoding. Disconnect gates controls immediately and waits for the active
 transaction; Cancel connection uses the same path. The timeout includes the
 existing backend's retries, so disconnection may take several device timeouts.

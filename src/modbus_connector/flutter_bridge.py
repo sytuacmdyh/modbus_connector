@@ -80,6 +80,14 @@ class Bridge:
             self.demo.stop()
             self.demo = None
 
+    def _advance_demo(self) -> None:
+        if self.demo is not None:
+            elapsed = time.monotonic() - self._demo_started
+            self.demo.set_values(
+                "input_registers", 0,
+                [round(1000 + 500 * math.sin(elapsed + i / 5)) for i in range(125)],
+            )
+
     def _connect(self, data: dict[str, Any]) -> dict[str, Any]:
         transport = text(data, "transport", "rtu")
         timeout = data.get("timeout", 3.0)
@@ -119,6 +127,7 @@ class Bridge:
                 self.demo.set_values("discrete_inputs", 0, [i % 3 == 0 for i in range(2000)])
                 self.demo.start(SimTcpParams("127.0.0.1", port))
                 self._demo_started = time.monotonic()
+                self._advance_demo()
             self.backend.connect(params)
         except Exception:
             self.close()
@@ -254,6 +263,7 @@ class Bridge:
             )
             if command == "plan_reads":
                 return {"groups": planned_groups(rows)}
+            self._advance_demo()
             started = time.monotonic()
             raw_results: list[list[int | bool]] = [[] for _ in rows]
             for indices in groups:
@@ -353,11 +363,7 @@ class Bridge:
             raise ConnectionError("Not connected; connect again")
         started = time.monotonic()
         if command == "read":
-            if self.demo is not None and kind == "input_registers":
-                elapsed = time.monotonic() - self._demo_started
-                self.demo.set_values(
-                    kind, 0, [round(1000 + 500 * math.sin(elapsed + i / 5)) for i in range(125)]
-                )
+            self._advance_demo()
             result = {"values": self.backend.read(unit, kind, address, count)}
         else:
             self.backend.write(unit, kind, address, values)

@@ -25,8 +25,10 @@ class Workbench extends StatefulWidget {
     required this.themeMode,
     required this.onThemeChanged,
     this.manageLifecycle = true,
+    this.onOpenDemo,
   });
   final bool manageLifecycle;
+  final VoidCallback? onOpenDemo;
   final SessionController controller;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeChanged;
@@ -46,6 +48,7 @@ class _WorkbenchState extends State<Workbench> {
   bool _errorsOnly = false;
   bool _showLogFilter = false;
   final _connectionForm = GlobalKey<FormState>();
+  final _transportField = GlobalKey<FormFieldState<String>>();
   final _host = TextEditingController(text: '127.0.0.1');
   final _port = TextEditingController(text: '502');
   final _serial = TextEditingController();
@@ -161,10 +164,12 @@ class _WorkbenchState extends State<Workbench> {
     T value,
     Map<T, String> items,
     ValueChanged<T>? onChanged,
-    double width,
-  ) => SizedBox(
+    double width, {
+    Key? fieldKey,
+  }) => SizedBox(
     width: width,
     child: DropdownButtonFormField<T>(
+      key: fieldKey,
       initialValue: value,
       isExpanded: true,
       decoration: InputDecoration(labelText: tr(label)),
@@ -269,11 +274,21 @@ class _WorkbenchState extends State<Workbench> {
                 },
                 locked
                     ? null
-                    : (v) => setState(() {
-                        _transport = v;
-                        _saveDraft();
-                      }),
+                    : (v) {
+                        if (v == 'demo' &&
+                            _transport != 'demo' &&
+                            widget.onOpenDemo != null) {
+                          _transportField.currentState?.didChange(_transport);
+                          widget.onOpenDemo!();
+                          return;
+                        }
+                        setState(() {
+                          _transport = v;
+                          _saveDraft();
+                        });
+                      },
                 150,
+                fieldKey: _transportField,
               ),
               if (['tcp', 'rtu_tcp', 'rtu_udp'].contains(_transport)) ...[
                 _field(
@@ -404,7 +419,9 @@ class _WorkbenchState extends State<Workbench> {
                 ),
               ),
               if (_transport == 'demo')
-                const LText('Real loopback TCP · input registers animate'),
+                const LText(
+                  'Local simulator · poll the map to view signals; reconnect resets values.',
+                ),
             ],
           ),
         ),
@@ -676,7 +693,7 @@ class _WorkbenchState extends State<Workbench> {
                                 icon: const Icon(Icons.radar),
                                 onPressed: session.connected && !session.busy
                                     ? () async {
-                                        session.stopPolling();
+                                        session.registerMap.stop();
                                         final applied = await showDialog<bool>(
                                           context: context,
                                           builder: (_) =>

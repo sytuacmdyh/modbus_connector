@@ -37,8 +37,33 @@ class FakeBridge extends BridgeTransport {
           ),
           'elapsed_ms': 1.2,
         }, connected);
+      case 'read_rows':
+        if (heldRead != null) return heldRead!.future;
+        return BridgeReply({
+          'rows': [
+            for (final row in (command['rows'] as List).cast<Map>())
+              {
+                'values': List.filled(
+                  row['count'] as int? ?? 1,
+                  ['coils', 'discrete_inputs'].contains(row['kind'])
+                      ? value != 0
+                      : value,
+                ),
+                'display': '$value',
+                'numeric': value,
+                'alarm': null,
+              },
+          ],
+        }, connected);
+      case 'plan_reads':
+        return BridgeReply({
+          'groups': [
+            for (var i = 0; i < (command['rows'] as List).length; i++) [i],
+          ],
+        }, connected);
       case 'write':
-        value = (command['values'] as List).first as int;
+        final raw = (command['values'] as List).first;
+        value = raw is bool ? (raw ? 1 : 0) : raw as int;
         return BridgeReply({}, connected);
       case 'ports':
         if (heldPorts != null) return heldPorts!.future;

@@ -64,8 +64,7 @@ void main() {
     addTearDown(() => appLanguage.value = 'en');
     final session = SessionController(FakeBridge());
     await session.connect({'timeout': 0.1}, 1);
-    session.setQuery(ReadQuery(count: 1));
-    await session.read();
+    session.recordPoint('1/holding_registers/0', 'holding_registers @0', 100);
     session.recordPoint('sniff/2/coils/7', 'unit 2 coils @7', 1);
     session.recordPoint('custom', 'Voltage', 230);
     await tester.pumpWidget(MaterialApp(home: GraphDialog(session: session)));

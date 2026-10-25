@@ -16,6 +16,7 @@ import 'settings_store.dart';
 import 'templates_dialog.dart';
 import 'help_dialog.dart';
 import 'online_dialogs.dart';
+import 'demo.dart';
 
 class WorkspaceController extends ChangeNotifier {
   WorkspaceController({BridgeTransport Function()? bridgeFactory, this.store})
@@ -133,6 +134,15 @@ class WorkspaceController extends ChangeNotifier {
 
   int selected = 0;
   bool closing = false;
+  Future<void> openDemo() async {
+    openState(demoState());
+    final session = sessions.last;
+    await session.connect({'transport': 'demo', 'timeout': 1.0}, 1);
+    if (!closing && sessions.contains(session) && session.connected) {
+      session.registerMap.start(500);
+    }
+  }
+
   void add() {
     if (closing || sessions.length >= 64) return;
     sessions.add(SessionController(bridgeFactory()));
@@ -192,6 +202,15 @@ class SessionWorkspace extends StatefulWidget {
 }
 
 class _SessionWorkspaceState extends State<SessionWorkspace> {
+  Future<void> openDemo() async {
+    try {
+      await workspace.openDemo();
+    } catch (e) {
+      workspace.stateError = userError(e);
+      workspace.notifyListeners();
+    }
+  }
+
   late final workspace =
       widget.controller ?? WorkspaceController(store: SettingsStore());
   late final AppLifecycleListener lifecycle;
@@ -373,7 +392,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                                   size: 16,
                                 ),
                                 label: LText(
-                                  '${tr(workspace.sessions[i].mode)} ${i + 1}',
+                                  '${tr(workspace.sessions[i].draft['transport'] == 'demo' ? 'Local demo' : workspace.sessions[i].mode)} ${i + 1}',
                                 ),
                                 onPressed: () => workspace.select(i),
                                 onDeleted: () => unawaited(
@@ -400,6 +419,10 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                   tooltip: tr('Workspace'),
                   icon: const Icon(Icons.folder_open),
                   onSelected: (v) async {
+                    if (v == 'demo') {
+                      await openDemo();
+                      return;
+                    }
                     final session = workspace.sessions[workspace.selected];
                     if (['templates', 'cloud', 'updates'].contains(v)) {
                       final tool = SessionController(workspace.bridgeFactory());
@@ -429,6 +452,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                     await workspaceFile(v);
                   },
                   itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'demo', child: LText('Local demo')),
                     PopupMenuItem(
                       value: 'templates',
                       child: LText('Templates / history'),
@@ -499,6 +523,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                           key: ObjectKey(session),
                           controller: session,
                           manageLifecycle: false,
+                          onOpenDemo: () => unawaited(openDemo()),
                           themeMode: widget.themeMode,
                           onThemeChanged: widget.onThemeChanged,
                         ),

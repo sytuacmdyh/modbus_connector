@@ -66,8 +66,7 @@ void main() {
         'port': port,
         'timeout': 0.2,
       }, 1);
-      await master.read();
-      expect((master.values.first as int), greaterThanOrEqualTo(7));
+
       master.registers.add({
         'name': 'Counter',
         'kind': 'holding_registers',

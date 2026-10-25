@@ -95,6 +95,25 @@ def verify(bundle: Path) -> dict:
             saved = master.call("template_save", state=template, name="验收模板")["result"]
             master.call("template_load", template_id=saved["id"])
             master.call("disconnect")
+            master.call("connect", transport="demo", timeout=0.5)
+            demo_rows = [
+                {"kind": "input_registers", "address": 0, "count": 1},
+                {"kind": "holding_registers", "address": 0, "count": 1},
+                {"kind": "coils", "address": 0, "count": 1},
+                {"kind": "discrete_inputs", "address": 0, "count": 1},
+            ]
+            demo = master.call("read_rows", rows=demo_rows, grouped=True)["result"]["rows"]
+            assert 500 <= demo[0]["values"][0] <= 1500
+            assert demo[1]["values"] == [100]
+            assert demo[2]["values"] == [True] and demo[3]["values"] == [True]
+            master.call("write", kind="holding_registers", address=0, values=[235])
+            master.call("write", kind="coils", address=0, values=[False])
+            demo = master.call("read_rows", rows=demo_rows, grouped=False)["result"]["rows"]
+            assert demo[1]["values"] == [235] and demo[2]["values"] == [False]
+            master.call("disconnect")
+            master.call("connect", transport="demo", timeout=0.5)
+            demo = master.call("read_rows", rows=demo_rows, grouped=True)["result"]["rows"]
+            assert demo[1]["values"] == [100] and demo[2]["values"] == [True]
         finally:
             master.close()
             simulator.close()
@@ -103,7 +122,8 @@ def verify(bundle: Path) -> dict:
             assert probe.connect_ex(("127.0.0.1", port)) != 0
     return {"bundle": str(bundle.resolve()), "public_templates": len(catalog),
             "checks": ["frozen startup", "separate simulator/master", "read/write", "traffic",
-                       "expressions", "CSV logger", "public/custom templates", "EOF cleanup"]}
+                       "expressions", "CSV logger", "public/custom templates", "EOF cleanup",
+                       "demo map areas/write/reconnect"]}
 
 
 if __name__ == "__main__":

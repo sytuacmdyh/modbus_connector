@@ -163,8 +163,8 @@ def catalog_command(data: dict[str, Any]) -> dict[str, Any]:
                 or any(not isinstance(tab, dict) for tab in workspace["tabs"])):
             raise ValueError("Configuration requires 1..64 session objects")
         allowed = {
-            "mode", "connection", "registers", "expressions", "draft", "unit", "query",
-            "interval_ms", "device_config", "sim_rows", "map_grouped", "logging",
+            "mode", "connection", "registers", "expressions", "draft", "unit",
+            "device_config", "sim_rows", "map_grouped", "logging",
             "scanner", "sniffed",
         }
         return {

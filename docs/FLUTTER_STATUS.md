@@ -274,11 +274,40 @@ Removed the quick contiguous read/write controls, raw range table and single-row
 chart. Connection settings now lead directly into the register map; manual rows,
 templates, map reads/polling, writes and multi-series graphs share that workspace.
 Activity stays below the map. Address scanner results add selected addresses to
-the map, without a second range-opening action. Legacy query state remains readable
-for workspace compatibility; opening an old workspace never starts I/O.
+the map, without a second range-opening action. Legacy query fields are ignored on restore and omitted from new saves; opening
+an old workspace never starts I/O.
 Validation: analyzer clean, all 62 Flutter tests passed, and the Windows native
 integration passed with manual row addition, real map read/write/reread, map
 poll/stop and reconnect through the local simulator. Rebuilt and installed the
 Windows Release; all 103 payload hashes matched. Existing workspace was bytewise
 unchanged by installation; its three tabs and 248-row map restored in the UI.
 Installed Chinese UI confirms connection settings lead directly into the map.
+
+## Quick-range residue cleanup and demo repair (2026-10-25)
+
+Removed the unused LiveChart/WriteDialog widgets, ReadQuery, quick read/write
+methods, quick polling timer/cancellation state and 300-sample selection buffer.
+Map polling retains its own cancellation generations and bounded graph histories.
+Old workspace query/interval fields are ignored; obsolete draft fields are dropped.
+Shared Python read/write commands remain necessary for tools and protocol clients.
+
+A real regression reproduced input-register map reads returning zero in demo mode:
+only the former raw read path advanced the simulator. Map reads now advance the
+same real simulator before I/O, including grouped reads, while preserving writes.
+Workspace → Local demo opens an isolated tab with six named example rows covering
+all four areas, scaled signals/setpoint, a counter and switch/contact names. It
+connects and polls at 500 ms; choosing demo in a device form opens the same isolated
+workflow. Restored sessions never auto-connect. Reconnect resets simulator data.
+README/help now describe the map workflow instead of the deleted quick controls.
+
+Validation: Python bridge/online tests passed (51 passed, 1 skipped); Ruff and
+Flutter analyzer were clean; all 66 Flutter tests passed. Both Windows native
+integration files passed separately against real loopback simulator processes.
+The demo test covers animated grouped reads, engineering writes, switch changes,
+graph histories, stop/disconnect and reconnect reset. The frozen bundle verified
+all 26 public templates, four demo areas, writes and reset without external Python.
+Installed Release payload hashes matched all 103 files; installation preserved
+the workspace byte for byte. Installed Chinese UI restored the existing two tabs
+and 248-row device map. Opening a demo added an isolated tab; live trends and a
+keyboard-entered 23.5 °C write/readback were verified. Hardware serial I/O was not
+part of this demo validation.

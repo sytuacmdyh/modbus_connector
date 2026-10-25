@@ -84,7 +84,7 @@ class RegisterMapController extends ChangeNotifier {
     if (indices.isEmpty) return;
     reading = true;
     final generation = _generation;
-    session.beginTool(stopQuickPolling: false);
+    session.beginTool();
     notifyListeners();
     bool accept() => !_disposed && generation == _generation;
     try {

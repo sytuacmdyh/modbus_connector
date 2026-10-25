@@ -1,154 +1,125 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:modbus_desktop/main.dart';
-import 'package:modbus_desktop/src/bridge_client.dart';
-import 'package:modbus_desktop/src/session_controller.dart';
+import 'package:modbus_desktop/src/graph_dialog.dart';
 import 'package:modbus_desktop/src/register_map.dart';
+import 'package:modbus_desktop/src/workspace.dart';
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-
   testWidgets(
-    'desktop → stdio Python → real simulator: read, write, poll, reconnect',
+    'local demo opens isolated map, animates, writes, graphs and reconnects',
     (tester) async {
-      await binding.setSurfaceSize(const Size(900, 650));
-      addTearDown(() => binding.setSurfaceSize(null));
-      final session = SessionController(ProcessBridge());
-      session.draft['map_table'] = {
-        'order': ['actions', 'name', 'value'],
-      };
-      await tester.pumpWidget(ModbusApp(controller: session));
-      // Drive the visible connect controls, then exercise the same controller used
-      // by the register map. No mock transport or replacement Modbus implementation.
-      await tester.tap(find.text('Serial RTU'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Local demo').last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Connect'));
-      for (
-        var i = 0;
-        i < 150 && !session.connected && session.error == null;
-        i++
-      ) {
-        await tester.pump(const Duration(milliseconds: 100));
+      await binding.setSurfaceSize(const Size(1280, 800));
+      final workspace = WorkspaceController();
+      final device = workspace.sessions.first;
+      device.registers.add({
+        'name': 'Real device',
+        'kind': 'holding_registers',
+        'address': 600,
+        'count': 1,
+      });
+      try {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: SessionWorkspace(
+              controller: workspace,
+              themeMode: ThemeMode.system,
+              onThemeChanged: (_) {},
+            ),
+          ),
+        );
+        await tester.tap(find.byTooltip('Workspace'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Local demo'));
+        for (
+          var i = 0;
+          i < 150 &&
+              (workspace.sessions.length < 2 ||
+                  workspace.sessions.last.registerResults.length < 6);
+          i++
+        ) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(workspace.sessions, hasLength(2));
+        expect(device.registers.single['address'], 600);
+        expect(device.connected, isFalse);
+        final demo = workspace.sessions.last;
+        expect(demo.connected, isTrue);
+        expect(demo.registerMap.polling, isTrue);
+        expect(demo.error, isNull);
+        expect(demo.registers, hasLength(6));
+        expect(
+          demo.registerResults[0]['values'].single,
+          inInclusiveRange(500, 1500),
+        );
+        expect(demo.registerResults[2]['values'], [100]);
+        expect(demo.registerResults[4]['values'], [true]);
+        expect(demo.registerResults[5]['values'], [true]);
+        final first = demo.registerResults[0]['values'].single;
+        for (var i = 0; i < 20; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(demo.registerResults[0]['values'].single, isNot(first));
+        expect(demo.histories.values.first.length, greaterThan(2));
+        expect(find.text('Read'), findsNothing);
+        expect(find.byType(RegisterMapPanel), findsOneWidget);
+        await tester.tap(find.byTooltip('Stop map polling'));
+        while (demo.busy || demo.registerMap.reading) {
+          await tester.pump(const Duration(milliseconds: 20));
+        }
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Write row').at(2));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(TextField),
+          ),
+          '23.5',
+        );
+        await tester.tap(find.text('Apply'));
+        for (
+          var i = 0;
+          i < 100 && demo.registerResults[2]['values'].single != 235;
+          i++
+        ) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        expect(demo.error, isNull);
+        expect(demo.registerResults[2]['values'], [235]);
+        await demo.registerMap.quickValue(4, 'zero');
+        expect(demo.registerResults[4]['values'], [false]);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Multi-series graph'));
+        await tester.pumpAndSettle();
+        expect(find.byType(GraphDialog), findsOneWidget);
+        expect(find.text('Demo signal A @0'), findsOneWidget);
+        await tester.tap(find.text('Close'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Disconnect'));
+        await tester.tap(find.text('Disconnect'));
+        for (var i = 0; i < 100 && demo.disconnecting; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        expect(demo.connected, isFalse);
+        expect(demo.registerMap.polling, isFalse);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Connect'));
+        for (var i = 0; i < 100 && !demo.connected; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        await demo.registerMap.read();
+        expect(demo.registerResults[2]['values'], [100]);
+        expect(demo.registerResults[4]['values'], [true]);
+        expect(demo.error, isNull);
+        expect(tester.takeException(), isNull);
+      } finally {
+        await workspace.shutdown();
+        await tester.pumpWidget(const SizedBox());
+        workspace.dispose();
+        await binding.setSurfaceSize(null);
       }
-      expect(session.error, isNull);
-      expect(session.connected, isTrue);
-      expect(find.text('Read'), findsNothing);
-      expect(find.text('Start polling'), findsNothing);
-      await tester.tap(find.text('Add row'));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Name'),
-        'Manual register',
-      );
-      await tester.tap(find.text('Apply'));
-      await tester.pumpAndSettle();
-      expect(session.registers.single['address'], 0);
-      await tester.tap(find.text('Read map'));
-      for (var i = 0; i < 100 && session.registerResults.isEmpty; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-      expect(session.error, isNull);
-      expect(session.registerResults.single['values'], [100]);
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Write row'));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.byType(TextField),
-        ),
-        '32123',
-      );
-      await tester.tap(find.text('Apply'));
-      for (
-        var i = 0;
-        i < 100 && session.registerResults.single['display'] != '32123';
-        i++
-      ) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-      expect(session.error, isNull);
-      expect(session.registerResults.single['values'], [32123]);
-      await tester.tap(find.text('Poll map'));
-      for (var i = 0; i < 18; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
-      expect(session.registerMap.polling, isTrue);
-      expect(
-        session.histories.values.any((points) => points.length > 2),
-        isTrue,
-      );
-      await tester.tap(find.text('Stop'));
-      await tester.pumpAndSettle();
-      expect(session.registerMap.polling, isFalse);
-      expect(find.byType(RegisterMapPanel), findsOneWidget);
-      expect(tester.takeException(), isNull);
-      // Preserve backend coverage for all four Modbus areas and reconnects.
-      await session.read();
-      expect(session.values.take(3), [32123, 101, 102]);
-      await session.write(0, 32123);
-      expect(session.values.first, 32123);
-      session.setQuery(const ReadQuery(kind: 'coils', count: 50));
-      await session.read();
-      expect(session.values.take(2), [true, false]);
-      await session.write(1, 1);
-      expect(session.values[1], true);
-      session.setQuery(const ReadQuery(kind: 'discrete_inputs', count: 50));
-      await session.read();
-      expect(session.values.take(4), [true, false, false, true]);
-      session.setQuery(const ReadQuery(kind: 'input_registers', count: 50));
-      session.intervalMs = 100;
-      session.startPolling();
-      for (var i = 0; i < 25; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
-      session.stopPolling();
-      while (session.busy) {
-        await tester.pump(const Duration(milliseconds: 20));
-      }
-      expect(session.samples.length, greaterThan(3));
-      expect(
-        session.samples.map((s) => s.value).toSet().length,
-        greaterThan(1),
-      );
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      await session.disconnect();
-      expect(session.connected, isFalse);
-      await session.connect({'transport': 'demo', 'timeout': 0.2}, 1);
-      session.setQuery(const ReadQuery(address: 10000, count: 1));
-      await session.read();
-      expect(session.error, contains('Illegal Data Address'));
-      session.setQuery(const ReadQuery());
-      await session.read();
-      expect(session.error, isNull);
-      expect(session.values.first, 100);
-      await session.disconnect();
-      await session.connect({
-        'transport': 'tcp',
-        'host': '127.0.0.1',
-        'port': 1,
-        'timeout': 0.1,
-      }, 1);
-      expect(session.connected, isFalse);
-      expect(session.error, isNotNull);
-      await session.connect({'transport': 'demo', 'timeout': 0.2}, 1);
-      expect(session.error, isNull);
-      // An unexpected bridge exit must drop the connection and allow a fresh child.
-      await session.bridge.request({'command': 'shutdown'});
-      for (var i = 0; i < 50 && session.connected; i++) {
-        await tester.pump(const Duration(milliseconds: 20));
-      }
-      expect(session.connected, isFalse);
-      await session.connect({'transport': 'demo', 'timeout': 0.2}, 1);
-      expect(session.connected, isTrue);
-      expect(session.error, isNull);
-      await session.shutdown();
-      await tester.pumpWidget(const SizedBox());
-      session.dispose();
     },
   );
 }

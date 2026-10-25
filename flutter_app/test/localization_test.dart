@@ -23,10 +23,6 @@ void main() {
       'Connecting…': '正在连接…',
       'Connected · tcp localhost:502 · unit 3':
           '已连接 · tcp localhost:502 · 站号 3',
-      'Polling every 500 ms': '正在轮询，间隔 500 毫秒',
-      'Polling stopped': '轮询已停止',
-      'Read 2 holding_registers @5 · 1.2 ms': '已读取 2 个保持寄存器 @5 · 1.2 毫秒',
-      'Wrote 42 → coils @6': '已写入 42 → 线圈 @6',
       'holding_registers @0 × 1': '保持寄存器 @0 × 1',
       'input_registers @10 × 2': '输入寄存器 @10 × 2',
       'coils @0 × 1': '线圈 @0 × 1',
@@ -56,8 +52,6 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final session = SessionController(FakeBridge());
     await session.connect({'timeout': 0.1}, 3);
-    session.startPolling();
-    session.stopPolling();
     await tester.pumpWidget(ModbusApp(controller: session));
     for (final language in ['zh_CN', 'en']) {
       appLanguage.value = language;
@@ -70,12 +64,6 @@ void main() {
       expect(
         find.textContaining(
           chinese ? '已连接 · test TCP · 站号 3' : 'Connected · test TCP · unit 3',
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining(
-          chinese ? '正在轮询，间隔 500 毫秒' : 'Polling every 500 ms',
         ),
         findsOneWidget,
       );
@@ -170,8 +158,6 @@ void main() {
     for (final caption in captions) {
       expect(tr(caption), isNot(caption), reason: caption);
     }
-    expect(tr('Live trend · @42'), '实时趋势 · @42');
-    expect(tr('Write register @5'), '写入寄存器 @5');
     expect(tr('Advanced Modbus · unit 3'), '高级 Modbus · 站号 3');
     appLanguage.value = 'en';
     for (final caption in captions) {

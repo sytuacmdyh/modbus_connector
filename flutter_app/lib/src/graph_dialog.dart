@@ -459,7 +459,7 @@ class _GraphDialogState extends State<GraphDialog> {
               ),
               if (points.isEmpty)
                 const LText(
-                  'Read or poll a range/map to collect samples. Sniffer traffic also adds curves.',
+                  'Read or poll the register map to collect samples. Sniffer traffic also adds curves.',
                 ),
               if (message != null) LText(message!),
               const LText(

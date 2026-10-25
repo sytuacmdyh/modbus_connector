@@ -184,6 +184,21 @@ def test_frames_errors_and_shutdown() -> None:
     assert replies[5]["id"] == 2 and replies[5]["ok"]
 
 
+def test_demo_map_reads_animate_and_preserve_writes(bridge: Bridge) -> None:
+    assert request(bridge, "connect", transport="demo")["ok"]
+    rows = [
+        {"name": "Signal", "kind": "input_registers", "address": 0, "count": 1},
+        {"name": "Setpoint", "kind": "holding_registers", "address": 0, "count": 1},
+    ]
+    first = request(bridge, "read_rows", rows=rows, unit=1)["result"]["rows"]
+    assert 500 <= first[0]["values"][0] <= 1500
+    assert request(bridge, "write", address=0, values=[321])["ok"]
+    bridge._demo_started -= 2
+    second = request(bridge, "read_rows", rows=rows, unit=1, grouped=True)["result"]["rows"]
+    assert second[0]["values"] != first[0]["values"]
+    assert second[1]["values"] == [321]
+
+
 def test_demo_uses_real_backend_and_cleans_up(bridge: Bridge) -> None:
     assert request(bridge, "connect", transport="demo")["connected"]
     demo = bridge.demo

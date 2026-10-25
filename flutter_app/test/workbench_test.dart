@@ -102,10 +102,10 @@ void main() {
       expect(tester.takeException(), isNull);
       await session.connect({'transport': 'tcp', 'timeout': 0.1}, 1);
       for (var i = 0; i < 30; i++) {
-        await session.read();
+        bridge.onDiagnostic?.call('Diagnostic $i');
       }
       bridge.heldRead = Completer<BridgeReply>();
-      final reading = session.read();
+      final reading = session.command({'command': 'read', 'count': 1});
       bridge.heldRead!.completeError(
         const BridgeException(
           'Device timed out. Check the connection and retry reading.',
@@ -319,7 +319,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(session.connected, isTrue);
       expect(session.error, isNull);
-      expect(session.elapsedMs, isNull);
+      expect(session.registerResults, isEmpty);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       session.dispose();
