@@ -34,8 +34,14 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
   own separate bridges; cloud password saving is opt-in. Flutter update install is
   unsupported because published assets install Qt. `build_installer.py --flutter`
   creates a separate ModbusConnectorFlutter install/shortcut/uninstall identity.
-  Flutter's master map is the sole read/write surface directly below connection
-  settings (no separate quick-range controls/table/chart); scanner address hits
+  Flutter's master map is the sole read/write surface below a compact connection
+  summary. Connection settings use a validated modal draft (Apply commits, Cancel
+  restores, discovery still uses the session bridge); connected/busy sessions lock editing.
+  The table fills remaining window height. Activity occupies a collapsible right pane
+  on wide windows and a right drawer on narrow windows. Session utilities use a menu;
+  rare map tools collapse behind More tools. Selected-row actions float at the bottom
+  with table padding so selection never resizes the drag viewport or obscures final rows.
+  There are no separate quick-range controls/table/chart; scanner address hits
   feed the map. `desktop_table.dart` virtualizes map/sniffer
   rows and persists column layouts/visibility/density in session drafts. The master
   map defaults to compact 48 px rows with Area/Count/Unit hidden; explicit saved

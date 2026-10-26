@@ -51,6 +51,7 @@ class DesktopTable extends StatefulWidget {
     this.onToggleRows,
     this.shrinkWrap = false,
     this.compactByDefault = false,
+    this.bottomPadding = 14,
   });
   final List<TableColumnSpec> columns;
   final Map<String, dynamic> layout;
@@ -65,6 +66,7 @@ class DesktopTable extends StatefulWidget {
   /// Size short tables to their rows; cap the scrolling body for long maps.
   final bool shrinkWrap;
   final bool compactByDefault;
+  final double bottomPadding;
   @override
   State<DesktopTable> createState() => _DesktopTableState();
 }
@@ -387,7 +389,7 @@ class _DesktopTableState extends State<DesktopTable> {
         child: ListView.builder(
           controller: vertical,
           primary: false,
-          padding: const EdgeInsets.only(bottom: 14),
+          padding: EdgeInsets.only(bottom: widget.bottomPadding),
           itemCount: widget.rowCount,
           itemExtent: rowHeight,
           itemBuilder: (context, i) => GestureDetector(

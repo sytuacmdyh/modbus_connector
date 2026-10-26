@@ -13,7 +13,6 @@ import 'scanner.dart';
 import 'register_map.dart';
 import 'logging_dialog.dart';
 import 'device_panel.dart';
-import 'graph_dialog.dart';
 import 'advanced_dialog.dart';
 import 'session_controller.dart';
 import 'traffic_dialog.dart';
@@ -40,8 +39,10 @@ class Workbench extends StatefulWidget {
 
 class _WorkbenchState extends State<Workbench> {
   SessionController get session => widget.controller;
-  final _mapKey = GlobalKey();
-  final _pageScroll = ScrollController();
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _showActivity = true;
+  bool _editingConnection = false;
+  StateSetter? _dialogSetState;
   final _logScroll = ScrollController();
   bool _refreshingPorts = false;
   String _logFilter = '';
@@ -103,6 +104,7 @@ class _WorkbenchState extends State<Workbench> {
   }
 
   void _saveDraft() {
+    if (_editingConnection) return;
     session.draft.addAll({
       'transport': _transport,
       'parity': _parity,
@@ -123,7 +125,6 @@ class _WorkbenchState extends State<Workbench> {
   @override
   void dispose() {
     _lifecycle?.dispose();
-    _pageScroll.dispose();
     _logScroll.dispose();
     for (final controller in [_host, _port, _serial, _baud, _unit, _timeout]) {
       controller.dispose();
@@ -188,9 +189,101 @@ class _WorkbenchState extends State<Workbench> {
     ),
   );
 
+  void _changeConnection(VoidCallback change) {
+    setState(change);
+    _dialogSetState?.call(() {});
+  }
+
+  bool get _validConnection {
+    bool integer(TextEditingController field, int min, int max) =>
+        _integer(field.text, min, max) == null;
+    final timeout = double.tryParse(_timeout.text);
+    return integer(_unit, 1, 247) &&
+        timeout != null &&
+        timeout >= 0.1 &&
+        timeout <= 60 &&
+        (_transport != 'rtu' ||
+            (_serial.text.trim().isNotEmpty && integer(_baud, 50, 4000000))) &&
+        (!['tcp', 'rtu_tcp', 'rtu_udp'].contains(_transport) ||
+            (_host.text.trim().isNotEmpty && integer(_port, 1, 65535)));
+  }
+
+  void _applyConnection() {
+    if (!_refreshingPorts && _connectionForm.currentState!.validate()) {
+      Navigator.of(context, rootNavigator: true).pop(true);
+    }
+  }
+
+  Future<void> _configure({bool connectAfterSave = false}) async {
+    if (session.connected || session.busy || session.disconnecting) return;
+    final controllers = [_host, _port, _serial, _baud, _unit, _timeout];
+    final previous = controllers.map((c) => c.text).toList();
+    final transport = _transport;
+    final parity = _parity;
+    final bits = _bits;
+    final stop = _stop;
+    _editingConnection = true;
+    final applied = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) {
+          _dialogSetState = update;
+          return ListenableBuilder(
+            listenable: session,
+            builder: (context, _) => AlertDialog(
+              title: const LText('Connection settings'),
+              content: SizedBox(
+                width: 610,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _connectionFields(),
+                      if (session.error != null) LText(session.error!),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const LText('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: session.busy || _refreshingPorts
+                      ? null
+                      : _applyConnection,
+                  child: LText(connectAfterSave ? 'Save and connect' : 'Apply'),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    _dialogSetState = null;
+    if (!mounted) return;
+    if (applied != true) {
+      for (var i = 0; i < controllers.length; i++) {
+        controllers[i].text = previous[i];
+      }
+      _transport = transport;
+      _parity = parity;
+      _bits = bits;
+      _stop = stop;
+    }
+    _editingConnection = false;
+    _refreshingPorts = false;
+    setState(_saveDraft);
+    if (applied == true && connectAfterSave) _connect();
+  }
+
   void _connect() {
     if (session.busy || session.connected || session.disconnecting) return;
-    if (!_connectionForm.currentState!.validate()) return;
+    if (!_validConnection) {
+      unawaited(_configure(connectAfterSave: true));
+      return;
+    }
     unawaited(
       session.connect({
         'transport': _transport,
@@ -210,169 +303,283 @@ class _WorkbenchState extends State<Workbench> {
     );
   }
 
-  Widget _connection({required bool compact}) {
+  Widget _connectionFields() {
     final locked = session.connected || session.busy || session.disconnecting;
+    return Form(
+      key: _connectionForm,
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 16,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          _dropdown<String>(
+            'Transport',
+            _transport,
+            const {
+              'rtu': 'Serial RTU',
+              'tcp': 'TCP',
+              'rtu_tcp': 'RTU over TCP',
+              'rtu_udp': 'RTU over UDP',
+              'demo': 'Local demo',
+            },
+            locked
+                ? null
+                : (v) {
+                    if (v == 'demo' &&
+                        _transport != 'demo' &&
+                        widget.onOpenDemo != null) {
+                      _transportField.currentState?.didChange(_transport);
+                      Navigator.of(context, rootNavigator: true).pop();
+                      widget.onOpenDemo!();
+                      return;
+                    }
+                    _changeConnection(() {
+                      _transport = v;
+                      _saveDraft();
+                    });
+                  },
+            150,
+            fieldKey: _transportField,
+          ),
+          if (['tcp', 'rtu_tcp', 'rtu_udp'].contains(_transport)) ...[
+            _field(
+              'Host',
+              _host,
+              175,
+              enabled: !locked,
+              validator: (v) => v!.trim().isEmpty ? tr('Required') : null,
+              onSubmit: _applyConnection,
+            ),
+            _field(
+              'Port',
+              _port,
+              90,
+              enabled: !locked,
+              validator: (v) => _integer(v, 1, 65535),
+              onSubmit: _applyConnection,
+            ),
+          ],
+          if (_transport == 'rtu') ...[
+            SerialPortPicker(
+              session: session,
+              controller: _serial,
+              width: 180,
+              enabled: !locked,
+              validator: (v) =>
+                  v!.trim().isEmpty ? tr('Enter COM3 or /dev/ttyUSB0') : null,
+              onSubmit: _applyConnection,
+              onRefreshingChanged: (value) =>
+                  _changeConnection(() => _refreshingPorts = value),
+            ),
+            BaudRatePicker(
+              controller: _baud,
+              enabled: !locked,
+              validator: (v) => _integer(v, 50, 4000000),
+              onSubmit: _applyConnection,
+            ),
+            _dropdown<int>(
+              'Bits',
+              _bits,
+              const {8: '8', 7: '7'},
+              locked
+                  ? null
+                  : (v) => _changeConnection(() {
+                      _bits = v;
+                      _saveDraft();
+                    }),
+              75,
+            ),
+            _dropdown<String>(
+              'Parity',
+              _parity,
+              const {'N': 'None', 'E': 'Even', 'O': 'Odd'},
+              locked
+                  ? null
+                  : (v) => _changeConnection(() {
+                      _parity = v;
+                      _saveDraft();
+                    }),
+              95,
+            ),
+            _dropdown<int>(
+              'Stop',
+              _stop,
+              const {1: '1', 2: '2'},
+              locked
+                  ? null
+                  : (v) => _changeConnection(() {
+                      _stop = v;
+                      _saveDraft();
+                    }),
+              75,
+            ),
+          ],
+          _field(
+            'Unit',
+            _unit,
+            75,
+            enabled: !locked,
+            validator: (v) => _integer(v, 1, 247),
+            onSubmit: _applyConnection,
+          ),
+          _field(
+            'Timeout, s',
+            _timeout,
+            105,
+            enabled: !locked,
+            validator: (v) {
+              final n = double.tryParse(v ?? '');
+              return n != null && n >= 0.1 && n <= 60 ? null : '0.1–60';
+            },
+            onSubmit: _applyConnection,
+          ),
+          if (_transport == 'demo')
+            const LText(
+              'Local simulator · poll the map to view signals; reconnect resets values.',
+            ),
+        ],
+      ),
+    );
+  }
+
+  String get _connectionSummary {
+    final endpoint = _transport == 'rtu'
+        ? '${_serial.text.isEmpty ? tr('Serial RTU') : _serial.text} · ${_baud.text} $_bits$_parity$_stop'
+        : _transport == 'demo'
+        ? tr('Local demo')
+        : '${tr({'tcp': 'TCP', 'rtu_tcp': 'RTU over TCP', 'rtu_udp': 'RTU over UDP'}[_transport]!)} · ${_host.text}:${_port.text}';
+    return '$endpoint · ${tr('Unit')} ${_unit.text} · ${_timeout.text} s';
+  }
+
+  Widget _tools() => PopupMenuButton<String>(
+    tooltip: tr('Session tools'),
+    icon: Icon(session.logging ? Icons.fiber_manual_record : Icons.more_horiz),
+    onSelected: (action) async {
+      if (action == 'scanner') {
+        session.registerMap.stop();
+        final applied = await showDialog<bool>(
+          context: context,
+          builder: (_) => ScannerDialog(session: session),
+        );
+        if (applied == true && mounted) {
+          setState(() => _unit.text = '${session.unit}');
+        }
+        return;
+      }
+      if (action.startsWith('theme:')) {
+        widget.onThemeChanged(ThemeMode.values.byName(action.substring(6)));
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        builder: (_) => switch (action) {
+          'advanced' => AdvancedDialog(session: session),
+          'traffic' => TrafficDialog(session: session),
+          _ => LoggingDialog(session: session),
+        },
+      );
+    },
+    itemBuilder: (_) => [
+      PopupMenuItem(value: 'traffic', child: const LText('Bus traffic')),
+      PopupMenuItem(
+        value: 'logger',
+        child: LText(
+          session.logging ? 'Data logger · recording' : 'Data logger',
+        ),
+      ),
+      PopupMenuItem(
+        value: 'scanner',
+        enabled: session.connected && !session.busy,
+        child: const LText('Scanner'),
+      ),
+      PopupMenuItem(
+        value: 'advanced',
+        enabled: session.connected && !session.busy,
+        child: const LText('Advanced Modbus'),
+      ),
+      const PopupMenuDivider(),
+      for (final mode in ThemeMode.values)
+        CheckedPopupMenuItem(
+          value: 'theme:${mode.name}',
+          checked: widget.themeMode == mode,
+          child: LText(
+            '${tr('Appearance')} · ${tr('${mode.name[0].toUpperCase()}${mode.name.substring(1)}')}',
+          ),
+        ),
+    ],
+  );
+
+  Widget _connectionBar(bool wide) {
     final connecting = session.busy && !session.connected && !_refreshingPorts;
+    final locked = session.connected || session.busy || session.disconnecting;
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(compact ? 12 : 18),
-        child: Form(
-          key: _connectionForm,
-          child: Wrap(
-            spacing: 12,
-            runSpacing: compact ? 12 : 16,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              _dropdown<String>(
-                'Transport',
-                _transport,
-                const {
-                  'rtu': 'Serial RTU',
-                  'tcp': 'TCP',
-                  'rtu_tcp': 'RTU over TCP',
-                  'rtu_udp': 'RTU over UDP',
-                  'demo': 'Local demo',
-                },
-                locked
-                    ? null
-                    : (v) {
-                        if (v == 'demo' &&
-                            _transport != 'demo' &&
-                            widget.onOpenDemo != null) {
-                          _transportField.currentState?.didChange(_transport);
-                          widget.onOpenDemo!();
-                          return;
-                        }
-                        setState(() {
-                          _transport = v;
-                          _saveDraft();
-                        });
-                      },
-                150,
-                fieldKey: _transportField,
-              ),
-              if (['tcp', 'rtu_tcp', 'rtu_udp'].contains(_transport)) ...[
-                _field(
-                  'Host',
-                  _host,
-                  175,
-                  enabled: !locked,
-                  validator: (v) => v!.trim().isEmpty ? tr('Required') : null,
-                  onSubmit: _connect,
-                ),
-                _field(
-                  'Port',
-                  _port,
-                  90,
-                  enabled: !locked,
-                  validator: (v) => _integer(v, 1, 65535),
-                  onSubmit: _connect,
-                ),
-              ],
-              if (_transport == 'rtu') ...[
-                SerialPortPicker(
-                  session: session,
-                  controller: _serial,
-                  width: 180,
-                  enabled: !locked,
-                  validator: (v) => v!.trim().isEmpty
-                      ? tr('Enter COM3 or /dev/ttyUSB0')
-                      : null,
-                  onSubmit: _connect,
-                  onRefreshingChanged: (value) =>
-                      setState(() => _refreshingPorts = value),
-                ),
-                BaudRatePicker(
-                  controller: _baud,
-                  enabled: !locked,
-                  validator: (v) => _integer(v, 50, 4000000),
-                  onSubmit: _connect,
-                ),
-                _dropdown<int>(
-                  'Bits',
-                  _bits,
-                  const {8: '8', 7: '7'},
-                  locked
-                      ? null
-                      : (v) => setState(() {
-                          _bits = v;
-                          _saveDraft();
-                        }),
-                  75,
-                ),
-                _dropdown<String>(
-                  'Parity',
-                  _parity,
-                  const {'N': 'None', 'E': 'Even', 'O': 'Odd'},
-                  locked
-                      ? null
-                      : (v) => setState(() {
-                          _parity = v;
-                          _saveDraft();
-                        }),
-                  95,
-                ),
-                _dropdown<int>(
-                  'Stop',
-                  _stop,
-                  const {1: '1', 2: '2'},
-                  locked
-                      ? null
-                      : (v) => setState(() {
-                          _stop = v;
-                          _saveDraft();
-                        }),
-                  75,
-                ),
-              ],
-              _field(
-                'Unit',
-                _unit,
-                75,
-                enabled: !locked,
-                validator: (v) => _integer(v, 1, 247),
-                onSubmit: _connect,
-              ),
-              _field(
-                'Timeout, s',
-                _timeout,
-                105,
-                enabled: !locked,
-                validator: (v) {
-                  final n = double.tryParse(v ?? '');
-                  return n != null && n >= 0.1 && n <= 60 ? null : '0.1–60';
-                },
-                onSubmit: _connect,
-              ),
-              FilledButton.icon(
-                onPressed: session.disconnecting || _refreshingPorts
-                    ? null
-                    : (session.connected || connecting)
-                    ? () => unawaited(session.disconnect())
-                    : _connect,
-                icon: session.disconnecting || connecting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Icon(session.connected ? Icons.link_off : Icons.link),
-                label: LText(
-                  session.disconnecting
-                      ? 'Disconnecting…'
-                      : session.connected
-                      ? 'Disconnect'
-                      : connecting
-                      ? 'Cancel connection'
-                      : 'Connect',
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Row(
+          children: [
+            OutlinedButton.icon(
+              onPressed: locked ? null : _configure,
+              icon: const Icon(Icons.settings_outlined, size: 18),
+              label: const LText('Connection settings'),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Tooltip(
+                message: session.connected
+                    ? session.description
+                    : _connectionSummary,
+                child: Text(
+                  session.connected
+                      ? tr(session.description)
+                      : _connectionSummary,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (_transport == 'demo')
-                const LText(
-                  'Local simulator · poll the map to view signals; reconnect resets values.',
-                ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: session.disconnecting || _refreshingPorts
+                  ? null
+                  : session.connected || connecting
+                  ? () => unawaited(session.disconnect())
+                  : _connect,
+              icon: session.disconnecting || connecting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      session.connected ? Icons.link_off : Icons.link,
+                      size: 18,
+                    ),
+              label: LText(
+                session.disconnecting
+                    ? 'Disconnecting…'
+                    : session.connected
+                    ? 'Disconnect'
+                    : connecting
+                    ? 'Cancel connection'
+                    : 'Connect',
+              ),
+            ),
+            _tools(),
+            IconButton(
+              tooltip: tr(
+                wide && _showActivity ? 'Hide activity' : 'Show activity',
+              ),
+              isSelected: wide && _showActivity,
+              icon: const Icon(Icons.view_sidebar_outlined),
+              onPressed: () {
+                if (wide) {
+                  setState(() => _showActivity = !_showActivity);
+                } else {
+                  _scaffoldKey.currentState!.openEndDrawer();
+                }
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -398,11 +605,14 @@ class _WorkbenchState extends State<Workbench> {
             padding: const EdgeInsets.fromLTRB(18, 4, 8, 0),
             child: Row(
               children: [
-                LText(
-                  'Activity',
-                  style: Theme.of(context).textTheme.titleSmall,
+                Expanded(
+                  child: LText(
+                    'Activity',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                 ),
-                const Spacer(),
                 IconButton(
                   tooltip: tr('Filter activity'),
                   icon: Icon(
@@ -530,200 +740,56 @@ class _WorkbenchState extends State<Workbench> {
         return DevicePanel(key: ValueKey(session.mode), session: session);
       }
       final colors = Theme.of(context).colorScheme;
-      final compact = MediaQuery.sizeOf(context).width < 1100;
-      final gap = compact ? 10.0 : 16.0;
+      final wide = MediaQuery.sizeOf(context).width >= 1100;
       return Scaffold(
+        key: _scaffoldKey,
+        endDrawer: wide
+            ? null
+            : Drawer(width: 320, child: SafeArea(child: _logs())),
         body: SafeArea(
-          child: ScrollConfiguration(
-            behavior: ScrollConfiguration.of(context)
-                .copyWith(scrollbars: false),
-            child: Padding(
-              padding: EdgeInsets.all(compact ? 12 : 20),
-              child: Scrollbar(
-                controller: _pageScroll,
-                child: CustomScrollView(
-                  controller: _pageScroll,
-                  primary: false,
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.hub_outlined, color: colors.primary),
-                              const SizedBox(width: 12),
-                              Flexible(
-                                child: LText(
-                                  'Modbus Connector',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.titleLarge,
-                                ),
-                              ),
-                              const SizedBox(width: 20),
-                              Icon(
-                                Icons.circle,
-                                size: 8,
-                                color: session.connected
-                                    ? colors.primary
-                                    : colors.outline,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: LText(
-                                  session.description,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ),
-                              IconButton(
-                                tooltip: tr('Advanced Modbus'),
-                                icon: const Icon(
-                                  Icons.settings_input_component,
-                                ),
-                                onPressed: session.connected && !session.busy
-                                    ? () => showDialog<void>(
-                                        context: context,
-                                        builder: (_) =>
-                                            AdvancedDialog(session: session),
-                                      )
-                                    : null,
-                              ),
-                              IconButton(
-                                tooltip: tr('Multi-series graph'),
-                                icon: const Icon(Icons.multiline_chart),
-                                onPressed: () => showDialog<void>(
-                                  context: context,
-                                  builder: (_) => GraphDialog(session: session),
-                                ),
-                              ),
-                              IconButton(
-                                tooltip: tr('Bus traffic'),
-                                icon: const Icon(Icons.swap_calls),
-                                onPressed: () => showDialog<void>(
-                                  context: context,
-                                  builder: (_) =>
-                                      TrafficDialog(session: session),
-                                ),
-                              ),
-                              IconButton(
-                                tooltip: tr('Data logger'),
-                                icon: Icon(
-                                  session.logging
-                                      ? Icons.fiber_manual_record
-                                      : Icons.save_outlined,
-                                ),
-                                onPressed: () => showDialog<void>(
-                                  context: context,
-                                  builder: (_) =>
-                                      LoggingDialog(session: session),
-                                ),
-                              ),
-                              if (session.registerMap.polling)
-                                IconButton(
-                                  tooltip: tr('Stop map polling'),
-                                  icon: const Icon(Icons.stop_circle_outlined),
-                                  onPressed: session.registerMap.stop,
-                                ),
-                              IconButton(
-                                tooltip: tr('Register map / CSV / snapshots'),
-                                icon: const Icon(Icons.table_view),
-                                onPressed: session.busy
-                                    ? null
-                                    : () => Scrollable.ensureVisible(
-                                        _mapKey.currentContext!,
-                                        duration: const Duration(
-                                          milliseconds: 200,
-                                        ),
-                                      ),
-                              ),
-                              IconButton(
-                                tooltip: tr('Scanner'),
-                                icon: const Icon(Icons.radar),
-                                onPressed: session.connected && !session.busy
-                                    ? () async {
-                                        session.registerMap.stop();
-                                        final applied = await showDialog<bool>(
-                                          context: context,
-                                          builder: (_) =>
-                                              ScannerDialog(session: session),
-                                        );
-                                        if (applied == true && mounted) {
-                                          setState(() {
-                                            _unit.text = '${session.unit}';
-                                          });
-                                        }
-                                      }
-                                    : null,
-                              ),
-                              PopupMenuButton<ThemeMode>(
-                                tooltip: tr('Appearance'),
-                                initialValue: widget.themeMode,
-                                icon: const Icon(Icons.contrast),
-                                onSelected: widget.onThemeChanged,
-                                itemBuilder: (_) => ThemeMode.values
-                                    .map(
-                                      (mode) => PopupMenuItem(
-                                        value: mode,
-                                        child: LText(
-                                          '${mode.name[0].toUpperCase()}${mode.name.substring(1)}',
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                              ),
-                            ],
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              children: [
+                _connectionBar(wide),
+                if (session.error != null)
+                  Material(
+                    color: colors.errorContainer,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 12),
+                        Icon(
+                          Icons.error_outline,
+                          size: 18,
+                          color: colors.onErrorContainer,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: LText(
+                            session.error!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          SizedBox(height: gap),
-                          _connection(compact: compact),
-                          if (session.error != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 10),
-                              child: Material(
-                                color: colors.errorContainer,
-                                borderRadius: BorderRadius.circular(12),
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 14),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.error_outline,
-                                        size: 18,
-                                        color: colors.onErrorContainer,
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: LText(
-                                          session.error!,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color: colors.onErrorContainer,
-                                          ),
-                                        ),
-                                      ),
-                                      IconButton(
-                                        tooltip: tr('Dismiss error'),
-                                        onPressed: session.clearError,
-                                        icon: const Icon(Icons.close, size: 18),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
+                        ),
+                        IconButton(
+                          tooltip: tr('Dismiss error'),
+                          onPressed: session.clearError,
+                          icon: const Icon(Icons.close, size: 18),
+                        ),
+                      ],
                     ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        key: _mapKey,
-                        padding: EdgeInsets.only(top: gap),
+                  ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
                         child: Card(
                           child: Padding(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(10),
                             child: Column(
-                              mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 LText(
@@ -732,26 +798,23 @@ class _WorkbenchState extends State<Workbench> {
                                       .textTheme
                                       .titleMedium,
                                 ),
-                                const SizedBox(height: 8),
-                                RegisterMapPanel(
-                                  session: session,
-                                  shrinkWrap: true,
+                                const SizedBox(height: 6),
+                                Expanded(
+                                  child: RegisterMapPanel(session: session),
                                 ),
                               ],
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.only(top: gap),
-                        child: SizedBox(height: 200, child: _logs()),
-                      ),
-                    ),
-                  ],
+                      if (wide && _showActivity) ...[
+                        const SizedBox(width: 8),
+                        SizedBox(width: 280, child: _logs()),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),

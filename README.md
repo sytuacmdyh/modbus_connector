@@ -22,7 +22,9 @@ with complete Windows/Linux runners and a Qt-free Python subprocess bridge.
 It provides independent master/simulator/sniffer/gateway tabs, rich register maps,
 scanning, CSV/snapshots, logging/alarms, graphs, templates, separate workspace
 persistence, English/Chinese help, WebDAV sync and manual update checks. The master
-map is embedded, map/sniffer columns retain width/order, device forms discover
+map fills the available height, activity logs sit in a collapsible right panel,
+connection parameters use a settings dialog, and infrequent map tools collapse.
+Map/sniffer columns retain width/order, device forms discover
 serial ports, simulator rules offer prefix completion, and Settings groups
 appearance/language/workspace preferences.
 The existing PySide6 application remains available. See the

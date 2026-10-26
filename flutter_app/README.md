@@ -202,8 +202,16 @@ instrumentation skew; this benchmark also caps UI notifications per read cycle.
 ## Current parity limits
 
 Desktop file operations use native choosers with editable-path fallback on
-unsupported hosts. The named map is embedded directly below the connection settings; its
-toolbar button scrolls to it. Map and sniffer column widths/order persist; drag
+unsupported hosts. The master map fills the height below a compact connection
+summary. Connection settings opens a dialog for transport, serial/network parameters,
+unit and timeout; Apply validates and saves, Cancel discards edits. Connect uses the
+saved parameters and opens settings when required values are missing. Activity lives
+in a collapsible right panel on wide windows; narrower windows open it in a right
+drawer. Session tools contains traffic, logging, scanning, diagnostics and appearance.
+Read/Poll map, interval, Add row and filtering remain visible. More tools expands
+grouping, graphs, expressions, CSV and snapshots. Selected-row actions appear in a
+floating bottom bar, with room to scroll the last row clear of it; the table viewport
+stays fixed during sweep selection. Map and sniffer column widths/order persist; drag
 headers or their edges, or use the header movement/reset menu. That menu also
 hides/restores columns and switches compact row height, with all preferences
 persisted per session.
@@ -219,7 +227,7 @@ before. Changing a filter clears selection; select-all and batch actions affect
 only visible selected rows, and movement skips hidden rows.
 The map has one selection checkbox column: hold the left mouse button and sweep
 along it to invert each crossed row once. Moving to the top/bottom edge continues
-selection while the table scrolls. This changes selection only. Use the toolbar's
+selection while the table scrolls. This changes selection only. Use the contextual bottom bar's
 Enable polling / Disable polling buttons to change polling for the selected rows
 (also available in the row context menu and Selected rows menu);
 disabled rows show a pause marker beside their names. Existing polling flags are

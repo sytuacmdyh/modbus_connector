@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:modbus_desktop/src/settings_store.dart';
 import 'package:modbus_desktop/src/workspace.dart';
-import 'package:modbus_desktop/src/workbench.dart';
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -128,26 +127,12 @@ void main() {
       );
       await store.save(workspace.exportState());
       expect((await store.load())!['tabs'], hasLength(2));
-      await tester.tap(find.byTooltip('Register map / CSV / snapshots'));
       await tester.pumpAndSettle();
       expect(find.text('Register map'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('Poll map'));
       await tester.pump(const Duration(milliseconds: 200));
-      // Scroll the page itself; a drag over the map scrolls its inner table.
-      tester
-          .state<ScrollableState>(
-            find
-                .descendant(
-                  of: find.byType(Workbench).last,
-                  matching: find.byType(Scrollable),
-                )
-                .first,
-          )
-          .position
-          .jumpTo(0);
-      await tester.pumpAndSettle();
-      expect(find.byTooltip('Scanner').hitTestable(), findsOneWidget);
+      expect(find.byTooltip('Session tools').hitTestable(), findsOneWidget);
       expect(map.polling, isTrue);
       final beforeClose = master.registerResults.first['numeric'] as num;
       for (

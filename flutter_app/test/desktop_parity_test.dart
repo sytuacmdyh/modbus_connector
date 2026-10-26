@@ -233,7 +233,7 @@ void main() {
   );
 
   testWidgets(
-    'register map is embedded and toolbar jumps to table without a dialog',
+    'register map fills available space and virtualizes rows without a dialog',
     (tester) async {
       tester.view.physicalSize = const Size(900, 650);
       tester.view.devicePixelRatio = 1;
@@ -256,22 +256,12 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.byTooltip('Register map / CSV / snapshots'));
       await tester.pumpAndSettle();
       expect(find.byType(AlertDialog), findsNothing);
       expect(find.byType(RegisterMapPanel), findsOneWidget);
       expect(find.text('Embedded').hitTestable(), findsOneWidget);
       final shortHeight = tester.getSize(find.byType(DesktopTable)).height;
-      expect(shortHeight, lessThan(140));
-      final mapCard = find.ancestor(
-        of: find.byType(RegisterMapPanel),
-        matching: find.byType(Card),
-      );
-      expect(
-        tester.getRect(mapCard).bottom -
-            tester.getRect(find.text('Embedded')).bottom,
-        lessThan(65),
-      );
+      expect(shortHeight, greaterThan(250));
       await tester.tap(find.text('Add row'));
       await tester.pumpAndSettle();
       expect(find.byType(RegisterRowDialog), findsOneWidget);
@@ -290,8 +280,7 @@ void main() {
       session.registerMap.changed();
       await tester.pumpAndSettle();
       final largeHeight = tester.getSize(find.byType(DesktopTable)).height;
-      expect(largeHeight, greaterThan(shortHeight + 200));
-      expect(largeHeight, lessThan(400));
+      expect(largeHeight, shortHeight);
       expect(find.text('row511'), findsNothing);
       final rows = find.descendant(
         of: find.byType(DesktopTable),
@@ -362,7 +351,6 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.byTooltip(tr('Register map / CSV / snapshots')));
     await tester.pumpAndSettle();
     expect(find.byType(RegisterMapPanel), findsOneWidget);
     expect(find.text(tr('Add row')).hitTestable(), findsOneWidget);

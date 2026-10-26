@@ -132,6 +132,54 @@ void main() {
   );
 
   testWidgets(
+    'context actions preserve the viewport and leave the last row reachable',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final session = SessionController(FakeBridge());
+      session.registers.addAll([
+        for (var i = 0; i < 80; i++)
+          {
+            'name': 'register$i',
+            'kind': 'holding_registers',
+            'address': i,
+            'count': 1,
+            'format': 'dec',
+          },
+      ]);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: RegisterMapPanel(session: session)),
+        ),
+      );
+      final table = tester.getRect(find.byType(DesktopTable));
+      await tester.tap(find.byType(Checkbox).first);
+      await tester.pumpAndSettle();
+      expect(tester.getRect(find.byType(DesktopTable)), table);
+      final list = tester.widget<ListView>(
+        find.descendant(
+          of: find.byType(DesktopTable),
+          matching: find.byType(ListView),
+        ),
+      );
+      list.controller!.jumpTo(list.controller!.position.maxScrollExtent);
+      await tester.pumpAndSettle();
+      final tools = tester.getRect(
+        find.byKey(const ValueKey('map-selection-tools')),
+      );
+      expect(
+        tester.getRect(find.text('register79')).bottom,
+        lessThan(tools.top),
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      session.dispose();
+    },
+  );
+
+  testWidgets(
     'toolbar polling actions affect only selected rows and persist to workspace',
     (tester) async {
       final bridge = FakeBridge();
@@ -150,13 +198,15 @@ void main() {
       );
       await session.connect({'transport': 'tcp', 'timeout': 1}, 1);
       await tester.pumpWidget(
-        MaterialApp(home: Scaffold(body: RegisterMapPanel(session: session))),
+        MaterialApp(
+          home: Scaffold(body: RegisterMapPanel(session: session)),
+        ),
       );
       await tester.pumpAndSettle();
       final enable = find.byKey(const ValueKey('enable-selected-polling'));
       final disable = find.byKey(const ValueKey('disable-selected-polling'));
-      expect(tester.widget<OutlinedButton>(enable).onPressed, isNull);
-      expect(tester.widget<OutlinedButton>(disable).onPressed, isNull);
+      expect(enable, findsNothing);
+      expect(disable, findsNothing);
       final tableTop = tester.getTopLeft(find.byType(DesktopTable));
       await tester.tap(find.byType(Checkbox).at(0));
       await tester.tap(find.byType(Checkbox).at(1));
@@ -210,6 +260,10 @@ void main() {
   testWidgets(
     'single selection column preserves polling flags and batch menu toggles them',
     (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final session = SessionController(FakeBridge());
       session.registers.addAll(
         List.generate(

@@ -73,6 +73,14 @@ String trf(String key, Map<String, Object?> values) {
 }
 
 const flutterChinese = <String, String>{
+  'Connection settings': '连接设置',
+  'Save and connect': '保存并连接',
+  'Session tools': '会话工具',
+  'Data logger · recording': '数据记录 · 记录中',
+  'Show activity': '显示活动记录',
+  'Hide activity': '收起活动记录',
+  'More tools': '更多工具',
+  'Selected: {count}': '已选 {count} 行',
   'On': '开',
   'Off': '关',
   'Demo signal A': '演示信号 A',

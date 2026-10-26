@@ -305,7 +305,7 @@ void main() {
       await tester.tap(disable);
       await tester.pumpAndSettle();
       expect(find.text('Showing 0 / 3'), findsOneWidget);
-      expect(tester.widget<OutlinedButton>(disable).onPressed, isNull);
+      expect(disable, findsNothing);
       expect(
         session.registers.every((r) => r['poll_enabled'] == false),
         isTrue,

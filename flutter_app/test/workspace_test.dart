@@ -73,6 +73,8 @@ void main() {
       ),
     );
     final original = workspace.sessions.first;
+    await tester.tap(find.text('Connection settings'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Serial RTU'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Local demo').last);
@@ -81,9 +83,11 @@ void main() {
     expect(workspace.sessions, hasLength(2));
     expect(workspace.sessions.last.registerMap.polling, isTrue);
     workspace.select(0);
-    await tester.pump();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Connection settings'));
+    await tester.pumpAndSettle();
     final field = tester.widget<DropdownButtonFormField<String>>(
-      find.byType(DropdownButtonFormField<String>).first,
+      find.widgetWithText(DropdownButtonFormField<String>, 'Transport'),
     );
     final state = tester.state<FormFieldState<String>>(find.byWidget(field));
     expect(state.value, 'rtu');

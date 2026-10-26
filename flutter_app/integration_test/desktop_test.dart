@@ -64,7 +64,7 @@ void main() {
         expect(demo.histories.values.first.length, greaterThan(2));
         expect(find.text('Read'), findsNothing);
         expect(find.byType(RegisterMapPanel), findsOneWidget);
-        await tester.tap(find.byTooltip('Stop map polling'));
+        await tester.tap(find.text('Stop'));
         while (demo.busy || demo.registerMap.reading) {
           await tester.pump(const Duration(milliseconds: 20));
         }
@@ -91,7 +91,9 @@ void main() {
         await demo.registerMap.quickValue(4, 'zero');
         expect(demo.registerResults[4]['values'], [false]);
         await tester.pumpAndSettle();
-        await tester.tap(find.byTooltip('Multi-series graph'));
+        await tester.tap(find.text('More tools'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Graph map'));
         await tester.pumpAndSettle();
         expect(find.byType(GraphDialog), findsOneWidget);
         expect(find.text('Demo signal A @0'), findsOneWidget);
