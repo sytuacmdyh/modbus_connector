@@ -389,6 +389,7 @@ const flutterChinese = <String, String>{
   'Import CSV': '导入 CSV',
   'Export CSV': '导出 CSV',
   'Snapshot': '快照',
+  'Capture snapshot': '保存快照',
   'Compare snapshot': '比较快照',
   'Graph map': '映射图表',
   'Register row': '寄存器行',
