@@ -37,7 +37,9 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
   Flutter's master map is the sole read/write surface directly below connection
   settings (no separate quick-range controls/table/chart); scanner address hits
   feed the map. `desktop_table.dart` virtualizes map/sniffer
-  rows and persists column layouts/visibility/density in session drafts. Master
+  rows and persists column layouts/visibility/density in session drafts. The master
+  map defaults to compact 48 px rows with Area/Count/Unit hidden; explicit saved
+  visibility/density overrides these defaults, and Reset columns restores them. Master
   map reads publish UI changes at cycle boundaries; per-group bridge commands
   suppress busy notifications while preserving I/O serialization/cancellation.
   Inactive workspace tabs mute animation tickers without stopping acquisition.

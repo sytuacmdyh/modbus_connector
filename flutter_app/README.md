@@ -207,6 +207,9 @@ toolbar button scrolls to it. Map and sniffer column widths/order persist; drag
 headers or their edges, or use the header movement/reset menu. That menu also
 hides/restores columns and switches compact row height, with all preferences
 persisted per session.
+The master map defaults to 48 px compact rows with Area, Count and Unit hidden.
+Saved visibility and density preferences take precedence; Reset columns restores
+these defaults, and the header menu can show any hidden column again.
 The map has one selection checkbox column: hold the left mouse button and sweep
 along it to invert each crossed row once. Moving to the top/bottom edge continues
 selection while the table scrolls. This changes selection only. Use the toolbar's

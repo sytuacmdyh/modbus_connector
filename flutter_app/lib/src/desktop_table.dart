@@ -14,10 +14,16 @@ Map<String, dynamic> desktopTableLayout(
 }
 
 class TableColumnSpec {
-  const TableColumnSpec(this.key, this.label, this.width);
+  const TableColumnSpec(
+    this.key,
+    this.label,
+    this.width, {
+    this.hiddenByDefault = false,
+  });
   final String key;
   final String label;
   final double width;
+  final bool hiddenByDefault;
 }
 
 class _SelectionDragRecognizer extends VerticalDragGestureRecognizer {
@@ -44,6 +50,7 @@ class DesktopTable extends StatefulWidget {
     this.selectionColumn,
     this.onToggleRows,
     this.shrinkWrap = false,
+    this.compactByDefault = false,
   });
   final List<TableColumnSpec> columns;
   final Map<String, dynamic> layout;
@@ -57,6 +64,7 @@ class DesktopTable extends StatefulWidget {
 
   /// Size short tables to their rows; cap the scrolling body for long maps.
   final bool shrinkWrap;
+  final bool compactByDefault;
   @override
   State<DesktopTable> createState() => _DesktopTableState();
 }
@@ -204,20 +212,26 @@ class _DesktopTableState extends State<DesktopTable> {
     }.toList();
   }
 
+  Iterable<String> get hidden {
+    final saved = widget.layout['hidden'];
+    return saved is List
+        ? saved.whereType<String>()
+        : widget.columns.where((c) => c.hiddenByDefault).map((c) => c.key);
+  }
+
+  bool get compact => widget.layout['compact'] is bool
+      ? widget.layout['compact'] as bool
+      : widget.compactByDefault;
+
   List<String> get visible {
-    final hidden = widget.layout['hidden'];
-    final keys = order
-        .where((k) => hidden is! List || !hidden.contains(k))
-        .toList();
+    final hidden = this.hidden.toSet();
+    final keys = order.where((k) => !hidden.contains(k)).toList();
     // A damaged or old workspace must never leave an inaccessible empty table.
     return keys.isEmpty ? order : keys;
   }
 
   void toggleColumn(String key) => setState(() {
-    final hidden = <String>{
-      if (widget.layout['hidden'] is List)
-        ...(widget.layout['hidden'] as List).whereType<String>(),
-    };
+    final hidden = this.hidden.toSet();
     if (hidden.contains(key)) {
       hidden.remove(key);
     } else if (visible.length > 1) {
@@ -283,10 +297,7 @@ class _DesktopTableState extends State<DesktopTable> {
                     } else if (action.startsWith('column:')) {
                       toggleColumn(action.substring(7));
                     } else if (action == 'compact') {
-                      setState(
-                        () => widget.layout['compact'] =
-                            widget.layout['compact'] != true,
-                      );
+                      setState(() => widget.layout['compact'] = !compact);
                     } else if (action == 'left' && at > 0) {
                       move(key, keys[at - 1]);
                     } else if (action == 'right' && at < keys.length - 1) {
@@ -314,7 +325,7 @@ class _DesktopTableState extends State<DesktopTable> {
                     const PopupMenuDivider(),
                     CheckedPopupMenuItem(
                       value: 'compact',
-                      checked: widget.layout['compact'] == true,
+                      checked: compact,
                       child: const LText('Compact rows'),
                     ),
                     const PopupMenuItem(
@@ -366,7 +377,7 @@ class _DesktopTableState extends State<DesktopTable> {
       final keys = visible;
       final total = keys.fold<double>(0, (sum, key) => sum + width(key));
       final rowHeight =
-          (widget.layout['compact'] == true ? 48.0 : 56.0) *
+          (compact ? 48.0 : 56.0) *
           MediaQuery.textScalerOf(context).scale(1).clamp(1, 2);
       _rowHeight = rowHeight;
       final body = Scrollbar(
