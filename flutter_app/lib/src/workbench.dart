@@ -17,6 +17,7 @@ import 'graph_dialog.dart';
 import 'advanced_dialog.dart';
 import 'session_controller.dart';
 import 'traffic_dialog.dart';
+import 'serial_ports.dart';
 
 class Workbench extends StatefulWidget {
   const Workbench({
@@ -42,7 +43,6 @@ class _WorkbenchState extends State<Workbench> {
   final _mapKey = GlobalKey();
   final _pageScroll = ScrollController();
   final _logScroll = ScrollController();
-  final _serialFocus = FocusNode();
   bool _refreshingPorts = false;
   String _logFilter = '';
   bool _errorsOnly = false;
@@ -123,7 +123,6 @@ class _WorkbenchState extends State<Workbench> {
   @override
   void dispose() {
     _lifecycle?.dispose();
-    _serialFocus.dispose();
     _pageScroll.dispose();
     _logScroll.dispose();
     for (final controller in [_host, _port, _serial, _baud, _unit, _timeout]) {
@@ -211,44 +210,6 @@ class _WorkbenchState extends State<Workbench> {
     );
   }
 
-  Future<void> _ports() async {
-    setState(() => _refreshingPorts = true);
-    final ports = await session.ports();
-    if (!mounted) return;
-    setState(() => _refreshingPorts = false);
-    if (session.error != null) return;
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const LText('Serial ports'),
-        children: [
-          if (ports.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: LText(
-                'No serial ports found. You can type a port manually.',
-              ),
-            )
-          else
-            ...ports.map(
-              (p) => SimpleDialogOption(
-                onPressed: () => Navigator.pop(context, p['port'] as String),
-                child: LText('${p['port']} · ${p['description']}'),
-              ),
-            ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context),
-            child: const LText('Cancel'),
-          ),
-        ],
-      ),
-    );
-    if (mounted && selected != null) {
-      _serial.text = selected;
-      _serialFocus.requestFocus();
-    }
-  }
-
   Widget _connection({required bool compact}) {
     final locked = session.connected || session.busy || session.disconnecting;
     final connecting = session.busy && !session.connected && !_refreshingPorts;
@@ -309,27 +270,17 @@ class _WorkbenchState extends State<Workbench> {
                 ),
               ],
               if (_transport == 'rtu') ...[
-                _field(
-                  'Serial port',
-                  _serial,
-                  160,
-                  focusNode: _serialFocus,
+                SerialPortPicker(
+                  session: session,
+                  controller: _serial,
+                  width: 180,
                   enabled: !locked,
                   validator: (v) => v!.trim().isEmpty
                       ? tr('Enter COM3 or /dev/ttyUSB0')
                       : null,
                   onSubmit: _connect,
-                ),
-                IconButton(
-                  tooltip: tr('Find serial ports'),
-                  onPressed: locked ? null : _ports,
-                  icon: _refreshingPorts
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.refresh),
+                  onRefreshingChanged: (value) =>
+                      setState(() => _refreshingPorts = value),
                 ),
                 _field(
                   'Baud',

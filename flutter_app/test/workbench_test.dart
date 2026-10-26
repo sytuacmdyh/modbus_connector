@@ -150,7 +150,7 @@ void main() {
   );
 
   testWidgets(
-    'serial refresh recovers errors, shows progress and supports selection and cancel',
+    'serial dropdown recovers errors, shows progress and supports selection and dismiss',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 900);
       tester.view.devicePixelRatio = 1;
@@ -160,7 +160,7 @@ void main() {
       final session = SessionController(bridge);
       await tester.pumpWidget(ModbusApp(controller: session));
       bridge.heldPorts = Completer<BridgeReply>();
-      await tester.tap(find.byTooltip('Find serial ports'));
+      await tester.tap(find.byTooltip('Serial ports'));
       await tester.pump();
       expect(find.text('Cancel connection'), findsNothing);
       expect(
@@ -178,7 +178,7 @@ void main() {
       bridge.serialPorts = [
         {'port': 'COM11', 'description': 'USB adapter'},
       ];
-      await tester.tap(find.byTooltip('Find serial ports'));
+      await tester.tap(find.byTooltip('Serial ports'));
       await tester.pumpAndSettle();
       expect(session.error, isNull);
       await tester.tap(find.text('COM11 · USB adapter'));
@@ -225,19 +225,22 @@ void main() {
       await tester.tap(find.text('Disconnect'));
       await tester.pumpAndSettle();
       bridge.serialPorts = [];
-      await tester.tap(find.byTooltip('Find serial ports'));
+      await tester.tap(find.byTooltip('Serial ports'));
       await tester.pumpAndSettle();
       expect(
         find.text('No serial ports found. You can type a port manually.'),
         findsOneWidget,
       );
-      await tester.tap(find.text('Cancel'));
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Find serial ports'));
       await tester.pumpAndSettle();
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
-      expect(find.byType(SimpleDialog), findsNothing);
+      expect(
+        find.text('No serial ports found. You can type a port manually.'),
+        findsNothing,
+      );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       session.dispose();

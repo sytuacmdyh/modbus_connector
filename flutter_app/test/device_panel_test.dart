@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:modbus_desktop/src/bridge_client.dart';
 import 'package:modbus_desktop/src/device_panel.dart';
@@ -212,7 +213,7 @@ void main() {
             home: DevicePanel(key: ValueKey(mode), session: session),
           ),
         );
-        await tester.tap(find.byTooltip('Find serial ports').first);
+        await tester.tap(find.byTooltip('Serial ports').first);
         await tester.pumpAndSettle();
         await tester.tap(find.text('COM17 · USB adapter'));
         await tester.pumpAndSettle();
@@ -221,7 +222,7 @@ void main() {
         expect(listen['baudrate'], 19200);
         expect(listen['parity'], 'E');
         if (mode == 'gateway') {
-          await tester.tap(find.byTooltip('Find serial ports').last);
+          await tester.tap(find.byTooltip('Serial ports').last);
           await tester.pumpAndSettle();
           await tester.tap(find.text('COM17 · USB adapter'));
           await tester.pumpAndSettle();
@@ -229,17 +230,17 @@ void main() {
           expect((session.deviceConfig['target'] as Map)['baudrate'], 38400);
         }
         await tester.enterText(
-          find.widgetWithText(TextField, 'Serial port').first,
+          find.widgetWithText(TextFormField, 'Serial port').first,
           '/dev/manual',
         );
         bridge.serialPorts = [];
-        await tester.tap(find.byTooltip('Find serial ports').first);
+        await tester.tap(find.byTooltip('Serial ports').first);
         await tester.pumpAndSettle();
         expect(
           find.text('No serial ports found. You can type a port manually.'),
           findsOneWidget,
         );
-        await tester.tap(find.text('Cancel'));
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
         await tester.pumpAndSettle();
         expect((session.deviceConfig['listen'] as Map)['port'], '/dev/manual');
         session.deviceRunning = true;

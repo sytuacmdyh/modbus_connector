@@ -126,16 +126,10 @@ class _ConnectionFieldsState extends State<ConnectionFields> {
                   width: 90,
                 ),
               ] else ...[
-                toolField(
-                  'Serial port',
-                  fields['serial']!,
-                  enabled: widget.enabled,
-                  width: 180,
-                ),
                 SerialPortPicker(
                   session: widget.session,
+                  controller: fields['serial']!,
                   enabled: widget.enabled,
-                  onSelected: (port) => fields['serial']!.text = port,
                 ),
                 for (final key in ['baudrate', 'bytesize', 'stopbits'])
                   toolField(
