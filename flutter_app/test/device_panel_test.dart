@@ -221,6 +221,17 @@ void main() {
         expect(listen['port'], 'COM17');
         expect(listen['baudrate'], 19200);
         expect(listen['parity'], 'E');
+        await tester.tap(find.byTooltip('Baud').first);
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('115200'));
+        await tester.tap(find.text('115200'));
+        await tester.pumpAndSettle();
+        expect((session.deviceConfig['listen'] as Map)['baudrate'], 115200);
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Baud').first,
+          '31250',
+        );
+        expect((session.deviceConfig['listen'] as Map)['baudrate'], 31250);
         if (mode == 'gateway') {
           await tester.tap(find.byTooltip('Serial ports').last);
           await tester.pumpAndSettle();
@@ -228,6 +239,12 @@ void main() {
           await tester.pumpAndSettle();
           expect((session.deviceConfig['target'] as Map)['port'], 'COM17');
           expect((session.deviceConfig['target'] as Map)['baudrate'], 38400);
+          await tester.tap(find.byTooltip('Baud').last);
+          await tester.pumpAndSettle();
+          await tester.ensureVisible(find.text('57600'));
+          await tester.tap(find.text('57600'));
+          await tester.pumpAndSettle();
+          expect((session.deviceConfig['target'] as Map)['baudrate'], 57600);
         }
         await tester.enterText(
           find.widgetWithText(TextFormField, 'Serial port').first,
@@ -246,6 +263,17 @@ void main() {
         session.deviceRunning = true;
         session.notifyListeners();
         await tester.pump();
+        expect(
+          tester
+              .widget<IconButton>(
+                find.ancestor(
+                  of: find.byTooltip('Baud').first,
+                  matching: find.byType(IconButton),
+                ),
+              )
+              .onPressed,
+          isNull,
+        );
         expect(
           tester
               .widget<IconButton>(

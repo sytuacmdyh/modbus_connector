@@ -50,7 +50,8 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
   viewers without extra bus connections; session shutdown waits for them. Explicit
   Qt JSON import stages converted disconnected tabs before replacing sessions;
   never writes original Qt files. `serial_ports.dart` provides editable serial-port dropdowns for master and
-  device modes, discovering ports through the owned session bridge; `expression_completion.dart`
+  device modes, discovering ports through the owned session bridge, plus editable
+  baud-rate dropdowns with common presets; `expression_completion.dart`
   provides simulator rule prefix completion. Settings groups language/theme and
   workspace files/autosave; disabled autosave requires explicit Save workspace.
   Protocol: `flutter_app/BRIDGE_PROTOCOL.md`; setup/package: `flutter_app/README.md`;

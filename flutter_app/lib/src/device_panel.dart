@@ -131,7 +131,11 @@ class _ConnectionFieldsState extends State<ConnectionFields> {
                   controller: fields['serial']!,
                   enabled: widget.enabled,
                 ),
-                for (final key in ['baudrate', 'bytesize', 'stopbits'])
+                BaudRatePicker(
+                  controller: fields['baudrate']!,
+                  enabled: widget.enabled,
+                ),
+                for (final key in ['bytesize', 'stopbits'])
                   toolField(
                     key,
                     fields[key]!,

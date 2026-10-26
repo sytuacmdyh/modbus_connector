@@ -282,10 +282,8 @@ class _WorkbenchState extends State<Workbench> {
                   onRefreshingChanged: (value) =>
                       setState(() => _refreshingPorts = value),
                 ),
-                _field(
-                  'Baud',
-                  _baud,
-                  95,
+                BaudRatePicker(
+                  controller: _baud,
                   enabled: !locked,
                   validator: (v) => _integer(v, 50, 4000000),
                   onSubmit: _connect,

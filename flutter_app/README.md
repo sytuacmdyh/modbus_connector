@@ -66,9 +66,12 @@ until Connect; an empty demo map receives the example rows automatically.
 
 For hardware choose TCP (default port 502) or RTU (default transport). RTU accepts
 an editable port dropdown (discovered ports with device descriptions, or manual
-`COM3`/device paths), port refresh, custom baud, 7/8 bits, N/E/O parity,
+`COM3`/device paths), port refresh, an editable baud dropdown with common rates
+from 300 to 921600 and custom input, 7/8 bits, N/E/O parity,
 1/2 stop bits, unit 1–247 and timeout 0.1–60 s. All addresses are **0-based PDU**,
-not 40001-style reference numbers. Row shortcuts change a raw unsigned 16-bit
+not 40001-style reference numbers. The connection's unit is the default for map
+rows without their own unit and for advanced Modbus commands; an explicit row
+unit takes precedence. Row shortcuts change a raw unsigned 16-bit
 register or coil. The register map also supports multi-register engineering-value writes with inverse
 scaling and byte-order encoding. Disconnect gates controls immediately and waits for the active
 transaction; Cancel connection uses the same path. The timeout includes the

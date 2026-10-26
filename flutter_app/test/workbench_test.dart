@@ -192,9 +192,18 @@ void main() {
             .text,
         'COM11',
       );
+      await tester.tap(find.byTooltip('Baud'));
+      await tester.pumpAndSettle();
+      for (final baud in ['1200', '2400', '4800', '9600', '115200', '921600']) {
+        expect(find.text(baud).last, findsOneWidget);
+      }
+      await tester.ensureVisible(find.text('19200'));
+      await tester.tap(find.text('19200'));
+      await tester.pumpAndSettle();
+      expect(session.draft['baud'], '19200');
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Baud'),
-        '19200',
+        '31250',
       );
       for (final pair in [('Bits', '7'), ('Parity', 'Even'), ('Stop', '2')]) {
         await tester.tap(
@@ -217,7 +226,7 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       expect(bridge.calls.last, containsPair('bytesize', 7));
-      expect(bridge.calls.last, containsPair('baudrate', 19200));
+      expect(bridge.calls.last, containsPair('baudrate', 31250));
       expect(bridge.calls.last, containsPair('parity', 'E'));
       expect(bridge.calls.last, containsPair('stopbits', 2));
       expect(session.unit, 12);
