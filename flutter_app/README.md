@@ -210,6 +210,13 @@ persisted per session.
 The master map defaults to 48 px compact rows with Area, Count and Unit hidden.
 Saved visibility and density preferences take precedence; Reset columns restores
 these defaults, and the header menu can show any hidden column again.
+The filter bar combines case-insensitive name matching, a zero-based address or
+inclusive range (decimal or `0x` hex), polling status and function area. Address
+filters include rows whose register spans overlap the range. The count shows
+visible/total rows; Clear filters restores the full map. Filters only affect the
+view: Read map/Poll map, CSV exports and snapshots still use the whole map as
+before. Changing a filter clears selection; select-all and batch actions affect
+only visible selected rows, and movement skips hidden rows.
 The map has one selection checkbox column: hold the left mouse button and sweep
 along it to invert each crossed row once. Moving to the top/bottom edge continues
 selection while the table scrolls. This changes selection only. Use the toolbar's

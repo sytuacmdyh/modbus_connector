@@ -231,6 +231,8 @@ void main() {
       expect(find.text('Poll enabled'), findsNothing);
       expect(find.byType(Checkbox), findsNWidgets(3));
       expect(find.byIcon(Icons.pause_circle_outline), findsOneWidget);
+      await tester.ensureVisible(find.byType(Checkbox).last);
+      await tester.pumpAndSettle();
       final first = tester.getCenter(find.byType(Checkbox).first);
       final last = tester.getCenter(find.byType(Checkbox).last);
       final gesture = await tester.startGesture(
@@ -252,6 +254,7 @@ void main() {
         false,
         true,
       ]);
+      await tester.ensureVisible(find.byTooltip('Selected rows'));
       await tester.tap(find.byTooltip('Selected rows'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Disable selected polling'));

@@ -40,6 +40,10 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
   rows and persists column layouts/visibility/density in session drafts. The master
   map defaults to compact 48 px rows with Area/Count/Unit hidden; explicit saved
   visibility/density overrides these defaults, and Reset columns restores them. Master
+  map filters combine name, address/range, polling status and function area; address
+  spans match by overlap. Filtering changes only the view, never acquisition or
+  exports/snapshots. Filtered table indices map back to original rows for every
+  action; filter edits clear selection, batch actions use visible selected rows, and row movement skips hidden rows. Filter inputs bypass map shortcuts.
   map reads publish UI changes at cycle boundaries; per-group bridge commands
   suppress busy notifications while preserving I/O serialization/cancellation.
   Inactive workspace tabs mute animation tickers without stopping acquisition.
