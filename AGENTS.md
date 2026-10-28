@@ -19,6 +19,73 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
 
 ## Архитектура
 
+- Flutter desktop UI lives in `flutter_app/` alongside the PySide6 GUI. Each
+  independent Master/Simulator/Sniffer/Gateway tab owns an NDJSON stdio subprocess
+  (`flutter_bridge.py`); stdout is protocol-only. Qt-free adapters
+  `flutter_registers.py`, `flutter_logging.py`, `flutter_devices.py`,
+  `flutter_catalog.py`, `flutter_online.py` reuse the existing backends/models,
+  DataLogger, templates, WebDAV and update checker. Validate ranges before I/O;
+  EOF/shutdown stops all services, rule timers, logging and connections.
+  Flutter serializes transactions per session, checks cancellation between read
+  groups and discards late results/errors/alarms. Tab/window shutdown waits for I/O.
+  Workspace state/custom histories/cloud cache live separately under
+  `~/.modbus_connector/flutter` (`MODBUS_FLUTTER_HOME` override), never Qt settings.
+  Public templates remain shared/read-only. Utility cloud/template/update dialogs
+  own separate bridges; cloud password saving is opt-in. Flutter update install is
+  unsupported because published assets install Qt. `build_installer.py --flutter`
+  creates a separate ModbusConnectorFlutter install/shortcut/uninstall identity.
+  Flutter's master map is the sole read/write surface below a compact connection
+  summary. Connection settings use a validated modal draft (Apply commits, Cancel
+  restores, discovery still uses the session bridge); connected/busy sessions lock editing.
+  The table fills remaining window height. Activity occupies a collapsible right pane
+  on wide windows and a right drawer on narrow windows. Session utilities use a menu;
+  rare map tools collapse behind More tools. Selected-row actions float at the bottom
+  with table padding so selection never resizes the drag viewport or obscures final rows.
+  There are no separate quick-range controls/table/chart; scanner address hits
+  feed the map. `desktop_table.dart` virtualizes map/sniffer
+  rows and persists column layouts/visibility/density in session drafts. The master
+  map defaults to compact 48 px rows with Area/Count/Unit hidden; explicit saved
+  visibility/density overrides these defaults, and Reset columns restores them. Master
+  map filters combine name, address/start-count, polling status and function area; address
+  spans match by overlap. Filtering changes only the view, never acquisition or
+  exports/snapshots. Filtered table indices map back to original rows for every
+  action; filter edits clear selection, batch actions use visible selected rows, and row movement skips hidden rows. Filter inputs bypass map shortcuts.
+  map reads publish UI changes at cycle boundaries; per-group bridge commands
+  suppress busy notifications while preserving I/O serialization/cancellation.
+  Polling hides the map progress animation and keeps value/enum/bit writes enabled;
+  writes queue after the active read request without stopping polling. Recoverable
+  transaction errors are logged and polling continues; disconnect/bridge exit stops it.
+  Row trends require explicit trend_enabled=true (missing defaults to disabled).
+  Structural tools stay locked throughout polling, avoiding per-read enabled-state flicker;
+  selection and writes remain available. Raw value changes highlight only the value cell
+  for 3 seconds; unchanged reads do not extend the highlight. Address filter A-N
+  covers A through A+N-1, validates the 16-bit address bounds, and matches overlaps.
+  Its preset menu derives occupied 100-address pages from the full current map,
+  clips each row span at page boundaries, and trims each page to its occupied min/max.
+  Empty pages are omitted; choices fill only the address filter and clear selection.
+  Presets refresh on opening after template/map edits, independently of other filters.
+  Inactive workspace tabs mute animation tickers without stopping acquisition.
+  The map uses one selection checkbox column with mouse sweep toggling and edge
+  auto-scroll; polling flags stay separate in row/batch menus, with paused-name
+  markers. Sweep tracking belongs to the viewport so virtualized rows can leave
+  the screen without ending the gesture.
+  Master raw traffic is bounded and attached to bridge replies; traffic filtering/pause
+  never stops acquisition. `graph_window_host.dart` owns pipe-fed native graph
+  viewers without extra bus connections; session shutdown waits for them. Explicit
+  Qt JSON import stages converted disconnected tabs before replacing sessions;
+  never writes original Qt files. `serial_ports.dart` provides editable serial-port dropdowns for master and
+  device modes, discovering ports through the owned session bridge, plus editable
+  baud-rate dropdowns with common presets; `expression_completion.dart`
+  provides simulator rule prefix completion. Settings groups language/theme and
+  workspace files/autosave; disabled autosave requires explicit Save workspace.
+  Protocol: `flutter_app/BRIDGE_PROTOCOL.md`; setup/package: `flutter_app/README.md`;
+  current parity gaps/verification: `docs/FLUTTER_STATUS.md`.
+  `flutter_app/tool/build_bridge.py` freezes `packaging/flutter_bridge_entry.py`
+  with template data into adjacent `bridge/`, excluding Qt/numpy.
+  Python: `tests/test_flutter_bridge.py`, `tests/test_flutter_online.py`.
+  Flutter: `flutter analyze`, `flutter test`; run each native desktop integration
+  file separately with a display and `MODBUS_PYTHON` pointing at an installed venv.
+
 - Application updates: Help → Check for updates uses `update_check.py` (Qt-free,
   stdlib HTTPS, public GitHub Releases API for `sytuacmdyh/modbus_connector`)
   and `update_dialog.py` (QThread, manual checks, plain-text release notes,
@@ -1137,7 +1204,8 @@ packaging/linux/          # упаковка для Linux (только на Lin
                           # control-шаблон — deb-control)
 ```
 
-CI: `.github/workflows/build.yml` — push в main / ручной запуск; матрица
+CI: `.github/workflows/build.yml` — push в `main` и `develop` (артефакты), теги
+`vX.Y.Z` (stable, Release) и `vX.Y.Z-beta.N` (prerelease с develop); ручной запуск; матрица
 macOS/Windows/Linux: pytest (по одному процессу на test-файл — изоляция от
 флаки-сегфолтов Qt на CI), затем сборка через build.sh/build.bat,
 артефакты в upload-artifact (macOS — dmg, Windows/Linux — каталог dist;
@@ -1146,12 +1214,14 @@ CLI-бинарь — отдельным артефактом modbus-connector-cl
 прикрепляются к релизу отдельным шагом, как и CLI-бинарь).
 Linux installs Qt runtime libraries before testing; PyPI publishing is restricted
 to `cramen/modbus_connector`, while forks can publish tagged GitHub Releases.
-Use `python packaging/release.py MAJOR.MINOR.PATCH` for releases. It requires a
-clean main branch containing remote main, updates the single application version,
+Use `python packaging/release.py MAJOR.MINOR.PATCH` (stable, `main`) or
+`MAJOR.MINOR.PATCH-beta.N` (beta, `develop`) for releases. It requires a clean
+release branch containing the remote tip, updates the single application version,
 commits it, creates an annotated tag and atomically pushes branch/tag without force.
 The stdlib-only script supports --dry-run, --resume after a failed push, --status,
 --no-wait and --timeout. Default waiting checks the exact tag commit's Build run,
-release notes and all 12 expected assets, including the Windows installer. It never
+release notes and all 13 expected assets, including the Windows installer and
+Flutter Windows ZIP. It never
 moves existing tags. Tests use temporary local bare remotes and mocked GitHub API
 responses; running the tests does not publish anything.
 Release descriptions are generated by `packaging/update_release_notes.py` from
@@ -1167,6 +1237,12 @@ assets and tags remain intact. Use `--preview --tag vMAJOR.MINOR.PATCH` with
 `GITHUB_REPOSITORY=owner/repo` to preview offline.
 
 ## Соглашения
+
+- `skills/modbus-template/` is a self-contained, `npx skills`-installable skill for
+  generating public device-template JSON from a target firmware project. Keep its
+  format reference and stdlib validator aligned with template/model/UI loaders
+  when changing the public template format. Validate it with skill-creator's
+  `quick_validate.py` and exercise local CLI discovery/install in a temporary project.
 
 - Python 3.11+ синтаксис, полная типизация, минимум комментариев, ruff line-length 100.
 - models.py, backend.py и datalogger.py — чистый Python без Qt, покрываются

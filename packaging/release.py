@@ -1,6 +1,7 @@
-"""Publish a stable GitHub release with Git and Python's standard library."""
+"""Publish stable or beta GitHub releases with Git and Python's standard library."""
 
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -12,8 +13,19 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
+_ver_spec = importlib.util.spec_from_file_location(
+    "release_versioning",
+    Path(__file__).resolve().with_name("release_versioning.py"),
+)
+_versioning = importlib.util.module_from_spec(_ver_spec)
+_ver_spec.loader.exec_module(_versioning)
+BETA_VERSION = _versioning.BETA_VERSION
+STABLE_VERSION = _versioning.STABLE_VERSION
+is_prerelease_version = _versioning.is_prerelease_version
+parse_release_version = _versioning.parse_release_version
+tag_for_version = _versioning.tag_for_version
+version_sort_key = _versioning.version_sort_key
 VERSION_FILE = "src/modbus_connector/__init__.py"
-VERSION = re.compile(r"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)")
 
 
 def git(*args: str) -> str:
@@ -22,32 +34,39 @@ def git(*args: str) -> str:
     ).strip()
 
 
-def version_tuple(value: str) -> tuple[int, ...]:
-    if not VERSION.fullmatch(value):
-        raise ValueError("版本号必须为 MAJOR.MINOR.PATCH，例如 0.15.1。")
-    return tuple(map(int, value.split(".")))
-
-
 def github_repository(remote: str) -> str:
     url = git("remote", "get-url", remote)
     if git("remote", "get-url", "--push", remote) != url:
         raise ValueError("发布 remote 的 fetch 和 push 地址必须一致。")
-    match = re.fullmatch(
-        r"(?:git@github\.com:|https://github\.com/|ssh://git@github\.com/)"
-        r"([\w.-]+/[\w.-]+?)(?:\.git)?", url,
+    match = re.search(
+        r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?/?$",
+        url,
     )
     if not match:
         raise ValueError("发布 remote 必须指向 github.com 仓库。")
     return match[1]
 
 
+def remote_release_versions(refs: dict[str, str]) -> list[str]:
+    versions: list[str] = []
+    for ref in refs:
+        if not ref.startswith("refs/tags/v"):
+            continue
+        version = ref.removeprefix("refs/tags/v")
+        if STABLE_VERSION.fullmatch(version) or BETA_VERSION.fullmatch(version):
+            versions.append(version)
+    return versions
+
+
 def publish(version: str, remote: str, *, dry_run: bool, resume: bool) -> str:
-    wanted = version_tuple(version)
-    tag = f"v{version}"
+    version, channel = parse_release_version(version)
+    branch = "main" if channel == "stable" else "develop"
+    wanted = version_sort_key(version)
+    tag = tag_for_version(version)
     if git("status", "--porcelain"):
         raise ValueError("工作区或暂存区有未提交变更，请先提交后再发布。")
-    if git("branch", "--show-current") != "main":
-        raise ValueError("请在 main 分支发布。")
+    if git("branch", "--show-current") != branch:
+        raise ValueError(f"请在 {branch} 分支发布{'稳定版' if channel == 'stable' else '测试版'}。")
     path = ROOT / VERSION_FILE
     source = path.read_text(encoding="utf-8")
     match = re.search(r'^__version__ = "([^"]+)"$', source, re.MULTILINE)
@@ -55,17 +74,19 @@ def publish(version: str, remote: str, *, dry_run: bool, resume: bool) -> str:
         raise ValueError("未找到应用版本号。")
     current = match[1]
     refs = {ref: sha for sha, ref in
-            (line.split() for line in git("ls-remote", remote, "refs/heads/main",
+            (line.split() for line in git("ls-remote", remote, f"refs/heads/{branch}",
                                          "refs/tags/v*").splitlines())}
-    remote_head = refs.get("refs/heads/main")
+    remote_head = refs.get(f"refs/heads/{branch}")
     if not remote_head:
-        raise ValueError("远端 main 不存在。")
+        raise ValueError(f"远端 {branch} 不存在。")
     ancestor = subprocess.run(
         ["git", "merge-base", "--is-ancestor", remote_head, "HEAD"], cwd=ROOT,
         capture_output=True,
     )
     if ancestor.returncode:
-        raise ValueError("远端 main 尚未包含在本地历史中，请先 fetch 并整合远端更新。")
+        raise ValueError(
+            f"远端 {branch} 尚未包含在本地历史中，请先 fetch 并整合远端更新。"
+        )
     head = git("rev-parse", "HEAD")
     local_tag = tag in git("tag", "--list", tag).splitlines()
     remote_tag = refs.get(f"refs/tags/{tag}^{{}}", refs.get(f"refs/tags/{tag}"))
@@ -77,12 +98,21 @@ def publish(version: str, remote: str, *, dry_run: bool, resume: bool) -> str:
     else:
         if local_tag or remote_tag:
             raise ValueError("发布标签已存在；续传同一发布请使用 --resume。")
-        versions = [version_tuple(ref.removeprefix("refs/tags/v")) for ref in refs
-                    if ref.startswith("refs/tags/v")
-                    and VERSION.fullmatch(ref.removeprefix("refs/tags/v"))]
-        if wanted < version_tuple(current) or (versions and wanted <= max(versions)):
-            raise ValueError("新版本必须高于已发布版本，且不能低于当前源码版本。")
-    print(f"版本：{current} → {version}；标签：{tag}；远端：{remote}", flush=True)
+        published = [version_sort_key(item) for item in remote_release_versions(refs)]
+        current_key = version_sort_key(current) if (
+            STABLE_VERSION.fullmatch(current) or BETA_VERSION.fullmatch(current)
+        ) else None
+        if current_key is not None and wanted <= current_key:
+            raise ValueError("新版本必须高于当前源码版本。")
+        if channel == "stable":
+            stable_keys = [key for key in published if key[-2] == 1]
+            if stable_keys and wanted <= max(stable_keys):
+                raise ValueError("稳定版版本号必须高于已发布的稳定版。")
+        elif published and wanted <= max(published):
+            raise ValueError("测试版版本号必须高于已有发布标签。")
+    label = "稳定版" if channel == "stable" else "测试版"
+    print(f"{label}：{current} → {version}；标签：{tag}；分支：{branch}；远端：{remote}",
+          flush=True)
     if dry_run:
         print("预览完成：未修改文件、提交、标签或远端。", flush=True)
         return head
@@ -94,12 +124,12 @@ def publish(version: str, remote: str, *, dry_run: bool, resume: bool) -> str:
             git("commit", "-m", f"chore(release): 发布{version}版本")
         head = git("rev-parse", "HEAD")
         git("tag", "-a", tag, "-m", f"发布 {tag}")
-    # No force: branch and tag either advance together or neither is published.
     try:
-        git("push", "--atomic", remote, "HEAD:refs/heads/main", f"refs/tags/{tag}")
+        git("push", "--atomic", remote, f"HEAD:refs/heads/{branch}", f"refs/tags/{tag}")
     except subprocess.CalledProcessError:
         print(f"推送失败，本地提交和标签已保留。修复后运行：\n"
-              f"python packaging/release.py {version} --remote {remote} --resume", file=sys.stderr)
+              f"python packaging/release.py {version} --remote {remote} --resume",
+              file=sys.stderr)
         raise
     print(f"已推送 {tag}（{head[:12]}），等待 GitHub Actions 构建。", flush=True)
     return head
@@ -121,16 +151,20 @@ def api(repository: str, path: str) -> dict:
 
 
 def expected_assets(version: str) -> set[str]:
-    return {
+    assets = {
         "ModbusConnector.dmg", "modbus-connector-windows.zip", "modbus-connector-linux.zip",
         "ModbusConnector.AppImage", f"modbus-connector_{version}_amd64.deb",
         f"modbus-connector-{version}-windows-x64-setup.exe",
+        "modbus-flutter-windows.zip",
     } | {f"modbus-connector-{tool}-{suffix}" for tool in ("cli", "mcp")
          for suffix in ("macos", "linux", "windows.exe")}
+    return assets
 
 
 def check_release(repository: str, version: str, head: str) -> bool:
-    tag = f"v{version}"
+    parse_release_version(version)
+    tag = tag_for_version(version)
+    expect_prerelease = is_prerelease_version(version)
     data = api(repository, f"actions/workflows/build.yml/runs?event=push&branch={tag}&per_page=20")
     run = next((run for run in data.get("workflow_runs", [])
                 if run["head_sha"] == head and run["head_branch"] == tag), None)
@@ -147,7 +181,8 @@ def check_release(repository: str, version: str, head: str) -> bool:
     assets = {asset["name"] for asset in release.get("assets", [])
               if asset.get("size", 0) > 0 and asset.get("state") == "uploaded"}
     missing = expected_assets(version) - assets
-    if (not release or release.get("draft") or release.get("prerelease")
+    if (not release or release.get("draft")
+            or release.get("prerelease") is not expect_prerelease
             or not release.get("body", "").strip() or missing):
         raise RuntimeError("构建成功但发布内容不完整；缺少产物：" + ", ".join(sorted(missing)))
     print(f"发布完成：{release['html_url']}\n"
@@ -158,7 +193,10 @@ def check_release(repository: str, version: str, head: str) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("version", help="新版本号，例如 0.15.1")
+    parser.add_argument(
+        "version",
+        help="新版本号：稳定版 0.15.1 或测试版 0.15.4-beta.1",
+    )
     parser.add_argument("--remote", default="origin")
     actions = parser.add_mutually_exclusive_group()
     actions.add_argument("--dry-run", action="store_true", help="仅检查发布条件，不做修改")
@@ -168,12 +206,14 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, default=1800, help="等待构建的秒数，默认 1800")
     args = parser.parse_args()
     try:
-        version_tuple(args.version)
+        parse_release_version(args.version)
         if args.timeout <= 0:
             raise ValueError("等待时间必须大于零。")
         repository = github_repository(args.remote)
         if args.status:
-            check_release(repository, args.version, git("rev-parse", f"v{args.version}^{{commit}}"))
+            check_release(
+                repository, args.version, git("rev-parse", f"{tag_for_version(args.version)}^{{commit}}"),
+            )
             return 0
         head = publish(args.version, args.remote, dry_run=args.dry_run, resume=args.resume)
         if args.dry_run or args.no_wait:

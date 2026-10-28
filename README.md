@@ -15,6 +15,47 @@ all Modbus logic runs in a separate thread (QThread), so the GUI never freezes.
 Release notes automatically summarize commits since the previous stable tag,
 with one full changelog link. No per-version Markdown file is required.
 
+## Flutter desktop
+
+A separate Material 3 client is available in [`flutter_app/`](flutter_app/README.md),
+with complete Windows/Linux runners and a Qt-free Python subprocess bridge.
+It provides independent master/simulator/sniffer/gateway tabs, rich register maps,
+scanning, CSV/snapshots, logging/alarms, graphs, templates, separate workspace
+persistence, English/Chinese help, WebDAV sync and manual update checks. The master
+map fills the available height, activity logs sit in a collapsible right panel,
+connection parameters use a settings dialog, and infrequent map tools collapse.
+Map/sniffer columns retain width/order, device forms discover
+serial ports, simulator rules offer prefix completion, and Settings groups
+appearance/language/workspace preferences.
+The existing PySide6 application remains available. See the
+[migration status](docs/FLUTTER_STATUS.md) for validation and current scope.
+
+## Generate device templates with an agent skill
+
+The [modbus-template skill](skills/modbus-template/SKILL.md) reads a target
+firmware project's register handlers and protocol documents, then generates a
+Modbus Connector device template with source notes and offline validation.
+It includes its own format reference and a Python 3.11+ standard-library validator;
+the target project does not need Modbus Connector installed.
+
+From the target project, install from a checkout containing the skill:
+
+```bash
+npx skills add /path/to/modbus_connector --skill modbus-template
+```
+
+Install from the repository's default branch with:
+
+```bash
+npx skills add sytuacmdyh/modbus_connector --skill modbus-template
+```
+
+Select your coding agent interactively, or add `-a codex -y`. Add `-g` for a
+global installation. The layout follows the [skills CLI discovery rules](https://github.com/vercel-labs/skills/blob/main/docs/creating-skills.md).
+Example request: “Use modbus-template to generate a Modbus Connector template
+from this firmware's current register map, including enum/bit labels and sources.”
+Generated files do not automatically enter an installed application's template catalog.
+
 ## Features
 
 - Multiple simultaneous connections in tabs: each tab is an independent
@@ -737,13 +778,36 @@ The public GitHub API requires no token. Drafts and prereleases are excluded.
 A missing release, network failure or API rate limit is shown explicitly, and
 you can retry. Checks are manual; the application does not check on startup.
 
-To publish an update, commit your changes on `main`, fetch and integrate any
-remote updates, then run the release script with the next stable version:
+### Git Flow and release channels
+
+See [docs/GIT_FLOW.md](docs/GIT_FLOW.md) for the full branch model (`main` = stable,
+`develop` = integration / beta). Feature work merges into `develop`; stable and hotfix
+releases land on `main`, then `main` is merged back into `develop`.
+
+| Channel | Branch | Version / tag | GitHub Release |
+|---------|--------|---------------|----------------|
+| Stable | `main` | `X.Y.Z` → `vX.Y.Z` | normal (not prerelease) |
+| Beta | `develop` | `X.Y.Z-beta.N` → `vX.Y.Z-beta.N` | prerelease |
+
+**Help → Check for updates…** still uses GitHub `releases/latest` and ignores
+prereleases, so end users only see stable builds. Download beta builds manually from
+the Releases page (prerelease entries).
+
+**Stable release** (on `main`):
 
 ```bash
-python packaging/release.py 0.15.1 --dry-run  # validate without changing local or remote state
-python packaging/release.py 0.15.1            # publish and wait for the complete release
-python packaging/release.py 0.15.1 --status   # check an existing release
+git checkout main && git pull origin main
+python packaging/release.py 0.16.0 --dry-run
+python packaging/release.py 0.16.0
+python packaging/release.py 0.16.0 --status
+```
+
+**Beta release** (on `develop`):
+
+```bash
+git checkout develop && git pull origin develop
+python packaging/release.py 0.16.0-beta.1 --dry-run
+python packaging/release.py 0.16.0-beta.1
 ```
 
 The script needs Python 3.11+ and Git push access to the GitHub `origin` remote;
@@ -751,8 +815,8 @@ no extra Python packages or GitHub CLI are required. Use `--remote NAME` to
 select another remote with matching fetch/push URLs. It refuses uncommitted
 changes, remote history missing locally, older versions and duplicate tags.
 It updates `__version__` in `src/modbus_connector/__init__.py` (the single source
-for package and GUI versions), commits the version change, creates an annotated
-`vMAJOR.MINOR.PATCH` tag, then atomically pushes `main` and the tag without force.
+for package and GUI versions), commits the version change, creates an annotated tag,
+then atomically pushes the release branch (`main` or `develop`) and the tag without force.
 CI runs the tests and creates the packages. The script waits up to 30 minutes and
 only reports completion when the matching tag build succeeds, release notes are
 present and all 12 expected assets are uploaded, including the Windows installer.
@@ -761,16 +825,17 @@ An optional `GH_TOKEN` or `GITHUB_TOKEN` raises the API rate limit; tokens are n
 required for public status checks or printed by the script.
 
 If pushing fails after local preparation, fix the cause and run
-`python packaging/release.py 0.15.1 --resume`. This reuses the local commit/tag
+`python packaging/release.py <version> --resume`. This reuses the local commit/tag
 only if the version and current `HEAD` match; remote tags are never overwritten.
 If CI fails or the wait times out, inspect the printed Actions link and use
 `--status` to check again. Do not move a published tag to a different commit.
 
-The existing `.github/workflows/build.yml` verifies the
-tag matches the application version, builds Windows/macOS/Linux packages, and
-attaches them to GitHub Releases. Release notes automatically summarize commits.
+`.github/workflows/build.yml` runs on every push to `main` and `develop` (artifacts only)
+and on `v*` tags (artifacts plus GitHub Release). The workflow verifies that the tag
+matches `__version__` (stable and `X.Y.Z-beta.N` forms). Beta tags create prereleases.
+Release notes are generated for both stable and beta tags.
 The Windows job builds and tests an NSIS installer as well as the portable ZIP.
-`windows-installer.yml` can also add a missing installer to an existing release
+`windows-installer.yml` backfills a missing **stable** installer on an existing release
 using its published ZIP; existing assets and release notes are preserved.
 The update checker uses this fork's releases, rather than the upstream project.
 
@@ -911,17 +976,19 @@ with a free port and exercise read/write/scan through `ModbusBackend`.
 ## CI
 
 GitHub Actions (`.github/workflows/build.yml`) runs tests and builds artifacts
-for all three OSes on macOS/Windows/Linux runners on every push to `main`:
+for all three OSes on macOS/Windows/Linux runners on every push to `main` and
+`develop`:
 `modbus-connector-macos` (DMG), `modbus-connector-windows` (zip),
 `modbus-connector-linux` (zip) and `modbus-connector-linux-packages`
 (AppImage + deb). Download them from the
 workflow run page (Actions → a run → Artifacts; kept for 90 days); a build can
 also be started manually via "Run workflow".
 
-Pushing a `v*` tag (e.g. `git tag v0.1.0 && git push origin v0.1.0`)
-automatically attaches the same files to a GitHub Release — a permanent
-download page (Releases in the repository). PyPI publishing is limited to
-the upstream `cramen/modbus_connector` repository; forks publish GitHub Releases.
+Pushing a stable `vX.Y.Z` tag (from `main`) or a beta `vX.Y.Z-beta.N` tag (from
+`develop`) attaches the same files to a GitHub Release — stable releases are public
+downloads; beta releases are marked prerelease. PyPI publishing is limited to
+stable tags on the upstream `cramen/modbus_connector` repository; forks publish
+GitHub Releases only.
 On Linux you get four files:
 the zip, a portable `ModbusConnector.AppImage` (chmod +x and run — no
 installation, any distro) and `modbus-connector_<version>_amd64.deb`

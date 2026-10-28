@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -11,6 +11,8 @@ permissions:
 
 jobs:
   build:
+    env:
+      RELEASE_PRERELEASE: ${{ startsWith(github.ref, 'refs/tags/') && contains(github.ref_name, '-beta.') }}
     strategy:
       fail-fast: false
       matrix:
@@ -54,8 +56,34 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then PY=.venv/Scripts/python; else PY=.venv/bin/python; fi
-          VERSION=$("$PY" -c "from modbus_connector import __version__; print(__version__)")
-          test "$GITHUB_REF_NAME" = "v$VERSION"
+          "$PY" - <<'PY'
+          import os
+          import sys
+          from modbus_connector import __version__
+          ref = os.environ["GITHUB_REF_NAME"]
+          expected = f"v{__version__}"
+          if ref != expected:
+              print(f"Tag {ref} does not match application version {expected}", file=sys.stderr)
+              sys.exit(1)
+          PY
+
+      - name: Advise release tag branch (non-blocking)
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -e
+          TAG="${GITHUB_REF_NAME}"
+          if echo "$TAG" | grep -q -- '-beta.'; then
+            PREFERRED=develop
+          else
+            PREFERRED=main
+          fi
+          git fetch origin "$PREFERRED" --depth=1
+          if git merge-base --is-ancestor HEAD "origin/$PREFERRED"; then
+            echo "Tag $TAG is on origin/$PREFERRED history."
+          else
+            echo "::warning::Tag $TAG is not on origin/$PREFERRED; prefer tagging $PREFERRED for this release type."
+          fi
 
       - name: Run tests
         shell: bash
@@ -114,12 +142,54 @@ jobs:
           path: dist/*-windows-x64-setup.exe
           if-no-files-found: error
 
+      - name: Setup Flutter (Windows Flutter release)
+        if: runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/')
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Build Flutter Windows bundle
+        if: runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          flutter config --enable-windows-desktop
+          flutter --version
+          $py = (Resolve-Path .\.venv\Scripts\python.exe).Path
+          & $py -m pip install -e .
+          & $py -m pip install pyinstaller
+          Push-Location flutter_app
+          flutter pub get
+          flutter build windows --release
+          & $py .\tool\build_bridge.py --bundle .\build\windows\x64\runner\Release
+          Pop-Location
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path flutter_app\build\windows\x64\runner\Release\* `
+            -DestinationPath dist\modbus-flutter-windows.zip -Force
+
+      - name: Upload Flutter Windows artifact
+        if: runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v7
+        with:
+          name: modbus-flutter-windows
+          path: dist/modbus-flutter-windows.zip
+          if-no-files-found: error
+
+      - name: Attach Flutter Windows bundle to GitHub Release
+        if: runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/modbus-flutter-windows.zip
+          generate_release_notes: false
+          prerelease: ${{ env.RELEASE_PRERELEASE }}
+
       - name: Attach Windows installer to GitHub Release
         if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Windows'
         uses: softprops/action-gh-release@v3
         with:
           files: dist/*-windows-x64-setup.exe
           generate_release_notes: false
+          prerelease: ${{ env.RELEASE_PRERELEASE }}
 
       - name: Package AppImage and deb (Linux)
         if: runner.os == 'Linux'
@@ -168,12 +238,15 @@ jobs:
         with:
           files: ${{ matrix.release-files }}
           generate_release_notes: false
+          prerelease: ${{ env.RELEASE_PRERELEASE }}
 
       - name: Attach CLI binary to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
           files: dist-cli/*
+          generate_release_notes: false
+          prerelease: ${{ env.RELEASE_PRERELEASE }}
 
       - name: Attach Linux packages to GitHub Release
         if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Linux'
@@ -182,6 +255,8 @@ jobs:
           files: |
             dist/ModbusConnector.AppImage
             dist/modbus-connector_*_amd64.deb
+          generate_release_notes: false
+          prerelease: ${{ env.RELEASE_PRERELEASE }}
 
   release-notes:
     if: startsWith(github.ref, 'refs/tags/')
@@ -199,7 +274,8 @@ jobs:
 
   publish-pypi:
     # Only the upstream repository owns these PyPI projects and OIDC permissions.
-    if: startsWith(github.ref, 'refs/tags/') && github.repository == 'cramen/modbus_connector'
+    # Stable tags only — beta builds stay on GitHub prereleases.
+    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-beta.') && github.repository == 'cramen/modbus_connector'
     needs: build
     runs-on: ubuntu-latest
     permissions:

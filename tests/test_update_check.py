@@ -119,7 +119,9 @@ def test_network_errors(monkeypatch: pytest.MonkeyPatch, error: Exception) -> No
 
 
 def test_package_and_runtime_version_agree() -> None:
-    assert version("modbus-connector") == __version__
+    from packaging.version import Version
+
+    assert Version(version("modbus-connector")) == Version(__version__)
 
 
 def test_only_matching_verified_installer_is_selected(github):
