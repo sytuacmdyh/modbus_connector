@@ -4,6 +4,7 @@ import sys
 import threading
 import time
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
@@ -113,3 +114,35 @@ def modbus_server() -> Iterator[int]:
 @pytest.fixture()
 def modbus_rtu_server() -> Iterator[int]:
     yield from _serve(Framer.RTU)
+
+
+@pytest.fixture()
+def cloud_template_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    from modbus_connector import templates
+    from tests.template_fixtures import seed_primary_cloud_cache
+
+    cache = tmp_path / "cloud_templates.json"
+    seed_primary_cloud_cache(cache)
+    monkeypatch.setattr(templates, "CLOUD_TEMPLATES_PATH", cache)
+    return cache
+
+
+@pytest.fixture()
+def cloud_template_catalog(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    from modbus_connector import templates
+    from tests.template_fixtures import (
+        FIXTURE_RESOURCE,
+        FIXTURE_TEMPLATE,
+        SECOND_FIXTURE_RESOURCE,
+        SECOND_FIXTURE_TEMPLATE,
+        write_cloud_cache,
+    )
+
+    cache = tmp_path / "cloud_templates.json"
+    write_cloud_cache(
+        cache,
+        (FIXTURE_RESOURCE, FIXTURE_TEMPLATE),
+        (SECOND_FIXTURE_RESOURCE, SECOND_FIXTURE_TEMPLATE),
+    )
+    monkeypatch.setattr(templates, "CLOUD_TEMPLATES_PATH", cache)
+    return cache

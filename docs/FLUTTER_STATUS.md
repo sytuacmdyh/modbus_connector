@@ -220,8 +220,9 @@ Added column hide/restore and compact density, raw map quick writes and shortcut
 map row trends, graph settings persistence/reset and separate native viewers,
 template search, activity log filters/copy/export, master raw TX/RX capture and
 statistics, and explicit Qt configuration migration. Template conversion now
-handles blank inherited unit/interval/order fields; all 26 bundled templates
-(3226 rows) validate. UTF-8 cloud cache loading is explicit on Windows.
+handles blank inherited unit/interval/order fields. Bundled manufacturer JSON
+maps were removed from the app package; public templates load from the cloud
+cache. UTF-8 cloud cache loading is explicit on Windows.
 
 Viewers receive bounded samples through owned subprocess pipes and never open a
 second Modbus connection. Session shutdown closes their pipes and waits for exit.

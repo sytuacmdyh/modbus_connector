@@ -18,7 +18,8 @@ Flutter data lives in `~/.modbus_connector/flutter/` (Windows:
 `%USERPROFILE%\.modbus_connector\flutter`). `MODBUS_FLUTTER_HOME` overrides it.
 Workspace autosave restores disconnected tabs, maps and preferences; cloud
 credentials are stored separately and saving the password requires opt-in.
-Public templates reuse the bundled catalog; custom histories and cloud cache
+Public templates come from the cloud catalog cache (and any legacy downloads);
+custom histories and cloud cache
 are separate from Qt. English/Chinese UI and help are available from the top bar.
 
 The minimum content size is **900×650 logical pixels**. The table and activity

@@ -110,16 +110,12 @@ preview. See the skill for dependency setup and explicit publication commands.
   transaction is logged; a target error surfaces to the master as Slave
   Failure (0x04) with the reason in the log.
 - Device templates (the **Templates** menu): ready-made register maps and
-  default connection settings for popular devices — Eastron SDM120/SDM630,
-  EPEver Tracer-AN, Huawei SUN2000, Delta Electronics MS300/C2000 and
-  16 Wiren Board devices (WB-MS/WB-MSW sensors, WB-M1W2, WB-MR6C/WB-MR2M/
-  WB-MRWM2 relays, WB-MDM3/WB-MRGBW-D dimmers, WB-MAP3E/WB-MAP6S/WB-MAP12E
-  energy meters, WB-MAI6/WB-MAI11/WB-MAO4 analog I/O, WB-MCM8, WB-MIR).
-  Status, alarm and mode registers are annotated with value names and
-  bitmasks from the vendor documentation — an error code shows up as
-  "oH2 (17)" and alarm bitfields list the raised flags by name.
-  Choosing a template opens a new tab
-  with everything pre-filled — just press Connect.
+  default connection settings from the public template catalog. Bundled
+  manufacturer JSON maps are no longer shipped with the app; use **File →
+  Cloud sync** to download the shared catalog, or add your own JSON under
+  custom templates. Status, alarm and mode registers can still carry value
+  names and bitmasks from vendor documentation. Choosing a template opens a
+  new tab with everything pre-filled — just press Connect.
 - Register table: rows with a name, area type (coils, discrete inputs,
   holding/input registers), address and count; read and write values.
   Enter in the "New value" column sends the write command, Ctrl+R (Cmd+R on
@@ -426,8 +422,9 @@ does not rewrite snapshots. Cloud template downloads and publication never
 modify or publish this personal catalog. Simulator template menus expose both
 catalogs and import the simulator map when the saved session is in Slave mode.
 
-For developers adding a bundled public template, place a JSON file in
-`src/modbus_connector/templates/<Manufacturer>/<Device>.json`:
+For developers adding a public template to the shared catalog, publish JSON
+through **File → Cloud sync** (publisher mode) or the template-upload skill.
+The on-disk layout is still `<Manufacturer>/<Device>.json`:
 
 ```json
 {
@@ -448,8 +445,8 @@ RTU over TCP/RTU over UDP, `tcp_host`/`tcp_port` or `rtu_baud`/`rtu_bytesize`/
 optional `order`, `scale`, `offset`, `unit` — the same fields as the table
 columns. A row may also carry `value_names` (`{"0": "Stopped", "1": "Running"}`
 — enum labels shown as "Running (1)", also for coils) and `bitmask: true`
-(names then label bits 0..15 of the register). See any bundled file (e.g.
-`templates/Eastron/SDM120.json`) for a full example.
+(names then label bits 0..15 of the register). See `skills/modbus-template/references/template-format.md`
+for a full annotated example.
 
 ### WebDAV cloud sync
 
@@ -959,7 +956,9 @@ src/modbus_connector/
   custom_templates.py  # Qt-free local custom templates and timestamped versions
   custom_templates_dialog.py  # rename/delete templates, browse/open/delete versions
   template_menu.py  # shared public/custom menu grouping
-  templates/      # bundled device templates: <Manufacturer>/<Device>.json
+  templates/      # public template loader package (__init__.py); optional
+                  # <Manufacturer>/<Device>.json package data; cloud cache
+                  # supplies the live catalog when none are bundled
                   # register maps + default connection settings (package data,
                   # read via importlib.resources; loader in templates/__init__.py)
   session_widget.py # SessionWidget — one Modbus session (panels, scanner

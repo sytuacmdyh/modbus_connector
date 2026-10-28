@@ -457,13 +457,14 @@ def test_sniffer_panel_commands_with_real_serial_pty(bridge: Bridge) -> None:
 
 
 def test_templates_public_and_isolated_custom_history(
-    bridge: Bridge, tmp_path, monkeypatch
+    bridge: Bridge, tmp_path, monkeypatch, cloud_template_cache,
 ) -> None:
+    del cloud_template_cache
     monkeypatch.setenv("MODBUS_FLUTTER_HOME", str(tmp_path))
     catalog = request(bridge, "template_list")["result"]
     assert catalog["public"] and catalog["custom"] == []
-    state = request(bridge, "template_load", resource="Eastron/SDM120")["result"]["state"]
-    assert state["connection"]["baudrate"] == 2400 and len(state["registers"]) > 3
+    state = request(bridge, "template_load", resource="Acme/TestMeter")["result"]["state"]
+    assert state["connection"]["baudrate"] == 2400 and len(state["registers"]) > 1
     state["query"] = {"kind": "holding_registers", "address": 5, "count": 10}
     state["sniffed"] = {"1": {"holding_registers/0": {"name": "Observed", "value": 7}}}
     saved = request(bridge, "template_save", state=state, name="My meter")["result"]

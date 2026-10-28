@@ -68,6 +68,5 @@ def test_example_matches_application_loaders():
     assert loaded["registers"][2]["value_names"]["3"] == "高压保护"
 
 
-def test_bundled_templates_remain_compatible():
-    for path in (ROOT / "src/modbus_connector/templates").glob("*/*.json"):
-        assert not validator.validate(json.loads(path.read_text(encoding="utf-8"))), path
+def test_bundled_public_templates_not_shipped():
+    assert list((ROOT / "src/modbus_connector/templates").glob("*/*.json")) == []

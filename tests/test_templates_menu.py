@@ -18,6 +18,17 @@ from modbus_connector.custom_templates_dialog import CustomTemplatesDialog  # no
 from modbus_connector.i18n import set_language  # noqa: E402
 from modbus_connector.main_window import MainWindow  # noqa: E402
 from modbus_connector.templates import load_template  # noqa: E402
+from tests.template_fixtures import FIXTURE_KEY, FIXTURE_TEMPLATE  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _public_template_cache(tmp_path, monkeypatch):
+    from modbus_connector import templates
+    from tests.template_fixtures import seed_primary_cloud_cache
+
+    cache = tmp_path / "cloud_templates.json"
+    seed_primary_cloud_cache(cache)
+    monkeypatch.setattr(templates, "CLOUD_TEMPLATES_PATH", cache)
 
 
 @pytest.fixture(scope="module")
@@ -68,9 +79,9 @@ def test_templates_menu_structure(qapp: QApplication) -> None:
     assert titles.index("Templates") == titles.index("View") - 1
 
     public = _find_submenu(window._templates_menu, "Public templates")
-    eastron = _find_submenu(public, "Eastron")
-    names = [action.text() for action in eastron.actions()]
-    assert any("SDM120" in name for name in names)
+    acme = _find_submenu(public, "Acme")
+    names = [action.text() for action in acme.actions()]
+    assert any("Test Meter" in name for name in names)
     window._shutdown_sessions()
 
 
@@ -78,8 +89,8 @@ def test_template_action_opens_new_tab(qapp: QApplication) -> None:
     window = _fresh_window()
     window._add_session()
     public = _find_submenu(window._templates_menu, "Public templates")
-    eastron = _find_submenu(public, "Eastron")
-    action = next(a for a in eastron.actions() if "SDM120" in a.text())
+    acme = _find_submenu(public, "Acme")
+    action = next(a for a in acme.actions() if "Test Meter" in a.text())
 
     action.trigger()
     assert window._tabs.count() == 2
@@ -89,10 +100,10 @@ def test_template_action_opens_new_tab(qapp: QApplication) -> None:
     rows = session.registers_panel.state()
     # compare against the template itself: its register list evolves
     # independently of the menu integration
-    template = load_template("Eastron/SDM120")
+    template = load_template(FIXTURE_KEY)
     expected = {(reg.get("name", ""), reg["address"]) for reg in template["registers"]}
     got = {(row["name"], row["address"]) for row in rows}
-    assert len(rows) == len(template["registers"]) >= 8
+    assert len(rows) == len(template["registers"]) >= 2
     assert got == expected
     assert ("Voltage", 0) in got and ("Total active energy", 342) in got
     window._shutdown_sessions()
@@ -111,7 +122,7 @@ def test_templates_menu_title_retranslates(qapp: QApplication) -> None:
 def test_save_public_as_custom_then_save_versions(qapp, monkeypatch):
     window = _fresh_window()
     public = _find_submenu(window._templates_menu, "Public templates")
-    _find_submenu(public, "Eastron").actions()[0].trigger()
+    _find_submenu(public, "Acme").actions()[0].trigger()
     assert not window._save_version_action.isEnabled()
     monkeypatch.setattr(main_window.QInputDialog, "getText", lambda *a, **kw: ("My pump", True))
     window._save_custom_template(copy=True)
@@ -138,7 +149,7 @@ def test_manager_open_rename_delete_versions_and_template(qapp, monkeypatch):
     from PySide6.QtWidgets import QMessageBox
 
     store = CustomTemplateStore()
-    info = store.save(load_template("Eastron/SDM120"), name="Personal")
+    info = store.save(load_template(FIXTURE_KEY), name="Personal")
     first = store.versions(info.id)[0]["id"]
     state = store.load(info.id)
     state["registers"] = [{"name": "Changed", "address": 123, "count": 1}]
@@ -152,7 +163,9 @@ def test_manager_open_rename_delete_versions_and_template(qapp, monkeypatch):
         dialog.versions.setCurrentRow(1)
         dialog._buttons["Open version"].click()
         assert window._tabs.currentWidget().property("custom_template_id") == info.id
-        assert len(window._tabs.currentWidget().registers_panel.state()) == 13
+        assert len(window._tabs.currentWidget().registers_panel.state()) == len(
+            FIXTURE_TEMPLATE["registers"]
+        )
         monkeypatch.setattr(main_window.QInputDialog, "getText",
                             lambda *a, **kw: ("Renamed", True))
         dialog._rename()
@@ -196,7 +209,7 @@ def test_public_template_cannot_claim_a_custom_identity(qapp, monkeypatch):
     from modbus_connector.templates import TemplateInfo
 
     store = CustomTemplateStore()
-    info = store.save(load_template("Eastron/SDM120"), name="Personal")
+    info = store.save(load_template(FIXTURE_KEY), name="Personal")
     public_state = {**store.load(info.id), "custom_template_id": info.id}
     monkeypatch.setattr(main_window, "load_template", lambda _: public_state)
     window = _fresh_window()
