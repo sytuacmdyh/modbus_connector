@@ -56,6 +56,19 @@ Example request: “Use modbus-template to generate a Modbus Connector template
 from this firmware's current register map, including enum/bit labels and sources.”
 Generated files do not automatically enter an installed application's template catalog.
 
+The companion [modbus-template-upload skill](skills/modbus-template-upload/SKILL.md)
+publishes selected template JSON files to a user-entered WebDAV template-directory
+URL. It preserves unrelated remote templates and writes versioned catalog snapshots.
+Install from a checkout containing the skill with
+`npx skills add /path/to/modbus_connector --skill modbus-template-upload`.
+After publication to the default branch, the source can be
+`sytuacmdyh/modbus_connector` instead of a local path.
+The target URL must be entered manually on first use. Configuration lives outside
+the skill in `~/.modbus_connector/skills/template-upload/config.json`, or under
+`MODBUS_TEMPLATE_UPLOAD_HOME`; passwords are never saved there. The upload helper
+requires the headless Modbus Connector Python package and defaults to a read-only
+preview. See the skill for dependency setup and explicit publication commands.
+
 ## Features
 
 - Multiple simultaneous connections in tabs: each tab is an independent

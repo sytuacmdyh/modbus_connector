@@ -1238,6 +1238,13 @@ assets and tags remain intact. Use `--preview --tag vMAJOR.MINOR.PATCH` with
 
 ## Соглашения
 
+- `skills/modbus-template-upload/` publishes selected templates through the headless
+  `cloud_sync.py` WebDAV client. Its user-entered endpoint is stored separately in
+  `~/.modbus_connector/skills/template-upload/config.json` (or
+  `MODBUS_TEMPLATE_UPLOAD_HOME`), never in the skill or application cloud settings.
+  Keep compatibility with snapshot/catalog publication and legacy directory reads;
+  tests use a local WebDAV fixture and must not write to real accounts.
+
 - `skills/modbus-template/` is a self-contained, `npx skills`-installable skill for
   generating public device-template JSON from a target firmware project. Keep its
   format reference and stdlib validator aligned with template/model/UI loaders

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Modbus 模板上传"
+  short_description: "上传模板到用户指定的 WebDAV 目录，并在技能目录外持久化目标配置"
+  default_prompt: "使用 $modbus-template-upload 上传指定的 Modbus 模板；首次使用请让我填写上传地址，并在技能目录外保存配置。"
