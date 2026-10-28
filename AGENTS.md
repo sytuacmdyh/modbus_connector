@@ -1237,6 +1237,12 @@ assets and tags remain intact. Use `--preview --tag vMAJOR.MINOR.PATCH` with
 
 ## Соглашения
 
+- `skills/modbus-template/` is a self-contained, `npx skills`-installable skill for
+  generating public device-template JSON from a target firmware project. Keep its
+  format reference and stdlib validator aligned with template/model/UI loaders
+  when changing the public template format. Validate it with skill-creator's
+  `quick_validate.py` and exercise local CLI discovery/install in a temporary project.
+
 - Python 3.11+ синтаксис, полная типизация, минимум комментариев, ruff line-length 100.
 - models.py, backend.py и datalogger.py — чистый Python без Qt, покрываются
   тестами без GUI.
