@@ -103,9 +103,10 @@ def test_state_tolerant_parsing(panel: SimPanel) -> None:
     assert rows[0]["values"] == [7, 1]
 
 
-def test_template_load_into_map(panel: SimPanel) -> None:
+def test_template_load_into_map(panel: SimPanel, cloud_template_cache) -> None:
+    del cloud_template_cache
     infos = list_templates()
-    assert infos, "в каталоге должен быть хотя бы один шаблон"
+    assert infos, "cloud cache fixture should expose at least one public template"
     panel._apply_template(infos[0])
     template = load_template(infos[0])
     rows = panel.state()["rows"]

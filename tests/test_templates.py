@@ -1,51 +1,67 @@
 import os
+from pathlib import Path
 
 import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from modbus_connector import templates  # noqa: E402
 from modbus_connector.templates import (  # noqa: E402
     TemplateInfo,
     list_templates,
     load_template,
     parse_template,
 )
+from tests.template_fixtures import (  # noqa: E402
+    FIXTURE_KEY,
+    FIXTURE_RESOURCE,
+    FIXTURE_TEMPLATE,
+)
 
 
-def test_list_templates_finds_sdm120() -> None:
-    templates = list_templates()
-    sdm120 = [t for t in templates if t.resource == "Eastron/SDM120.json"]
-    assert len(sdm120) == 1
-    info = sdm120[0]
-    assert info.manufacturer == "Eastron"
-    assert info.name == "Eastron SDM120"
+def test_list_templates_bundled_catalog_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(templates, "CLOUD_TEMPLATES_PATH", tmp_path / "missing.json")
+    assert list_templates() == []
+
+
+def test_list_templates_includes_cloud_cache(cloud_template_cache: Path) -> None:
+    del cloud_template_cache
+    found = [t for t in list_templates() if t.resource == FIXTURE_RESOURCE]
+    assert len(found) == 1
+    info = found[0]
+    assert info.manufacturer == "Acme"
+    assert info.name == FIXTURE_TEMPLATE["name"]
     assert info.description
 
 
-def test_list_templates_sorted_case_insensitive() -> None:
-    templates = list_templates()
-    keys = [(t.manufacturer.lower(), t.name.lower()) for t in templates]
+def test_list_templates_sorted_case_insensitive(cloud_template_catalog) -> None:
+    del cloud_template_catalog
+    keys = [(t.manufacturer.lower(), t.name.lower()) for t in list_templates()]
     assert keys == sorted(keys)
 
 
-def test_load_template_by_info_and_key() -> None:
-    info = next(t for t in list_templates() if t.resource == "Eastron/SDM120.json")
+def test_load_template_by_info_and_key(cloud_template_cache) -> None:
+    del cloud_template_cache
+    info = next(t for t in list_templates() if t.resource == FIXTURE_RESOURCE)
     by_info = load_template(info)
-    by_key = load_template("Eastron/SDM120")
+    by_key = load_template(FIXTURE_KEY)
     assert by_info == by_key
-    assert by_info["name"] == "Eastron SDM120"
+    assert by_info["name"] == FIXTURE_TEMPLATE["name"]
     connection = by_info["connection"]
     assert connection["type"] == "RTU"
     assert connection["rtu_baud"] == "2400"
     assert connection["unit"] == 1
     registers = by_info["registers"]
-    assert isinstance(registers, list) and len(registers) == 13
+    assert isinstance(registers, list) and len(registers) == len(FIXTURE_TEMPLATE["registers"])
     assert all(row["kind"] == "input_registers" for row in registers)
 
 
-def test_load_template_unknown_key() -> None:
+def test_load_template_unknown_key(cloud_template_cache) -> None:
+    del cloud_template_cache
     with pytest.raises(ValueError, match="not found"):
-        load_template("Eastron/NoSuchDevice")
+        load_template("Acme/NoSuchDevice")
 
 
 def test_parse_template_tolerates_broken_files(caplog: pytest.LogCaptureFixture) -> None:
@@ -77,13 +93,14 @@ def qapp() -> QApplication:
     return QApplication.instance() or QApplication([])
 
 
-def test_template_registers_roundtrip(qapp: QApplication) -> None:
-    state = load_template("Eastron/SDM120")
+def test_template_registers_roundtrip(qapp: QApplication, cloud_template_cache) -> None:
+    del cloud_template_cache
+    state = load_template(FIXTURE_KEY)
     panel = RegistersPanel(lambda: 1)
     try:
         panel.set_state(state["registers"])
         rows = panel.state()
-        assert len(rows) == 13
+        assert len(rows) == len(FIXTURE_TEMPLATE["registers"])
         voltage = rows[0]
         assert voltage["name"] == "Voltage"
         assert voltage["kind"] == "input_registers"
@@ -99,45 +116,101 @@ def test_template_registers_roundtrip(qapp: QApplication) -> None:
         panel.deleteLater()
 
 
-# (шаблон, адрес, bitmask, значение из value_names, ожидаемое имя)
+# (register row, адрес для поиска, bitmask, значение из value_names, ожидаемое имя)
 ANNOTATED_ROWS = [
-    ("Delta Electronics/MS300", 8194, True, 1, "Reset"),
-    ("Delta Electronics/MS300", 8448, False, 17, "oH2"),
-    ("Delta Electronics/MS300", 8449, True, 10, "Run cmd via comm"),
-    ("Delta Electronics/C2000", 8194, True, 2, "Base block ON"),
-    ("Delta Electronics/C2000", 8448, False, 26880, "Warn SpdR"),
-    ("Delta Electronics/C2000", 8449, True, 11, "Parameter locked"),
-    ("Huawei/SUN2000", 32000, True, 6, "Stop due to faults"),
-    ("Huawei/SUN2000", 32008, True, 15, "Output DC Component Overhigh (2040)"),
-    ("Huawei/SUN2000", 32089, False, 512, "On-grid"),
-    ("Huawei/SUN2000", 32090, False, 2002, "DC Arc Fault"),
-    ("EPEver/Tracer-AN", 12800, True, 15, "Wrong rated voltage identification"),
-    ("EPEver/Tracer-AN", 12801, True, 0, "Running"),
-    ("Wiren Board/WB-MDM3", 97, False, 1, "AC voltage present"),
-    ("Wiren Board/WB-M1W2", 16, False, 1, "OK"),
-    ("Wiren Board/WB-MRGBW-D", 4000, False, 256, "RGB + W"),
-    ("Wiren Board/WB-MCM8", 8, True, 7, "Input 8"),
-    ("Wiren Board/WB-MRWM2", 88, False, 1, "Blocked"),
-    ("Wiren Board/WB-MAI6", 5120, False, 4096, None),
-    ("Wiren Board/WB-MAO4", 10, False, 1, "Analog 0-10 V"),
+    (
+        {
+            "kind": "holding_registers",
+            "address": 8194,
+            "count": 1,
+            "format": "dec",
+            "bitmask": True,
+            "value_names": {"1": "Reset", "10": "Run cmd via comm"},
+        },
+        8194,
+        True,
+        1,
+        "Reset",
+    ),
+    (
+        {
+            "kind": "holding_registers",
+            "address": 8448,
+            "count": 1,
+            "format": "dec",
+            "bitmask": False,
+            "value_names": {"17": "oH2"},
+        },
+        8448,
+        False,
+        17,
+        "oH2",
+    ),
+    (
+        {
+            "kind": "holding_registers",
+            "address": 12801,
+            "count": 1,
+            "format": "dec",
+            "bitmask": True,
+            "value_names": {"0": "Running"},
+        },
+        12801,
+        True,
+        0,
+        "Running",
+    ),
+    (
+        {
+            "kind": "holding_registers",
+            "address": 97,
+            "count": 1,
+            "format": "dec",
+            "bitmask": False,
+            "value_names": {"1": "AC voltage present"},
+        },
+        97,
+        False,
+        1,
+        "AC voltage present",
+    ),
+    (
+        {
+            "kind": "holding_registers",
+            "address": 5120,
+            "count": 1,
+            "format": "dec",
+            "bitmask": False,
+            "value_names": {"4096": ""},
+        },
+        5120,
+        False,
+        4096,
+        None,
+    ),
 ]
 
 
 @pytest.mark.parametrize(
-    ("resource", "address", "bitmask", "value", "name"), ANNOTATED_ROWS
+    ("register_row", "address", "bitmask", "value", "name"), ANNOTATED_ROWS
 )
 def test_template_annotations_roundtrip(
-    qapp: QApplication, resource: str, address: int, bitmask: bool, value: int, name: str | None
+    qapp: QApplication,
+    register_row: dict,
+    address: int,
+    bitmask: bool,
+    value: int,
+    name: str | None,
 ) -> None:
     """value_names/bitmask из шаблона переживают RegistersPanel set_state→state."""
     panel = RegistersPanel(lambda: 1)
     try:
-        panel.set_state(load_template(resource)["registers"])
+        panel.set_state([register_row])
         rows = panel.state()
         row = next(r for r in rows if r["address"] == address)
         assert row["bitmask"] is bitmask
         names = row["value_names"]
-        assert names, f"{resource}@{address}: empty value_names"
+        assert names, f"address {address}: empty value_names"
         if name is not None:
             assert names.get(str(value)) == name
     finally:

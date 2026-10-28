@@ -133,10 +133,11 @@ def test_templates_overlay_cache_and_refresh(
     catalog = templates.list_templates()
     assert len([t for t in catalog if t.resource == "Eastron/SDM120.json"]) == 1
     assert any(t.name == "Cloud device" for t in catalog)
-    # Remote removal drops the overlay, exposing the bundled template again.
+    # Remote removal clears the overlay; bundled fallback is no longer shipped.
     dav_server.files.clear()
     assert client.download_templates() == 0
-    assert templates.load_template("Eastron/SDM120")["name"] == "Eastron SDM120"
+    with pytest.raises(ValueError, match="not found"):
+        templates.load_template("Eastron/SDM120")
 
 
 def test_failed_or_cancelled_templates_preserve_cache(

@@ -5,6 +5,7 @@ import socket
 import threading
 import time
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from pymodbus.datastore import (
@@ -23,6 +24,16 @@ def free_port() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
+
+
+@pytest.fixture(autouse=True)
+def _public_template_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from modbus_connector import templates
+    from tests.template_fixtures import seed_primary_cloud_cache
+
+    cache = tmp_path / "cloud_templates.json"
+    seed_primary_cloud_cache(cache)
+    monkeypatch.setattr(templates, "CLOUD_TEMPLATES_PATH", cache)
 
 
 @pytest.fixture()
