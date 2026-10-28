@@ -23,7 +23,10 @@ def finish(bridge):
         time.sleep(0.01)
 
 
-def test_real_webdav_publication_history_and_isolated_cache(dav_server, tmp_path, monkeypatch):
+def test_real_webdav_publication_history_and_isolated_cache(
+    dav_server, tmp_path, monkeypatch, cloud_template_cache,
+):
+    del cloud_template_cache
     monkeypatch.setenv("MODBUS_FLUTTER_HOME", str(tmp_path))
     bridge = Bridge()
     settings = asdict(dav_server.settings)
