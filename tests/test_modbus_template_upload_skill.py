@@ -1,5 +1,7 @@
 import importlib.util
 import json
+import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -45,6 +47,38 @@ def test_reject_config_inside_skill_and_symlink(tmp_path, monkeypatch):
     monkeypatch.setenv("MODBUS_TEMPLATE_UPLOAD_HOME", str(alias))
     with pytest.raises(ValueError, match="outside"):
         uploader.config_path()
+
+
+def test_password_opt_in_resolution_and_redacted_output(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("MODBUS_TEMPLATE_UPLOAD_HOME", str(tmp_path))
+    monkeypatch.delenv("MODBUS_TEMPLATE_UPLOAD_PASSWORD", raising=False)
+    path = uploader.configure("https://example.invalid/templates", "admin", password="test-secret")
+    config = uploader.load_config()
+    assert uploader.password_for(config) == "test-secret"
+    if os.name != "nt":
+        assert path.stat().st_mode & 0o777 == 0o600
+    monkeypatch.setattr(sys, "argv", [str(SCRIPT), "config-show"])
+    assert uploader.main() == 0
+    output = capsys.readouterr().out
+    assert "test-secret" not in output
+    assert json.loads(output)["password_saved"] is True
+    monkeypatch.setenv("MODBUS_TEMPLATE_UPLOAD_PASSWORD", "override-secret")
+    assert uploader.password_for(config) == "override-secret"
+    uploader.configure("https://example.invalid/templates", "other-user")
+    assert "password" not in uploader.load_config()
+
+
+def test_cli_password_save_requires_opt_in(tmp_path, monkeypatch):
+    monkeypatch.setenv("MODBUS_TEMPLATE_UPLOAD_HOME", str(tmp_path))
+    monkeypatch.setenv("MODBUS_TEMPLATE_UPLOAD_PASSWORD", "test-secret")
+    args = [str(SCRIPT), "configure", "--url", "https://example.invalid/templates",
+            "--username", "admin"]
+    monkeypatch.setattr(sys, "argv", args)
+    assert uploader.main() == 0
+    assert "password" not in uploader.load_config()
+    monkeypatch.setattr(sys, "argv", [*args, "--remember-password"])
+    assert uploader.main() == 0
+    assert uploader.load_config()["password"] == "test-secret"
 
 
 @pytest.mark.parametrize("url", ["", "https://example.invalid/", "https://u:p@host/templates",

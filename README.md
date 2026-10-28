@@ -65,7 +65,8 @@ After publication to the default branch, the source can be
 `sytuacmdyh/modbus_connector` instead of a local path.
 The target URL must be entered manually on first use. Configuration lives outside
 the skill in `~/.modbus_connector/skills/template-upload/config.json`, or under
-`MODBUS_TEMPLATE_UPLOAD_HOME`; passwords are never saved there. The upload helper
+`MODBUS_TEMPLATE_UPLOAD_HOME`; passwords are saved only with explicit opt-in via
+`configure --remember-password`, and `config-show` always hides them. The upload helper
 requires the headless Modbus Connector Python package and defaults to a read-only
 preview. See the skill for dependency setup and explicit publication commands.
 

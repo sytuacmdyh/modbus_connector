@@ -36,9 +36,13 @@ python <script> configure --url '<用户输入的模板目录URL>' --username '<
 `MODBUS_TEMPLATE_UPLOAD_HOME` 可指定外部配置目录；它不能位于当前技能目录内
 （包括软链接解析后的路径）。技能升级/重装不修改这个文件。它与 Qt/Flutter 的
 `cloud.json`、工作区设置和模板缓存互相独立，不提交到 Git，不作为上传内容。
-配置只保存 URL、用户名和超时，不保存密码。认证密码通过
-`MODBUS_TEMPLATE_UPLOAD_PASSWORD` 环境变量提供，或由用户在交互终端隐藏输入；
-不要要求用户把密码发在聊天中，也不要把密码拼进命令行或 URL。
+默认只保存 URL、用户名和超时。认证密码通过 `MODBUS_TEMPLATE_UPLOAD_PASSWORD`
+环境变量提供，或由用户在交互终端隐藏输入。用户明确要求保存凭据时，可为 configure
+添加 `--remember-password`：从环境变量或隐藏输入获取密码，明文保存在同一外部配置文件，
+文件权限设为 0600（Windows 原生环境还受目录 ACL 控制）。不在技能目录保存凭据。
+读取优先级为环境变量、已保存密码、交互输入；`config-show` 只显示是否已保存密码。
+再次 configure 不加该选项会移除旧密码，避免更换账号时沿用旧凭据。
+不要要求用户把密码发在聊天中，也不要把密码拼进命令行、URL 或显示在输出中。
 
 ## 选择文件、预览与发布
 

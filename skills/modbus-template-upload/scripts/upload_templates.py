@@ -46,11 +46,16 @@ def settings(config: dict[str, Any]) -> WebDavSettings:
     ).validated()
 
 
-def configure(url: str, username: str = "", timeout: int = 15) -> Path:
+def configure(
+    url: str, username: str = "", timeout: int = 15, *, password: str | None = None,
+) -> Path:
     config = {"url": url, "username": username, "timeout": timeout}
+    if password is not None:
+        config["password"] = password
     settings(config)
     path = config_path()
     atomic_json(path, config)
+    path.chmod(0o600)
     return path
 
 
@@ -59,12 +64,25 @@ def load_config() -> dict[str, Any]:
     if not path.exists():
         raise ValueError(f"Not configured: {path}. Ask the user for the upload URL.")
     config = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(config, dict) or set(config) != {"url", "username", "timeout"}:
+    required = {"url", "username", "timeout"}
+    if (not isinstance(config, dict) or not required <= set(config)
+            or set(config) - required - {"password"}):
         raise ValueError("Invalid configuration; run configure with the user's supplied URL.")
     if not isinstance(config["username"], str) or type(config["timeout"]) is not int:
         raise ValueError("Invalid username/timeout configuration.")
+    if "password" in config and not isinstance(config["password"], str):
+        raise ValueError("Invalid saved password configuration.")
     settings(config)
     return config
+
+
+def password_for(config: dict[str, Any]) -> str:
+    password = os.environ.get("MODBUS_TEMPLATE_UPLOAD_PASSWORD", config.get("password", ""))
+    if config.get("username") and not password:
+        if not sys.stdin.isatty():
+            raise ValueError("Set MODBUS_TEMPLATE_UPLOAD_PASSWORD or use an interactive terminal.")
+        password = getpass.getpass("WebDAV password: ")
+    return password
 
 
 def local_templates(paths: list[Path], resource: str | None = None) -> dict[str, Any]:
@@ -127,6 +145,7 @@ def main() -> int:
     setup.add_argument("--url", required=True)
     setup.add_argument("--username", default="")
     setup.add_argument("--timeout", type=int, default=15)
+    setup.add_argument("--remember-password", action="store_true")
     commands.add_parser("config-show")
     push = commands.add_parser("upload")
     push.add_argument("files", nargs="+", type=Path)
@@ -135,19 +154,17 @@ def main() -> int:
     args = parser.parse_args()
     try:
         if args.command == "configure":
-            print(configure(args.url, args.username, args.timeout))
+            password = password_for({"username": args.username}) if args.remember_password else None
+            print(configure(args.url, args.username, args.timeout, password=password))
         elif args.command == "config-show":
-            print(json.dumps({"path": str(config_path()), **load_config()}, ensure_ascii=False))
+            config = load_config()
+            public = {key: value for key, value in config.items() if key != "password"}
+            print(json.dumps({"path": str(config_path()), **public,
+                              "password_saved": bool(config.get("password"))}, ensure_ascii=False))
         else:
             config = load_config()
             selected = local_templates(args.files, args.resource)
-            password = os.environ.get("MODBUS_TEMPLATE_UPLOAD_PASSWORD", "")
-            if config["username"] and not password:
-                if not sys.stdin.isatty():
-                    raise ValueError(
-                        "Set MODBUS_TEMPLATE_UPLOAD_PASSWORD or use an interactive terminal.",
-                    )
-                password = getpass.getpass("WebDAV password: ")
+            password = password_for(config)
             client = WebDavClient(replace(settings(config), password=password))
             result = upload(client, selected, publish=args.publish)
             print(json.dumps({"url": config["url"], **result}, ensure_ascii=False, indent=2))
