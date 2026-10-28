@@ -101,7 +101,7 @@ installer (NSIS must be installed), run from the repository root:
 
 ```powershell
 .venv/Scripts/python.exe packaging/windows/build_installer.py --flutter `
-  --bundle flutter_app/build/windows/x64/runner/Release --version 0.16.0+8
+  --bundle flutter_app/build/windows/x64/runner/Release --version 0.16.0+9
 .venv/Scripts/python.exe flutter_app/tool/verify_windows_bundle.py `
   --bundle flutter_app/build/windows/x64/runner/Release
 ```
@@ -220,7 +220,12 @@ Saved visibility and density preferences take precedence; Reset columns restores
 these defaults, and the header menu can show any hidden column again.
 The filter bar combines case-insensitive name matching, a zero-based address or
 start-count range (decimal or `0x` hex; `100-20` covers 100–119), polling status and function area. Address
-filters include rows whose register spans overlap the range. The count shows
+filters include rows whose register spans overlap the range. The address field's
+arrow opens shortcuts derived from the current map: each occupied 100-address
+page is trimmed to its actual covered span (e.g. 1000–1099 becomes `1001-66`
+when the occupied addresses run from 1001 through 1066). Empty pages are omitted;
+crossing rows contribute to both pages. Choosing a shortcut preserves the other
+filters; All addresses clears only the address filter. The count shows
 visible/total rows; Clear filters restores the full map. Filters only affect the
 view: Read map/Start polling, CSV exports and snapshots still use the whole map as
 before. Changing a filter clears selection; select-all and batch actions affect

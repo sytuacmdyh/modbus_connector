@@ -19,6 +19,46 @@ class RegisterMapController extends ChangeNotifier {
   Timer? _timer;
   List<Map<String, dynamic>> get rows => session.registers;
   List<Map<String, dynamic>> get results => session.registerResults;
+
+  /// Trim each occupied hundred-address page to the map's covered addresses.
+  /// Build on demand when the preset menu opens, independently of view filters.
+  List<({int pageStart, int start, int count})> get addressPresets {
+    final pages = <int, ({int start, int end})>{};
+    for (final row in rows) {
+      final address = row['address'];
+      final count = row['count'] ?? 1;
+      if (address is! int ||
+          count is! int ||
+          address < 0 ||
+          count < 1 ||
+          address + count > 65536) {
+        continue;
+      }
+      final end = address + count - 1;
+      for (var page = address ~/ 100 * 100; page <= end; page += 100) {
+        final startInPage = address.clamp(page, page + 99);
+        final endInPage = end.clamp(page, page + 99);
+        final previous = pages[page];
+        pages[page] = (
+          start: previous == null || startInPage < previous.start
+              ? startInPage
+              : previous.start,
+          end: previous == null || endInPage > previous.end
+              ? endInPage
+              : previous.end,
+        );
+      }
+    }
+    return [
+      for (final page in pages.keys.toList()..sort())
+        (
+          pageStart: page,
+          start: pages[page]!.start,
+          count: pages[page]!.end - pages[page]!.start + 1,
+        ),
+    ];
+  }
+
   final Map<Map<String, dynamic>, DateTime> _lastRead = {};
   int _interval = 500;
 

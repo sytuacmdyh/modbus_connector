@@ -393,6 +393,8 @@ const flutterChinese = <String, String>{
   'Filter by name': '名称关键词',
   'Address / range': '地址 / 范围',
   'Address / start-count': '地址 / 起始-数量',
+  'Address range presets': '地址范围快捷选择',
+  'All addresses': '全部地址',
   'Invalid address range': '地址范围无效',
   'Polling status': '轮询状态',
   'All rows': '全部状态',

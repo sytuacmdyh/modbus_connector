@@ -60,6 +60,10 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
   selection and writes remain available. Raw value changes highlight only the value cell
   for 3 seconds; unchanged reads do not extend the highlight. Address filter A-N
   covers A through A+N-1, validates the 16-bit address bounds, and matches overlaps.
+  Its preset menu derives occupied 100-address pages from the full current map,
+  clips each row span at page boundaries, and trims each page to its occupied min/max.
+  Empty pages are omitted; choices fill only the address filter and clear selection.
+  Presets refresh on opening after template/map edits, independently of other filters.
   Inactive workspace tabs mute animation tickers without stopping acquisition.
   The map uses one selection checkbox column with mouse sweep toggling and edge
   auto-scroll; polling flags stay separate in row/batch menus, with paused-name

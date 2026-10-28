@@ -580,6 +580,31 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
               decoration: InputDecoration(
                 labelText: tr('Address / start-count'),
                 hintText: '100 / 100-20',
+                suffixIcon: PopupMenuButton<String>(
+                  key: const ValueKey('map-address-presets'),
+                  tooltip: tr('Address range presets'),
+                  enabled:
+                      model.rows.isNotEmpty || addressFilter.text.isNotEmpty,
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.arrow_drop_down, size: 20),
+                  onSelected: (value) => changeFilters(() {
+                    addressFilter.text = value;
+                  }),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: '',
+                      child: LText('All addresses'),
+                    ),
+                    const PopupMenuDivider(),
+                    for (final preset in model.addressPresets)
+                      PopupMenuItem(
+                        value: '${preset.start}-${preset.count}',
+                        child: Text(
+                          '${preset.pageStart}–${(preset.pageStart + 99).clamp(0, 65535)} · ${preset.start}-${preset.count}',
+                        ),
+                      ),
+                  ],
+                ),
                 errorText:
                     addressFilter.text.trim().isNotEmpty && addressRange == null
                     ? tr('Invalid address range')
