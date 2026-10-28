@@ -20,7 +20,7 @@ def flutter_directory() -> Path:
 
 def cached_templates() -> dict[str, Any]:
     try:
-        raw = json.loads((flutter_directory() / "cloud_templates.json").read_text())
+        raw = json.loads((flutter_directory() / "cloud_templates.json").read_text(encoding="utf-8"))
         from .cloud_sync import WebDavClient
 
         WebDavClient._validate_templates(raw)
@@ -75,22 +75,104 @@ def flutter_state(state: dict[str, Any]) -> dict[str, Any]:
         "stop": connection.get("stopbits", 1),
         "timeout": str(connection.get("timeout", 3)),
     }
+    mode = {"sim": "simulator", "slave": "simulator"}.get(
+        state.get("mode"), state.get("mode", "master")
+    )
+    device = extra.get("device_config", state.get("device_config", {}))
+    if not device and mode == "simulator":
+        sim = state.get("sim", {})
+        server = sim.get("server", {})
+        listen = flutter_state({"connection": {
+            **server, "tcp_host": server.get("host", "127.0.0.1"),
+            "tcp_port": server.get("port", 1502),
+        }})["connection"]
+        device = {
+            "listen": listen, "tick_ms": sim.get("tick_ms", 1000),
+            "units_text": "" if server.get("unit", "any") == "any" else str(server["unit"]),
+        }
+    elif not device and mode == "gateway":
+        gateway = state.get("gateway", {})
+        device = {
+            key: flutter_state({"connection": gateway.get(key, {})})["connection"]
+            for key in ("listen", "target")
+        }
+        device["units_text"] = gateway.get("units", "")
+    elif not device and mode == "sniffer":
+        device = {"listen": {"transport": "rtu", **state.get("sniffer", {}).get("params", {})}}
+    options = state.get("registers_options", {})
+    column_keys = {"type": "kind", "poll_enabled": "poll"}
+    layout = {
+        "order": [column_keys.get(k, k) for k in options.get("column_order", [])],
+        "hidden": [column_keys.get(k, k) for k in options.get("hidden_columns", [])],
+    }
+    expressions = [
+        {**e, "text": e.get("text", e.get("expr", ""))}
+        for e in state.get("expressions", []) if isinstance(e, dict)
+    ]
+    def normalize_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        normalized = []
+        for row in rows:
+            # Qt templates omit defaults; Flutter validates and renders explicit fields.
+            item = {
+                "name": "", "kind": "holding_registers", "address": 0, "count": 1,
+                "format": "dec", "scale": 1, "offset": 0, "unit": "",
+                **row, "order": row.get("order") or options.get("order") or "ABCD",
+            }
+            for key in ("unit_id", "poll_ms"):
+                value = item.get(key)
+                item[key] = None if value is None or value == "" else int(value)
+            normalized.append(item)
+        return normalized
+
+    sniffed: dict[str, Any] = {}
+    for entry in state.get("sniffer", {}).get("units", []):
+        recovered: dict[str, Any] = {}
+        for row in entry.get("rows", []):
+            values = row.get("value", [])
+            for offset, value in enumerate(values):
+                address = row["address"] + offset
+                recovered[f"{row['kind']}/{address}"] = {
+                    **row, "address": address, "value": value, "count": 1,
+                }
+        sniffed[str(entry["unit"])] = recovered
     return {
         **state,
         **extra,
         "connection": connection,
-        "draft": {**draft, **extra.get("draft", {})},
-        "mode": {"sim": "simulator", "slave": "simulator"}.get(
-            state.get("mode"), state.get("mode", "master")
+        "draft": {**draft, "map_table": layout, **state.get("draft", {}), **extra.get("draft", {})},
+        "mode": mode,
+        "expressions": expressions,
+        "registers": normalize_rows(state.get("registers", [])),
+        "sniffed": extra.get("sniffed", state.get("sniffed", sniffed)),
+        "map_grouped": extra.get(
+            "map_grouped", state.get("map_grouped", options.get("group_reads", False))
         ),
+        "device_config": device,
         "unit": extra.get("unit", state.get("connection", {}).get("unit", 1)),
-        "sim_rows": extra.get("sim_rows", state.get("sim", {}).get("rows", [])),
+        "sim_rows": normalize_rows(extra.get("sim_rows", state.get("sim", {}).get("rows", []))),
     }
 
 
 def catalog_command(data: dict[str, Any]) -> dict[str, Any]:
     store = CustomTemplateStore(flutter_directory() / "custom_templates")
     command = data["command"]
+    if command == "template_convert_workspace":
+        workspace = data.get("workspace")
+        if (not isinstance(workspace, dict) or not isinstance(workspace.get("tabs"), list)
+                or not 1 <= len(workspace["tabs"]) <= 64
+                or any(not isinstance(tab, dict) for tab in workspace["tabs"])):
+            raise ValueError("Configuration requires 1..64 session objects")
+        allowed = {
+            "mode", "connection", "registers", "expressions", "draft", "unit",
+            "device_config", "sim_rows", "map_grouped", "logging",
+            "scanner", "sniffed",
+        }
+        return {
+            "schema": 1,
+            "tabs": [{k: v for k, v in flutter_state(tab).items() if k in allowed}
+                     for tab in workspace["tabs"]],
+            "active_tab": workspace.get("active_tab", 0),
+        }
     if command == "template_list":
         return {
             "public": [asdict(t) for t in public_catalog()],

@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'bridge_client.dart';
+import 'demo.dart';
 
 const areas = <String, String>{
   'holding_registers': 'Holding registers · 03',
@@ -17,34 +18,7 @@ const areas = <String, String>{
   'discrete_inputs': 'Discrete inputs · 02',
 };
 
-class ReadQuery {
-  const ReadQuery({
-    this.kind = 'holding_registers',
-    this.address = 0,
-    this.count = 50,
-  });
-  final String kind;
-  final int address;
-  final int count;
-  bool get isBit => kind == 'coils' || kind == 'discrete_inputs';
-  bool get writable => kind == 'holding_registers' || kind == 'coils';
-  Map<String, dynamic> toJson() => {
-    'kind': kind,
-    'address': address,
-    'count': count,
-  };
-  void validate() {
-    if (!areas.containsKey(kind) ||
-        address < 0 ||
-        count < 1 ||
-        count > (isBit ? 2000 : 125) ||
-        address + count > 65536) {
-      throw const BridgeException(
-        'Use a valid 0-based address range (125 registers or 2000 bits max).',
-      );
-    }
-  }
-}
+const maxRegisterRows = 4096;
 
 class Sample {
   const Sample(this.time, this.value);
@@ -65,6 +39,14 @@ class SessionController extends ChangeNotifier {
     registerMap.addListener(() {
       if (!_disposed) notifyListeners();
     });
+    bridge.onTraffic = (frames, statistics) {
+      if (_disposed || _closing) return;
+      traffic.addAll(frames);
+      while (traffic.length > 500) {
+        traffic.removeFirst();
+      }
+      busStatistics = statistics;
+    };
     bridge.onDiagnostic = (line) {
       if (_disposed) return;
       _log(line, isError: true);
@@ -76,12 +58,14 @@ class SessionController extends ChangeNotifier {
       registerMap.stop();
       _cancelLogger();
       description = 'Disconnected';
-      stopPolling();
       _setError('Python bridge stopped. Reconnect to recover.');
       notifyListeners();
     };
   }
   final BridgeTransport bridge;
+  final Queue<Map<String, dynamic>> traffic = Queue();
+  Map<String, dynamic> busStatistics = {};
+  final List<Future<void> Function()> shutdownHooks = [];
   late final RegisterMapController registerMap;
   Map<String, dynamic> connectionConfig = {};
   final Map<String, dynamic> draft = {};
@@ -98,7 +82,6 @@ class SessionController extends ChangeNotifier {
   bool connected = false;
   bool busy = false;
   bool disconnecting = false;
-  bool polling = false;
   bool toolActive = false;
   bool logging = false;
   bool mapGrouped = false;
@@ -112,12 +95,6 @@ class SessionController extends ChangeNotifier {
   String? error;
   int unit = 1;
   double timeoutSeconds = 3;
-  int intervalMs = 500;
-  ReadQuery query = const ReadQuery();
-  List<Object> values = [];
-  int selected = 0;
-  double? elapsedMs;
-  final Queue<Sample> samples = Queue();
   final Map<String, Queue<Sample>> histories = {};
   final Map<String, String> historyLabels = {};
   void recordPoint(String key, String label, double value) {
@@ -142,27 +119,21 @@ class SessionController extends ChangeNotifier {
   void clearHistory() {
     histories.clear();
     historyLabels.clear();
-    samples.clear();
     notifyListeners();
   }
 
   final Queue<LogEntry> logs = Queue();
-  Timer? _timer;
   Completer<void>? _operation;
   int _epoch = 0;
-  int _readGeneration = 0;
   bool _disposed = false;
   bool _closing = false;
   Future<void>? _shutdown;
-  DateTime? _lastSample;
 
   Map<String, dynamic> state() => {
     'mode': mode,
     'connection': connectionConfig,
     'draft': draft,
     'unit': unit,
-    'query': query.toJson(),
-    'interval_ms': intervalMs,
     'registers': registers,
     'expressions': expressions,
     'map_grouped': mapGrouped,
@@ -187,6 +158,9 @@ class SessionController extends ChangeNotifier {
     }
     if (data['draft'] is Map) {
       draft.addAll(Map<String, dynamic>.from(data['draft'] as Map));
+      for (final key in ['address', 'count', 'interval']) {
+        draft.remove(key);
+      }
     }
     unit =
         (data['unit'] is int &&
@@ -194,26 +168,12 @@ class SessionController extends ChangeNotifier {
             (data['unit'] as int) <= 247)
         ? data['unit'] as int
         : 1;
-    final q = data['query'];
-    if (q is Map) {
-      try {
-        final restored = ReadQuery(
-          kind: q['kind'] as String,
-          address: q['address'] as int,
-          count: q['count'] as int,
-        );
-        restored.validate();
-        query = restored;
-      } catch (_) {
-        query = const ReadQuery();
-      }
-    }
-    if (data['interval_ms'] is int) {
-      intervalMs = (data['interval_ms'] as int).clamp(100, 60000);
-    }
     void rowsInto(Object? raw, List<Map<String, dynamic>> target) {
       if (raw is! List) return;
-      for (final r in raw.take(512)) {
+      if (raw.length > maxRegisterRows) {
+        throw const BridgeException('Register maps support at most 4096 rows.');
+      }
+      for (final r in raw) {
         if (r is Map<String, dynamic> &&
             areas.containsKey(r['kind']) &&
             r['address'] is int &&
@@ -294,6 +254,14 @@ class SessionController extends ChangeNotifier {
     if (value is BridgeException && value.connected == false) {
       connected = false;
       description = 'Disconnected';
+      registerMap.stop();
+      _cancelLogger();
+    }
+  }
+
+  Future<void> waitForIdle() async {
+    while (_operation != null) {
+      await _operation!.future;
     }
   }
 
@@ -309,62 +277,64 @@ class SessionController extends ChangeNotifier {
 
   Future<void> _run(
     Future<void> Function(int epoch) action, {
-    int? readGeneration,
     bool Function()? accept,
+    bool notify = true,
   }) async {
     if (busy || disconnecting || _closing) return;
     busy = true;
     final done = Completer<void>();
     _operation = done;
     final epoch = _epoch;
-    notifyListeners();
+    if (notify) notifyListeners();
     try {
       await action(epoch);
     } catch (exception) {
-      if (epoch == _epoch &&
-          !_closing &&
-          (accept == null || accept()) &&
-          (readGeneration == null || readGeneration == _readGeneration)) {
-        stopPolling();
+      if (epoch == _epoch && !_closing && (accept == null || accept())) {
         _setError(exception);
       }
     } finally {
       busy = false;
       _operation = null;
       done.complete();
-      if (!_disposed) notifyListeners();
+      if (!_disposed && notify) notifyListeners();
     }
   }
 
   Future<Map<String, dynamic>?> command(
     Map<String, dynamic> request, {
     bool Function()? accept,
+    bool notify = true,
   }) async {
     Map<String, dynamic>? result;
-    await _run((epoch) async {
-      final reply = await bridge.request(
-        request,
-        timeout:
-            request['command'] == 'diagnostics' &&
-                request['action'] == 'counters'
-            ? deadline * 10
-            : deadline,
-      );
-      if (epoch != _epoch || _closing || (accept != null && !accept())) return;
-      result = reply.result;
-      if (request['command'] == 'read_rows') {
-        observeAlarms(
-          (reply.result['rows'] as List).cast<Map<String, dynamic>>(),
-          (request['rows'] as List).cast<Map<String, dynamic>>(),
+    await _run(
+      (epoch) async {
+        final reply = await bridge.request(
+          request,
+          timeout:
+              request['command'] == 'diagnostics' &&
+                  request['action'] == 'counters'
+              ? deadline * 10
+              : deadline,
         );
-      }
-      if (request['command'] != 'device_status') error = null;
-    }, accept: accept);
+        if (epoch != _epoch || _closing || (accept != null && !accept())) {
+          return;
+        }
+        result = reply.result;
+        if (request['command'] == 'read_rows') {
+          observeAlarms(
+            (reply.result['rows'] as List).cast<Map<String, dynamic>>(),
+            (request['rows'] as List).cast<Map<String, dynamic>>(),
+          );
+        }
+        if (request['command'] != 'device_status') error = null;
+      },
+      accept: accept,
+      notify: notify,
+    );
     return result;
   }
 
-  void beginTool({bool stopQuickPolling = true}) {
-    if (stopQuickPolling) stopPolling();
+  void beginTool() {
     toolActive = true;
     notifyListeners();
   }
@@ -383,7 +353,7 @@ class SessionController extends ChangeNotifier {
       final key =
           '${row['unit_id'] ?? unit}/${row['kind']}/${row['address']}/${row['name']}';
       final numeric = results[i]['numeric'];
-      if (numeric is num) {
+      if (numeric is num && row['trend_enabled'] == true) {
         recordPoint(
           key,
           '${row['name'] ?? row['kind']} @${row['address']}',
@@ -520,19 +490,26 @@ class SessionController extends ChangeNotifier {
     if (!_closing && !disconnecting) await command({'command': 'logger_stop'});
   }
 
-  Future<void> evaluateExpressions({bool Function()? accept}) async {
+  Future<void> evaluateExpressions({
+    bool Function()? accept,
+    bool notify = true,
+  }) async {
     if (expressions.isEmpty) return;
     final values = <String, num>{};
     for (var i = 0; i < registers.length && i < registerResults.length; i++) {
       final value = registerResults[i]['numeric'];
       if (value is num) values[registers[i]['name'] as String? ?? ''] = value;
     }
-    final reply = await command({
-      'command': 'evaluate_expressions',
-      'expressions': expressions,
-      'map_grouped': mapGrouped,
-      'values': values,
-    }, accept: accept);
+    final reply = await command(
+      {
+        'command': 'evaluate_expressions',
+        'expressions': expressions,
+        'map_grouped': mapGrouped,
+        'values': values,
+      },
+      accept: accept,
+      notify: notify,
+    );
     if (reply != null) {
       expressionResults = (reply['rows'] as List).cast<Map<String, dynamic>>();
       observeAlarms(
@@ -546,7 +523,7 @@ class SessionController extends ChangeNotifier {
           },
         ),
       );
-      if (!_disposed) notifyListeners();
+      if (!_disposed && notify) notifyListeners();
     }
   }
 
@@ -561,12 +538,9 @@ class SessionController extends ChangeNotifier {
 
   Future<void> connect(Map<String, dynamic> config, int unitId) =>
       _run((epoch) async {
-        stopPolling();
         error = null;
-        values = [];
-        elapsedMs = null;
-        samples.clear();
-        _lastSample = null;
+        registerMap.stop();
+        registerResults.clear();
         connectionConfig = Map.of(config);
         timeoutSeconds = (config['timeout'] as num).toDouble();
         _log('Connecting…');
@@ -578,6 +552,10 @@ class SessionController extends ChangeNotifier {
         connected = reply.connected;
         unit = unitId;
         description = reply.result['description'] as String;
+        if (connected && config['transport'] == 'demo' && registers.isEmpty) {
+          registers.addAll(demoRegisters());
+          registerMap.changed();
+        }
         _log('Connected · $description · unit $unit');
       });
 
@@ -589,7 +567,6 @@ class SessionController extends ChangeNotifier {
     connected = false;
     description = 'Disconnecting…';
     ++_epoch;
-    stopPolling();
     notifyListeners();
     await _operation?.future;
     try {
@@ -602,120 +579,6 @@ class SessionController extends ChangeNotifier {
       description = 'Disconnected';
       disconnecting = false;
       if (!_disposed) notifyListeners();
-    }
-  }
-
-  void setQuery(ReadQuery next) {
-    next.validate();
-    if (busy || polling) return;
-    query = next;
-    values = [];
-    elapsedMs = null;
-    selected = 0;
-    samples.clear();
-    _lastSample = null;
-    notifyListeners();
-  }
-
-  Future<void> read() async {
-    if (!canRead) return;
-    final generation = _readGeneration;
-    await _run((epoch) async {
-      final reply = await bridge.request({
-        'command': 'read',
-        'unit': unit,
-        ...query.toJson(),
-      }, timeout: deadline);
-      if (epoch != _epoch || generation != _readGeneration || _closing) return;
-      values = (reply.result['values'] as List).cast<Object>();
-      elapsedMs = (reply.result['elapsed_ms'] as num).toDouble();
-      error = null;
-      _sample();
-      for (var i = 0; i < values.length; i++) {
-        final raw = values[i];
-        recordPoint(
-          '$unit/${query.kind}/${query.address + i}',
-          '${query.kind} @${query.address + i}',
-          raw is bool ? (raw ? 1 : 0) : (raw as num).toDouble(),
-        );
-      }
-      if (!polling) {
-        _log(
-          'Read ${query.count} ${query.kind} @${query.address} · ${elapsedMs!.toStringAsFixed(1)} ms',
-        );
-      }
-    }, readGeneration: generation);
-  }
-
-  Future<void> write(int index, int value) async {
-    if (!canRead || !query.writable) return;
-    if (index < 0 ||
-        index >= query.count ||
-        value < 0 ||
-        value > (query.isBit ? 1 : 65535)) {
-      throw const BridgeException('Value outside the register range');
-    }
-    final wasPolling = polling;
-    stopPolling();
-    await _run((epoch) async {
-      await bridge.request({
-        'command': 'write',
-        'unit': unit,
-        'kind': query.kind,
-        'address': query.address + index,
-        'values': [value],
-      }, timeout: deadline);
-      if (epoch != _epoch || _closing) return;
-      error = null;
-      _log('Wrote $value → ${query.kind} @${query.address + index}');
-    });
-    if (connected && !disconnecting && !_closing && error == null) {
-      await read();
-      if (wasPolling && error == null) startPolling();
-    }
-  }
-
-  void startPolling() {
-    if (!canRead || polling) return;
-    polling = true;
-    _log('Polling every $intervalMs ms');
-    _timer = Timer.periodic(Duration(milliseconds: intervalMs), (_) {
-      if (canRead) unawaited(read());
-    });
-    unawaited(read());
-    notifyListeners();
-  }
-
-  void stopPolling() {
-    _timer?.cancel();
-    _timer = null;
-    if (polling) _log('Polling stopped');
-    polling = false;
-    ++_readGeneration;
-    if (!_disposed) notifyListeners();
-  }
-
-  void select(int index) {
-    selected = index;
-    samples.clear();
-    _lastSample = null;
-    _sample();
-    notifyListeners();
-  }
-
-  void _sample() {
-    if (selected >= values.length) return;
-    final now = DateTime.now();
-    if (_lastSample != null &&
-        now.difference(_lastSample!).inMilliseconds < 100) {
-      return;
-    }
-    final raw = values[selected];
-    final value = raw is bool ? (raw ? 1.0 : 0.0) : (raw as num).toDouble();
-    samples.add(Sample(now, value));
-    _lastSample = now;
-    while (samples.length > 300) {
-      samples.removeFirst();
     }
   }
 
@@ -738,8 +601,9 @@ class SessionController extends ChangeNotifier {
     registerMap.stop();
     _cancelLogger();
     ++_epoch;
-    stopPolling();
     await _operation?.future;
+    await Future.wait(shutdownHooks.toList().map((close) => close()));
+    shutdownHooks.clear();
     await bridge.close();
   }
 
@@ -747,9 +611,9 @@ class SessionController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     registerMap.dispose();
-    _timer?.cancel();
     _cancelLogger();
     bridge.onDiagnostic = null;
+    bridge.onTraffic = null;
     bridge.onExit = null;
     unawaited(shutdown());
     super.dispose();

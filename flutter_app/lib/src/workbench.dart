@@ -1,20 +1,22 @@
 import 'translations.dart';
 
 import 'dart:async';
-import 'dart:math' as math;
+import 'dart:io';
 import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import 'live_chart.dart';
+import 'file_paths.dart';
+
 import 'scanner.dart';
 import 'register_map.dart';
 import 'logging_dialog.dart';
 import 'device_panel.dart';
-import 'graph_dialog.dart';
 import 'advanced_dialog.dart';
 import 'session_controller.dart';
-import 'write_dialog.dart';
+import 'traffic_dialog.dart';
+import 'serial_ports.dart';
 
 class Workbench extends StatefulWidget {
   const Workbench({
@@ -23,8 +25,10 @@ class Workbench extends StatefulWidget {
     required this.themeMode,
     required this.onThemeChanged,
     this.manageLifecycle = true,
+    this.onOpenDemo,
   });
   final bool manageLifecycle;
+  final VoidCallback? onOpenDemo;
   final SessionController controller;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeChanged;
@@ -35,31 +39,27 @@ class Workbench extends StatefulWidget {
 
 class _WorkbenchState extends State<Workbench> {
   SessionController get session => widget.controller;
-  final _pageScroll = ScrollController();
-  final _tableScroll = ScrollController();
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _showActivity = true;
+  bool _editingConnection = false;
+  StateSetter? _dialogSetState;
   final _logScroll = ScrollController();
-  final _serialFocus = FocusNode();
   bool _refreshingPorts = false;
+  String _logFilter = '';
+  bool _errorsOnly = false;
+  bool _showLogFilter = false;
   final _connectionForm = GlobalKey<FormState>();
+  final _transportField = GlobalKey<FormFieldState<String>>();
   final _host = TextEditingController(text: '127.0.0.1');
   final _port = TextEditingController(text: '502');
   final _serial = TextEditingController();
   final _baud = TextEditingController(text: '9600');
   final _unit = TextEditingController(text: '1');
   final _timeout = TextEditingController(text: '3');
-  final _address = TextEditingController(text: '0');
-  final _count = TextEditingController(text: '50');
-  final _interval = TextEditingController(text: '500');
   String _transport = 'rtu';
   String _parity = 'N';
   int _bits = 8;
   int _stop = 1;
-  String _kind = 'holding_registers';
-  String? _queryError;
-  bool get _queryMatches =>
-      session.query.kind == _kind &&
-      session.query.address == int.tryParse(_address.text) &&
-      session.query.count == int.tryParse(_count.text);
   AppLifecycleListener? _lifecycle;
 
   @override
@@ -73,12 +73,8 @@ class _WorkbenchState extends State<Workbench> {
       'baud': _baud,
       'unit': _unit,
       'timeout': _timeout,
-      'address': _address,
-      'count': _count,
-      'interval': _interval,
     }.entries) {
       if (saved[e.key] is String) e.value.text = saved[e.key] as String;
-      e.value.addListener(_saveDraft);
     }
     _transport =
         saved['transport'] as String? ??
@@ -92,17 +88,11 @@ class _WorkbenchState extends State<Workbench> {
         : 'N';
     _bits = saved['bits'] == 7 ? 7 : 8;
     _stop = saved['stop'] == 2 ? 2 : 1;
-    _kind = session.query.kind;
-    if (!saved.containsKey('address')) {
-      _address.text = '${session.query.address}';
-    }
-    if (!saved.containsKey('count')) _count.text = '${session.query.count}';
     if (!saved.containsKey('unit')) _unit.text = '${session.unit}';
-    if (!saved.containsKey('interval')) {
-      _interval.text = '${session.intervalMs}';
+    // Restore every field before edits can save the partially initialized form.
+    for (final controller in [_host, _port, _serial, _baud, _unit, _timeout]) {
+      controller.addListener(_saveDraft);
     }
-    _address.addListener(_rangeEdited);
-    _count.addListener(_rangeEdited);
     if (widget.manageLifecycle) {
       _lifecycle = AppLifecycleListener(
         onExitRequested: () async {
@@ -114,6 +104,7 @@ class _WorkbenchState extends State<Workbench> {
   }
 
   void _saveDraft() {
+    if (_editingConnection) return;
     session.draft.addAll({
       'transport': _transport,
       'parity': _parity,
@@ -126,34 +117,16 @@ class _WorkbenchState extends State<Workbench> {
         'baud': _baud,
         'unit': _unit,
         'timeout': _timeout,
-        'address': _address,
-        'count': _count,
-        'interval': _interval,
       }.entries)
         e.key: e.value.text,
     });
   }
 
-  void _rangeEdited() => setState(() {});
-
   @override
   void dispose() {
     _lifecycle?.dispose();
-    _serialFocus.dispose();
-    _pageScroll.dispose();
-    _tableScroll.dispose();
     _logScroll.dispose();
-    for (final controller in [
-      _host,
-      _port,
-      _serial,
-      _baud,
-      _unit,
-      _timeout,
-      _address,
-      _count,
-      _interval,
-    ]) {
+    for (final controller in [_host, _port, _serial, _baud, _unit, _timeout]) {
       controller.dispose();
     }
     super.dispose();
@@ -191,10 +164,12 @@ class _WorkbenchState extends State<Workbench> {
     T value,
     Map<T, String> items,
     ValueChanged<T>? onChanged,
-    double width,
-  ) => SizedBox(
+    double width, {
+    Key? fieldKey,
+  }) => SizedBox(
     width: width,
     child: DropdownButtonFormField<T>(
+      key: fieldKey,
       initialValue: value,
       isExpanded: true,
       decoration: InputDecoration(labelText: tr(label)),
@@ -214,9 +189,101 @@ class _WorkbenchState extends State<Workbench> {
     ),
   );
 
+  void _changeConnection(VoidCallback change) {
+    setState(change);
+    _dialogSetState?.call(() {});
+  }
+
+  bool get _validConnection {
+    bool integer(TextEditingController field, int min, int max) =>
+        _integer(field.text, min, max) == null;
+    final timeout = double.tryParse(_timeout.text);
+    return integer(_unit, 1, 247) &&
+        timeout != null &&
+        timeout >= 0.1 &&
+        timeout <= 60 &&
+        (_transport != 'rtu' ||
+            (_serial.text.trim().isNotEmpty && integer(_baud, 50, 4000000))) &&
+        (!['tcp', 'rtu_tcp', 'rtu_udp'].contains(_transport) ||
+            (_host.text.trim().isNotEmpty && integer(_port, 1, 65535)));
+  }
+
+  void _applyConnection() {
+    if (!_refreshingPorts && _connectionForm.currentState!.validate()) {
+      Navigator.of(context, rootNavigator: true).pop(true);
+    }
+  }
+
+  Future<void> _configure({bool connectAfterSave = false}) async {
+    if (session.connected || session.busy || session.disconnecting) return;
+    final controllers = [_host, _port, _serial, _baud, _unit, _timeout];
+    final previous = controllers.map((c) => c.text).toList();
+    final transport = _transport;
+    final parity = _parity;
+    final bits = _bits;
+    final stop = _stop;
+    _editingConnection = true;
+    final applied = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) {
+          _dialogSetState = update;
+          return ListenableBuilder(
+            listenable: session,
+            builder: (context, _) => AlertDialog(
+              title: const LText('Connection settings'),
+              content: SizedBox(
+                width: 610,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _connectionFields(),
+                      if (session.error != null) LText(session.error!),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const LText('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: session.busy || _refreshingPorts
+                      ? null
+                      : _applyConnection,
+                  child: LText(connectAfterSave ? 'Save and connect' : 'Apply'),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    _dialogSetState = null;
+    if (!mounted) return;
+    if (applied != true) {
+      for (var i = 0; i < controllers.length; i++) {
+        controllers[i].text = previous[i];
+      }
+      _transport = transport;
+      _parity = parity;
+      _bits = bits;
+      _stop = stop;
+    }
+    _editingConnection = false;
+    _refreshingPorts = false;
+    setState(_saveDraft);
+    if (applied == true && connectAfterSave) _connect();
+  }
+
   void _connect() {
     if (session.busy || session.connected || session.disconnecting) return;
-    if (!_connectionForm.currentState!.validate()) return;
+    if (!_validConnection) {
+      unawaited(_configure(connectAfterSave: true));
+      return;
+    }
     unawaited(
       session.connect({
         'transport': _transport,
@@ -236,471 +303,301 @@ class _WorkbenchState extends State<Workbench> {
     );
   }
 
-  bool _prepareQuery() {
-    try {
-      final address = int.tryParse(_address.text) ?? -1;
-      final count = int.tryParse(_count.text) ?? -1;
-      final interval = int.tryParse(_interval.text) ?? -1;
-      final query = ReadQuery(kind: _kind, address: address, count: count);
-      query.validate();
-      if (interval < 100 || interval > 60000) {
-        throw 'Poll interval must be 100–60000 ms';
-      }
-      if (session.query.kind != _kind ||
-          session.query.address != address ||
-          session.query.count != count) {
-        session.setQuery(query);
-      }
-      session.intervalMs = interval;
-      setState(() => _queryError = null);
-      return true;
-    } catch (error) {
-      setState(() => _queryError = error.toString());
-      return false;
-    }
-  }
-
-  Future<void> _ports() async {
-    setState(() => _refreshingPorts = true);
-    final ports = await session.ports();
-    if (!mounted) return;
-    setState(() => _refreshingPorts = false);
-    if (session.error != null) return;
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const LText('Serial ports'),
+  Widget _connectionFields() {
+    final locked = session.connected || session.busy || session.disconnecting;
+    return Form(
+      key: _connectionForm,
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 16,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          if (ports.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: LText(
-                'No serial ports found. You can type a port manually.',
-              ),
-            )
-          else
-            ...ports.map(
-              (p) => SimpleDialogOption(
-                onPressed: () => Navigator.pop(context, p['port'] as String),
-                child: LText('${p['port']} · ${p['description']}'),
-              ),
-            ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context),
-            child: const LText('Cancel'),
+          _dropdown<String>(
+            'Transport',
+            _transport,
+            const {
+              'rtu': 'Serial RTU',
+              'tcp': 'TCP',
+              'rtu_tcp': 'RTU over TCP',
+              'rtu_udp': 'RTU over UDP',
+              'demo': 'Local demo',
+            },
+            locked
+                ? null
+                : (v) {
+                    if (v == 'demo' &&
+                        _transport != 'demo' &&
+                        widget.onOpenDemo != null) {
+                      _transportField.currentState?.didChange(_transport);
+                      Navigator.of(context, rootNavigator: true).pop();
+                      widget.onOpenDemo!();
+                      return;
+                    }
+                    _changeConnection(() {
+                      _transport = v;
+                      _saveDraft();
+                    });
+                  },
+            150,
+            fieldKey: _transportField,
           ),
+          if (['tcp', 'rtu_tcp', 'rtu_udp'].contains(_transport)) ...[
+            _field(
+              'Host',
+              _host,
+              175,
+              enabled: !locked,
+              validator: (v) => v!.trim().isEmpty ? tr('Required') : null,
+              onSubmit: _applyConnection,
+            ),
+            _field(
+              'Port',
+              _port,
+              90,
+              enabled: !locked,
+              validator: (v) => _integer(v, 1, 65535),
+              onSubmit: _applyConnection,
+            ),
+          ],
+          if (_transport == 'rtu') ...[
+            SerialPortPicker(
+              session: session,
+              controller: _serial,
+              width: 180,
+              enabled: !locked,
+              validator: (v) =>
+                  v!.trim().isEmpty ? tr('Enter COM3 or /dev/ttyUSB0') : null,
+              onSubmit: _applyConnection,
+              onRefreshingChanged: (value) =>
+                  _changeConnection(() => _refreshingPorts = value),
+            ),
+            BaudRatePicker(
+              controller: _baud,
+              enabled: !locked,
+              validator: (v) => _integer(v, 50, 4000000),
+              onSubmit: _applyConnection,
+            ),
+            _dropdown<int>(
+              'Bits',
+              _bits,
+              const {8: '8', 7: '7'},
+              locked
+                  ? null
+                  : (v) => _changeConnection(() {
+                      _bits = v;
+                      _saveDraft();
+                    }),
+              75,
+            ),
+            _dropdown<String>(
+              'Parity',
+              _parity,
+              const {'N': 'None', 'E': 'Even', 'O': 'Odd'},
+              locked
+                  ? null
+                  : (v) => _changeConnection(() {
+                      _parity = v;
+                      _saveDraft();
+                    }),
+              95,
+            ),
+            _dropdown<int>(
+              'Stop',
+              _stop,
+              const {1: '1', 2: '2'},
+              locked
+                  ? null
+                  : (v) => _changeConnection(() {
+                      _stop = v;
+                      _saveDraft();
+                    }),
+              75,
+            ),
+          ],
+          _field(
+            'Unit',
+            _unit,
+            75,
+            enabled: !locked,
+            validator: (v) => _integer(v, 1, 247),
+            onSubmit: _applyConnection,
+          ),
+          _field(
+            'Timeout, s',
+            _timeout,
+            105,
+            enabled: !locked,
+            validator: (v) {
+              final n = double.tryParse(v ?? '');
+              return n != null && n >= 0.1 && n <= 60 ? null : '0.1–60';
+            },
+            onSubmit: _applyConnection,
+          ),
+          if (_transport == 'demo')
+            const LText(
+              'Local simulator · poll the map to view signals; reconnect resets values.',
+            ),
         ],
       ),
     );
-    if (mounted && selected != null) {
-      _serial.text = selected;
-      _serialFocus.requestFocus();
-    }
   }
 
-  Future<void> _edit(int index) async {
-    if (!session.canRead || !session.query.writable || !_queryMatches) return;
-    final address = session.query.address + index;
-    final isBit = session.query.isBit;
-    final current = index < session.values.length ? session.values[index] : 0;
-    final wasPolling = session.polling;
-    session.stopPolling();
-    final value = await showDialog<int>(
-      context: context,
-      builder: (_) =>
-          WriteDialog(address: address, isBit: isBit, current: current),
-    );
-    if (!mounted) return;
-    if (value != null && session.canRead) await session.write(index, value);
-    if (wasPolling && session.canRead && session.error == null) {
-      session.startPolling();
-    }
+  String get _connectionSummary {
+    final endpoint = _transport == 'rtu'
+        ? '${_serial.text.isEmpty ? tr('Serial RTU') : _serial.text} · ${_baud.text} $_bits$_parity$_stop'
+        : _transport == 'demo'
+        ? tr('Local demo')
+        : '${tr({'tcp': 'TCP', 'rtu_tcp': 'RTU over TCP', 'rtu_udp': 'RTU over UDP'}[_transport]!)} · ${_host.text}:${_port.text}';
+    return '$endpoint · ${tr('Unit')} ${_unit.text} · ${_timeout.text} s';
   }
 
-  Widget _connection({required bool compact}) {
-    final locked = session.connected || session.busy || session.disconnecting;
-    final connecting = session.busy && !session.connected && !_refreshingPorts;
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 12 : 18),
-        child: Form(
-          key: _connectionForm,
-          child: Wrap(
-            spacing: 12,
-            runSpacing: compact ? 12 : 16,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              _dropdown<String>(
-                'Transport',
-                _transport,
-                const {
-                  'rtu': 'Serial RTU',
-                  'tcp': 'TCP',
-                  'rtu_tcp': 'RTU over TCP',
-                  'rtu_udp': 'RTU over UDP',
-                  'demo': 'Local demo',
-                },
-                locked
-                    ? null
-                    : (v) => setState(() {
-                        _transport = v;
-                        _saveDraft();
-                      }),
-                150,
-              ),
-              if (['tcp', 'rtu_tcp', 'rtu_udp'].contains(_transport)) ...[
-                _field(
-                  'Host',
-                  _host,
-                  175,
-                  enabled: !locked,
-                  validator: (v) => v!.trim().isEmpty ? 'Required' : null,
-                  onSubmit: _connect,
-                ),
-                _field(
-                  'Port',
-                  _port,
-                  90,
-                  enabled: !locked,
-                  validator: (v) => _integer(v, 1, 65535),
-                  onSubmit: _connect,
-                ),
-              ],
-              if (_transport == 'rtu') ...[
-                _field(
-                  'Serial port',
-                  _serial,
-                  160,
-                  focusNode: _serialFocus,
-                  enabled: !locked,
-                  validator: (v) =>
-                      v!.trim().isEmpty ? 'Enter COM3 or /dev/ttyUSB0' : null,
-                  onSubmit: _connect,
-                ),
-                IconButton(
-                  tooltip: tr('Find serial ports'),
-                  onPressed: locked ? null : _ports,
-                  icon: _refreshingPorts
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.refresh),
-                ),
-                _field(
-                  'Baud',
-                  _baud,
-                  95,
-                  enabled: !locked,
-                  validator: (v) => _integer(v, 50, 4000000),
-                  onSubmit: _connect,
-                ),
-                _dropdown<int>(
-                  'Bits',
-                  _bits,
-                  const {8: '8', 7: '7'},
-                  locked
-                      ? null
-                      : (v) => setState(() {
-                          _bits = v;
-                          _saveDraft();
-                        }),
-                  75,
-                ),
-                _dropdown<String>(
-                  'Parity',
-                  _parity,
-                  const {'N': 'None', 'E': 'Even', 'O': 'Odd'},
-                  locked
-                      ? null
-                      : (v) => setState(() {
-                          _parity = v;
-                          _saveDraft();
-                        }),
-                  95,
-                ),
-                _dropdown<int>(
-                  'Stop',
-                  _stop,
-                  const {1: '1', 2: '2'},
-                  locked
-                      ? null
-                      : (v) => setState(() {
-                          _stop = v;
-                          _saveDraft();
-                        }),
-                  75,
-                ),
-              ],
-              _field(
-                'Unit',
-                _unit,
-                75,
-                enabled: !locked,
-                validator: (v) => _integer(v, 1, 247),
-                onSubmit: _connect,
-              ),
-              _field(
-                'Timeout, s',
-                _timeout,
-                105,
-                enabled: !locked,
-                validator: (v) {
-                  final n = double.tryParse(v ?? '');
-                  return n != null && n >= 0.1 && n <= 60 ? null : '0.1–60';
-                },
-                onSubmit: _connect,
-              ),
-              FilledButton.icon(
-                onPressed: session.disconnecting || _refreshingPorts
-                    ? null
-                    : (session.connected || connecting)
-                    ? () => unawaited(session.disconnect())
-                    : _connect,
-                icon: session.disconnecting || connecting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Icon(session.connected ? Icons.link_off : Icons.link),
-                label: LText(
-                  session.disconnecting
-                      ? 'Disconnecting…'
-                      : session.connected
-                      ? 'Disconnect'
-                      : connecting
-                      ? 'Cancel connection'
-                      : 'Connect',
-                ),
-              ),
-              if (_transport == 'demo')
-                const LText('Real loopback TCP · input registers animate'),
-            ],
-          ),
+  Widget _tools() => PopupMenuButton<String>(
+    tooltip: tr('Session tools'),
+    icon: Icon(session.logging ? Icons.fiber_manual_record : Icons.more_horiz),
+    onSelected: (action) async {
+      if (action == 'scanner') {
+        session.registerMap.stop();
+        final applied = await showDialog<bool>(
+          context: context,
+          builder: (_) => ScannerDialog(session: session),
+        );
+        if (applied == true && mounted) {
+          setState(() => _unit.text = '${session.unit}');
+        }
+        return;
+      }
+      if (action.startsWith('theme:')) {
+        widget.onThemeChanged(ThemeMode.values.byName(action.substring(6)));
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        builder: (_) => switch (action) {
+          'advanced' => AdvancedDialog(session: session),
+          'traffic' => TrafficDialog(session: session),
+          _ => LoggingDialog(session: session),
+        },
+      );
+    },
+    itemBuilder: (_) => [
+      PopupMenuItem(value: 'traffic', child: const LText('Bus traffic')),
+      PopupMenuItem(
+        value: 'logger',
+        child: LText(
+          session.logging ? 'Data logger · recording' : 'Data logger',
         ),
       ),
-    );
-  }
+      PopupMenuItem(
+        value: 'scanner',
+        enabled:
+            session.connected && !session.busy && !session.registerMap.polling,
+        child: const LText('Scanner'),
+      ),
+      PopupMenuItem(
+        value: 'advanced',
+        enabled:
+            session.connected && !session.busy && !session.registerMap.polling,
+        child: const LText('Advanced Modbus'),
+      ),
+      const PopupMenuDivider(),
+      for (final mode in ThemeMode.values)
+        CheckedPopupMenuItem(
+          value: 'theme:${mode.name}',
+          checked: widget.themeMode == mode,
+          child: LText(
+            '${tr('Appearance')} · ${tr('${mode.name[0].toUpperCase()}${mode.name.substring(1)}')}',
+          ),
+        ),
+    ],
+  );
 
-  Widget _controls({required bool compact}) {
-    final editable =
-        !session.busy && !session.polling && !session.disconnecting;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          crossAxisAlignment: WrapCrossAlignment.center,
+  Widget _connectionBar(bool wide) {
+    final connecting = session.busy && !session.connected && !_refreshingPorts;
+    final locked = session.connected || session.busy || session.disconnecting;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Row(
           children: [
-            _dropdown<String>(
-              'Function area',
-              _kind,
-              areas,
-              editable ? (v) => setState(() => _kind = v) : null,
-              compact ? 180 : 230,
-            ),
-            _field('Start · 0-based', _address, 110, enabled: editable),
-            _field('Count', _count, 75, enabled: editable),
-            _field('Interval, ms', _interval, 100, enabled: editable),
             OutlinedButton.icon(
-              style: compact
-                  ? OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                    )
-                  : null,
-              onPressed: session.canRead && !session.polling
-                  ? () {
-                      if (_prepareQuery()) unawaited(session.read());
-                    }
-                  : null,
-              icon: const Icon(Icons.download, size: 18),
-              label: const LText('Read'),
+              onPressed: locked ? null : _configure,
+              icon: const Icon(Icons.settings_outlined, size: 18),
+              label: const LText('Connection settings'),
             ),
-            FilledButton.tonalIcon(
-              style: compact
-                  ? FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                    )
-                  : null,
-              onPressed: session.polling
-                  ? session.stopPolling
-                  : session.canRead
-                  ? () {
-                      if (_prepareQuery()) session.startPolling();
-                    }
-                  : null,
-              icon: Icon(
-                session.polling ? Icons.stop : Icons.play_arrow,
-                size: 18,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Tooltip(
+                message: session.connected
+                    ? session.description
+                    : _connectionSummary,
+                child: Text(
+                  session.connected
+                      ? tr(session.description)
+                      : _connectionSummary,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              label: LText(session.polling ? 'Stop polling' : 'Start polling'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: session.disconnecting || _refreshingPorts
+                  ? null
+                  : session.connected || connecting
+                  ? () => unawaited(session.disconnect())
+                  : _connect,
+              icon: session.disconnecting || connecting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      session.connected ? Icons.link_off : Icons.link,
+                      size: 18,
+                    ),
+              label: LText(
+                session.disconnecting
+                    ? 'Disconnecting…'
+                    : session.connected
+                    ? 'Disconnect'
+                    : connecting
+                    ? 'Cancel connection'
+                    : 'Connect',
+              ),
+            ),
+            _tools(),
+            IconButton(
+              tooltip: tr(
+                wide && _showActivity ? 'Hide activity' : 'Show activity',
+              ),
+              isSelected: wide && _showActivity,
+              icon: const Icon(Icons.view_sidebar_outlined),
+              onPressed: () {
+                if (wide) {
+                  setState(() => _showActivity = !_showActivity);
+                } else {
+                  _scaffoldKey.currentState!.openEndDrawer();
+                }
+              },
             ),
           ],
         ),
-        if (_queryError != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: LText(
-              _queryError!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _table() {
-    final colors = Theme.of(context).colorScheme;
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: LText(
-                    areas[session.query.kind]!.split(' · ').first,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: LText(
-                    !_queryMatches
-                        ? 'Read to apply range'
-                        : session.elapsedMs == null
-                        ? 'Select a row to chart'
-                        : '${session.elapsedMs!.toStringAsFixed(1)} ms',
-                    textAlign: TextAlign.end,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelMedium,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            color: colors.surfaceContainerHighest,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            child: const Row(
-              children: [
-                SizedBox(width: 32),
-                SizedBox(width: 80, child: LText('Address')),
-                Expanded(child: LText('Value')),
-                SizedBox(width: 100, child: LText('Hex')),
-                SizedBox(width: 48),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Scrollbar(
-              controller: _tableScroll,
-              thumbVisibility: true,
-              child: ListView.builder(
-                key: const ValueKey('register-list'),
-                controller: _tableScroll,
-                primary: false,
-                itemCount: session.query.count,
-                itemExtent: 44,
-                itemBuilder: (context, index) {
-                  final raw = index < session.values.length
-                      ? session.values[index]
-                      : null;
-                  final value = raw is bool ? (raw ? 1 : 0) : raw as int?;
-                  return Material(
-                    color: index == session.selected
-                        ? colors.primaryContainer.withValues(alpha: 0.45)
-                        : Colors.transparent,
-                    child: InkWell(
-                      onTap: () => session.select(index),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 18),
-                        child: Row(
-                          children: [
-                            SizedBox(
-                              width: 32,
-                              child: index == session.selected
-                                  ? Icon(
-                                      Icons.show_chart,
-                                      size: 17,
-                                      color: colors.primary,
-                                    )
-                                  : null,
-                            ),
-                            SizedBox(
-                              width: 80,
-                              child: LText('${session.query.address + index}'),
-                            ),
-                            Expanded(
-                              child: LText(
-                                value == null ? '—' : '$value',
-                                style: const TextStyle(
-                                  fontFeatures: [FontFeature.tabularFigures()],
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 100,
-                              child: LText(
-                                value == null
-                                    ? '—'
-                                    : '0x${value.toRadixString(16).padLeft(4, '0').toUpperCase()}',
-                                style: TextStyle(
-                                  color: colors.onSurfaceVariant,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures(),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 48,
-                              child: IconButton(
-                                tooltip: session.query.writable
-                                    ? 'Write address ${session.query.address + index}'
-                                    : 'Read-only area',
-                                onPressed:
-                                    session.canRead &&
-                                        session.query.writable &&
-                                        _queryMatches
-                                    ? () => _edit(index)
-                                    : null,
-                                icon: Icon(
-                                  session.query.writable
-                                      ? Icons.edit_outlined
-                                      : Icons.lock_outline,
-                                  size: 17,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          if (session.busy)
-            const LinearProgressIndicator(minHeight: 2)
-          else
-            const SizedBox(height: 2),
-        ],
       ),
     );
   }
 
   Widget _logs() {
-    final logs = session.logs.toList(growable: false);
+    final logs = session.logs
+        .where(
+          (l) =>
+              (!_errorsOnly || l.isError) &&
+              tr(l.message).toLowerCase().contains(_logFilter.toLowerCase()),
+        )
+        .toList(growable: false);
+    String logText() => logs
+        .map((l) => '${l.time.toIso8601String()}  ${tr(l.message)}')
+        .join('\n');
     final colors = Theme.of(context).colorScheme;
     return Card(
       child: Column(
@@ -710,11 +607,62 @@ class _WorkbenchState extends State<Workbench> {
             padding: const EdgeInsets.fromLTRB(18, 4, 8, 0),
             child: Row(
               children: [
-                LText(
-                  'Activity',
-                  style: Theme.of(context).textTheme.titleSmall,
+                Expanded(
+                  child: LText(
+                    'Activity',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                 ),
-                const Spacer(),
+                IconButton(
+                  tooltip: tr('Filter activity'),
+                  icon: Icon(
+                    _showLogFilter
+                        ? Icons.filter_alt
+                        : Icons.filter_alt_outlined,
+                    size: 18,
+                  ),
+                  onPressed: () => setState(() {
+                    _showLogFilter = !_showLogFilter;
+                    if (!_showLogFilter) {
+                      _logFilter = '';
+                      _errorsOnly = false;
+                    }
+                  }),
+                ),
+                PopupMenuButton<String>(
+                  tooltip: tr('Export log'),
+                  icon: const Icon(Icons.more_horiz, size: 18),
+                  onSelected: (action) async {
+                    final text = logText();
+                    if (action == 'copy') {
+                      await Clipboard.setData(ClipboardData(text: text));
+                    } else {
+                      final path = await chooseFilePath(
+                        context,
+                        save: true,
+                        title: 'Export activity log',
+                        extension: 'txt',
+                        suggestedName: 'activity.txt',
+                      );
+                      if (path == null) return;
+                      try {
+                        await File(path).writeAsString(text, flush: true);
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: LText(userError(e))),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'copy', child: LText('Copy log')),
+                    PopupMenuItem(value: 'export', child: LText('Export log')),
+                  ],
+                ),
                 IconButton(
                   tooltip: tr('Clear log'),
                   onPressed: session.clearLog,
@@ -723,6 +671,28 @@ class _WorkbenchState extends State<Workbench> {
               ],
             ),
           ),
+          if (_showLogFilter)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      decoration: InputDecoration(
+                        labelText: tr('Filter activity'),
+                      ),
+                      onChanged: (value) => setState(() => _logFilter = value),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: tr('Errors only'),
+                    isSelected: _errorsOnly,
+                    icon: const Icon(Icons.error_outline),
+                    onPressed: () => setState(() => _errorsOnly = !_errorsOnly),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: logs.isEmpty
                 ? const Center(
@@ -746,7 +716,7 @@ class _WorkbenchState extends State<Workbench> {
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
                           child: SelectableText(
-                            '$time  ${log.message}',
+                            '$time  ${tr(log.message)}',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
                                   color: log.isError
@@ -772,253 +742,81 @@ class _WorkbenchState extends State<Workbench> {
         return DevicePanel(key: ValueKey(session.mode), session: session);
       }
       final colors = Theme.of(context).colorScheme;
-      final compact = MediaQuery.sizeOf(context).width < 1100;
-      final gap = compact ? 10.0 : 16.0;
+      final wide = MediaQuery.sizeOf(context).width >= 1100;
       return Scaffold(
+        key: _scaffoldKey,
+        endDrawer: wide
+            ? null
+            : Drawer(width: 320, child: SafeArea(child: _logs())),
         body: SafeArea(
-          child: ScrollConfiguration(
-            behavior: ScrollConfiguration.of(context)
-                .copyWith(scrollbars: false),
-            child: Padding(
-              padding: EdgeInsets.all(compact ? 12 : 20),
-              child: Scrollbar(
-                controller: _pageScroll,
-                child: CustomScrollView(
-                  controller: _pageScroll,
-                  primary: false,
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.hub_outlined, color: colors.primary),
-                              const SizedBox(width: 12),
-                              LText(
-                                'Modbus Connector',
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                              const SizedBox(width: 20),
-                              Icon(
-                                Icons.circle,
-                                size: 8,
-                                color: session.connected
-                                    ? colors.primary
-                                    : colors.outline,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: LText(
-                                  session.description,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ),
-                              IconButton(
-                                tooltip: 'Advanced Modbus',
-                                icon: const Icon(
-                                  Icons.settings_input_component,
-                                ),
-                                onPressed: session.connected && !session.busy
-                                    ? () => showDialog<void>(
-                                        context: context,
-                                        builder: (_) =>
-                                            AdvancedDialog(session: session),
-                                      )
-                                    : null,
-                              ),
-                              IconButton(
-                                tooltip: tr('Multi-series graph'),
-                                icon: const Icon(Icons.multiline_chart),
-                                onPressed: () => showDialog<void>(
-                                  context: context,
-                                  builder: (_) => GraphDialog(session: session),
-                                ),
-                              ),
-                              IconButton(
-                                tooltip: tr('Data logger'),
-                                icon: Icon(
-                                  session.logging
-                                      ? Icons.fiber_manual_record
-                                      : Icons.save_outlined,
-                                ),
-                                onPressed: () => showDialog<void>(
-                                  context: context,
-                                  builder: (_) =>
-                                      LoggingDialog(session: session),
-                                ),
-                              ),
-                              if (session.registerMap.polling)
-                                IconButton(
-                                  tooltip: tr('Stop map polling'),
-                                  icon: const Icon(Icons.stop_circle_outlined),
-                                  onPressed: session.registerMap.stop,
-                                ),
-                              IconButton(
-                                tooltip: tr('Register map / CSV / snapshots'),
-                                icon: const Icon(Icons.table_view),
-                                onPressed: session.busy
-                                    ? null
-                                    : () {
-                                        session.stopPolling();
-                                        showDialog<void>(
-                                          context: context,
-                                          builder: (_) => RegisterMapDialog(
-                                            session: session,
-                                          ),
-                                        );
-                                      },
-                              ),
-                              IconButton(
-                                tooltip: tr('Scanner'),
-                                icon: const Icon(Icons.radar),
-                                onPressed: session.connected && !session.busy
-                                    ? () async {
-                                        session.stopPolling();
-                                        final applied = await showDialog<bool>(
-                                          context: context,
-                                          builder: (_) =>
-                                              ScannerDialog(session: session),
-                                        );
-                                        if (applied == true && mounted) {
-                                          setState(() {
-                                            _unit.text = '${session.unit}';
-                                            _kind = session.query.kind;
-                                            _address.text =
-                                                '${session.query.address}';
-                                            _count.text =
-                                                '${session.query.count}';
-                                          });
-                                        }
-                                      }
-                                    : null,
-                              ),
-                              PopupMenuButton<ThemeMode>(
-                                tooltip: tr('Appearance'),
-                                initialValue: widget.themeMode,
-                                icon: const Icon(Icons.contrast),
-                                onSelected: widget.onThemeChanged,
-                                itemBuilder: (_) => ThemeMode.values
-                                    .map(
-                                      (mode) => PopupMenuItem(
-                                        value: mode,
-                                        child: LText(
-                                          '${mode.name[0].toUpperCase()}${mode.name.substring(1)}',
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                              ),
-                            ],
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              children: [
+                _connectionBar(wide),
+                if (session.error != null)
+                  Material(
+                    color: colors.errorContainer,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 12),
+                        Icon(
+                          Icons.error_outline,
+                          size: 18,
+                          color: colors.onErrorContainer,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: LText(
+                            session.error!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          SizedBox(height: gap),
-                          _connection(compact: compact),
-                          if (session.error != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 10),
-                              child: Material(
-                                color: colors.errorContainer,
-                                borderRadius: BorderRadius.circular(12),
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 14),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.error_outline,
-                                        size: 18,
-                                        color: colors.onErrorContainer,
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: LText(
-                                          session.error!,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color: colors.onErrorContainer,
-                                          ),
-                                        ),
-                                      ),
-                                      IconButton(
-                                        tooltip: tr('Dismiss error'),
-                                        onPressed: session.clearError,
-                                        icon: const Icon(Icons.close, size: 18),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          SizedBox(height: gap),
-                          _controls(compact: compact),
-                          SizedBox(height: gap),
-                        ],
-                      ),
+                        ),
+                        IconButton(
+                          tooltip: tr('Dismiss error'),
+                          onPressed: session.clearError,
+                          icon: const Icon(Icons.close, size: 18),
+                        ),
+                      ],
                     ),
-                    SliverLayoutBuilder(
-                      builder: (context, constraints) {
-                        final wide = constraints.crossAxisExtent >= 800;
-                        // Reserve usable pane viewports when chrome grows (errors,
-                        // form validation or text scaling); the page then scrolls.
-                        final height = math.max(
-                          wide ? 340.0 : 480.0,
-                          constraints.viewportMainAxisExtent -
-                              constraints.precedingScrollExtent,
-                        );
-                        final chart = LiveChart(
-                          samples: session.samples.toList(growable: false),
-                          address: session.query.address + session.selected,
-                        );
-                        if (wide) {
-                          return SliverToBoxAdapter(
-                            child: SizedBox(
-                              height: height,
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Expanded(flex: 5, child: _table()),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    flex: 3,
-                                    child: Column(
-                                      children: [
-                                        Expanded(child: chart),
-                                        const SizedBox(height: 16),
-                                        Expanded(child: _logs()),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
-                        return SliverToBoxAdapter(
-                          child: SizedBox(
-                            height: height,
+                  ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(child: _table()),
-                                const SizedBox(height: 12),
-                                SizedBox(
-                                  height: 170,
-                                  child: Row(
-                                    children: [
-                                      Expanded(child: chart),
-                                      const SizedBox(width: 12),
-                                      Expanded(child: _logs()),
-                                    ],
-                                  ),
+                                LText(
+                                  'Register map',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium,
+                                ),
+                                const SizedBox(height: 6),
+                                Expanded(
+                                  child: RegisterMapPanel(session: session),
                                 ),
                               ],
                             ),
                           ),
-                        );
-                      },
-                    ),
-                  ],
+                        ),
+                      ),
+                      if (wide && _showActivity) ...[
+                        const SizedBox(width: 8),
+                        SizedBox(width: 280, child: _logs()),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),

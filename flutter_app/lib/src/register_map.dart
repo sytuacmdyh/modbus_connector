@@ -1,4 +1,5 @@
 import 'file_paths.dart';
+import 'desktop_table.dart';
 import 'translations.dart';
 
 import 'dart:io';
@@ -41,35 +42,162 @@ const csvColumns = [
   'order',
 ];
 
-class RegisterMapDialog extends StatefulWidget {
+class RegisterMapDialog extends StatelessWidget {
   const RegisterMapDialog({super.key, required this.session});
   final SessionController session;
   @override
-  State<RegisterMapDialog> createState() => _RegisterMapDialogState();
+  Widget build(BuildContext context) => AlertDialog(
+    title: const LText('Register map'),
+    content: SizedBox(
+      width: 1000,
+      height: 470,
+      child: RegisterMapPanel(session: session, autofocus: true),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const LText('Close'),
+      ),
+    ],
+  );
 }
 
-class _RegisterMapDialogState extends State<RegisterMapDialog> {
+class RegisterMapPanel extends StatefulWidget {
+  final bool autofocus;
+  const RegisterMapPanel({
+    super.key,
+    required this.session,
+    this.autofocus = false,
+    this.shrinkWrap = false,
+  });
+  final SessionController session;
+  final bool shrinkWrap;
+  @override
+  State<RegisterMapPanel> createState() => _RegisterMapPanelState();
+}
+
+class _RegisterMapPanelState extends State<RegisterMapPanel> {
   late final model = widget.session.registerMap;
-  int interval = 500;
+  late int interval =
+      const [
+        100,
+        500,
+        1000,
+        5000,
+      ].contains(widget.session.draft['map_interval'])
+      ? widget.session.draft['map_interval'] as int
+      : 500;
   final selectedRows = <int>{};
+  final nameFilter = TextEditingController();
+  final addressFilter = TextEditingController();
+  final filterFocus = FocusNode();
+  String pollingFilter = 'all';
+  String areaFilter = 'all';
   String? message;
+  bool showTools = false;
+
+  ({int start, int end})? get addressRange {
+    final match = RegExp(
+      r'^(0[xX][0-9a-fA-F]+|\d+)(?:\s*[-–]\s*(0[xX][0-9a-fA-F]+|\d+))?$',
+    ).firstMatch(addressFilter.text.trim());
+    if (match == null) return null;
+    final start = int.tryParse(match[1]!);
+    final count = int.tryParse(match[2] ?? '1');
+    if (start == null ||
+        start > 65535 ||
+        count == null ||
+        count < 1 ||
+        start + count > 65536) {
+      return null;
+    }
+    return (start: start, end: start + count - 1);
+  }
+
+  List<int> get visibleRows {
+    final name = nameFilter.text.trim().toLowerCase();
+    final range = addressRange;
+    if (addressFilter.text.trim().isNotEmpty && range == null) return [];
+    final indices = <int>[];
+    for (var i = 0; i < model.rows.length; i++) {
+      final row = model.rows[i];
+      final rowName = '${row['name'] ?? ''}';
+      if (!rowName.toLowerCase().contains(name) &&
+          !tr(rowName).toLowerCase().contains(name)) {
+        continue;
+      }
+      if (areaFilter != 'all' && row['kind'] != areaFilter) continue;
+      final enabled = row['poll_enabled'] != false;
+      if (pollingFilter == 'enabled' && !enabled ||
+          pollingFilter == 'disabled' && enabled) {
+        continue;
+      }
+      if (range != null) {
+        final start = row['address'] as int? ?? 0;
+        final end = start + (row['count'] as int? ?? 1) - 1;
+        if (start > range.end || end < range.start) continue;
+      }
+      indices.add(i);
+    }
+    return indices;
+  }
+
+  Set<int> get visibleSelection =>
+      selectedRows.intersection(visibleRows.toSet());
+
+  void changeFilters(VoidCallback change) => setState(() {
+    change();
+    selectedRows.clear();
+  });
+
+  @override
+  void dispose() {
+    nameFilter.dispose();
+    addressFilter.dispose();
+    filterFocus.dispose();
+    super.dispose();
+  }
+
+  void valueAction(String action) {
+    final selected = visibleSelection;
+    if (selected.length != 1) return;
+    final i = selected.single;
+    if (i < 0 || i >= model.rows.length) return;
+    if (action == 'copy') {
+      if (i < model.results.length) {
+        Clipboard.setData(
+          ClipboardData(text: '${model.results[i]['display'] ?? ''}'),
+        );
+      }
+    } else {
+      model.quickValue(i, action);
+    }
+  }
 
   void batch(String action) {
-    if (model.reading || widget.session.busy) return;
-    final indices =
-        selectedRows.where((i) => i >= 0 && i < model.rows.length).toList()
-          ..sort();
+    if ([
+      'copy',
+      'zero',
+      'one',
+      'increment',
+      'decrement',
+      'toggle',
+    ].contains(action)) {
+      valueAction(action);
+      return;
+    }
+    final visible = visibleRows;
+    final indices = visible.where(selectedRows.contains).toList();
     if (action == 'all') {
       setState(() {
-        if (selectedRows.length == model.rows.length) {
-          selectedRows.clear();
+        if (visible.every(selectedRows.contains)) {
+          selectedRows.removeAll(visible);
         } else {
-          selectedRows.addAll(List.generate(model.rows.length, (i) => i));
+          selectedRows.addAll(visible);
         }
       });
       return;
     }
-    if (indices.isEmpty) return;
+    if (model.editingLocked || indices.isEmpty) return;
     if (action == 'read') {
       model.read(onlyIndices: indices.toSet());
       return;
@@ -83,7 +211,7 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
         selectedRows.clear();
       } else if (action == 'duplicate') {
         for (final i in indices) {
-          if (model.rows.length >= 512) break;
+          if (model.rows.length >= maxRegisterRows) break;
           final copy =
               jsonDecode(jsonEncode(model.rows[i])) as Map<String, dynamic>;
           copy['name'] = '${copy['name']} ${tr('copy')}';
@@ -92,17 +220,20 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
       } else if (action == 'up' || action == 'down') {
         final step = action == 'up' ? -1 : 1;
         for (final i in step < 0 ? indices : indices.reversed) {
-          final next = i + step;
-          if (next < 0 ||
-              next >= model.rows.length ||
-              selectedRows.contains(next)) {
-            continue;
-          }
-          final row = model.rows.removeAt(i);
-          model.rows.insert(next, row);
+          final at = visible.indexOf(i) + step;
+          if (at < 0 || at >= visible.length) continue;
+          final next = visible[at];
+          if (selectedRows.contains(next)) continue;
+          final row = model.rows[i];
+          model.rows[i] = model.rows[next];
+          model.rows[next] = row;
           selectedRows
             ..remove(i)
             ..add(next);
+        }
+      } else if (action == 'trend_on' || action == 'trend_off') {
+        for (final i in indices) {
+          model.rows[i]['trend_enabled'] = action == 'trend_on';
         }
       } else {
         for (final i in indices) {
@@ -113,18 +244,63 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
     model.changed();
   }
 
-  List<PopupMenuEntry<String>> rowActions() => const [
-    PopupMenuItem(value: 'read', child: LText('Read selected rows')),
-    PopupMenuItem(value: 'enable', child: LText('Enable selected polling')),
-    PopupMenuItem(value: 'disable', child: LText('Disable selected polling')),
-    PopupMenuItem(value: 'duplicate', child: LText('Duplicate selected rows')),
-    PopupMenuItem(value: 'up', child: LText('Move up')),
-    PopupMenuItem(value: 'down', child: LText('Move down')),
-    PopupMenuItem(value: 'delete', child: LText('Delete selected rows')),
+  List<PopupMenuEntry<String>> rowActions() => [
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'read',
+      child: LText('Read selected rows'),
+    ),
+    PopupMenuItem(value: 'copy', child: LText('Copy value')),
+    PopupMenuItem(value: 'zero', child: LText('Write 0')),
+    PopupMenuItem(value: 'one', child: LText('Write 1')),
+    PopupMenuItem(value: 'increment', child: LText('Increment')),
+    PopupMenuItem(value: 'decrement', child: LText('Decrement')),
+    PopupMenuItem(value: 'toggle', child: LText('Toggle')),
+    PopupMenuDivider(),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'trend_on',
+      child: LText('Enable trend'),
+    ),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'trend_off',
+      child: LText('Disable trend'),
+    ),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'enable',
+      child: LText('Enable selected polling'),
+    ),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'disable',
+      child: LText('Disable selected polling'),
+    ),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'duplicate',
+      child: LText('Duplicate selected rows'),
+    ),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'up',
+      child: LText('Move up'),
+    ),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'down',
+      child: LText('Move down'),
+    ),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'delete',
+      child: LText('Delete selected rows'),
+    ),
   ];
 
   Future<void> rowMenu(int i, Offset position) async {
-    if (model.reading) return;
+    if (model.editingLocked && !model.polling) return;
     setState(() {
       if (!selectedRows.contains(i)) {
         selectedRows
@@ -270,23 +446,11 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
     }
   }
 
-  Future<void> writeRaw(int i, List<dynamic> values) async {
-    model.stop();
-    if (model.reading || widget.session.busy) return;
-    final row = model.rows[i];
-    await widget.session.command({
-      'command': 'write',
-      'unit': row['unit_id'] ?? widget.session.unit,
-      'kind': row['kind'],
-      'address': row['address'],
-      'values': values,
-    });
-    await model.read();
-  }
+  Future<void> writeRaw(int i, List<dynamic> values) =>
+      model.writeRow(i, values: values);
 
   Future<void> write(int i, {bool bits = false}) async {
-    model.stop();
-    if (model.reading || widget.session.busy) return;
+    if (!model.canWrite) return;
     final row = model.rows[i];
     final raw = i < model.results.length
         ? model.results[i]['values'] as List? ?? []
@@ -314,22 +478,10 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
         value: '',
       );
       if (content == null) return;
-      final encoded = await widget.session.command({
-        'command': 'encode_values',
-        'row': row,
-        'text': content,
-      });
-      values = encoded?['values'] as List?;
+      await model.writeRow(i, text: content);
+      return;
     }
-    if (values == null) return;
-    await widget.session.command({
-      'command': 'write',
-      'unit': row['unit_id'] ?? widget.session.unit,
-      'kind': row['kind'],
-      'address': row['address'],
-      'values': values,
-    });
-    await model.read();
+    if (values != null) await model.writeRow(i, values: values);
   }
 
   Future<void> snapshotFile(bool save) async {
@@ -391,185 +543,584 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([model, widget.session]),
-    builder: (context, _) => CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyA, control: true): () =>
-            batch('all'),
-        const SingleActivator(LogicalKeyboardKey.keyR, control: true): () {
-          if (selectedRows.isEmpty) {
-            model.read();
-          } else {
-            batch('read');
-          }
-        },
-        const SingleActivator(
-          LogicalKeyboardKey.keyR,
-          control: true,
-          shift: true,
-        ): () =>
-            model.read(),
-        const SingleActivator(LogicalKeyboardKey.arrowUp, control: true): () =>
-            batch('up'),
-        const SingleActivator(
-          LogicalKeyboardKey.arrowDown,
-          control: true,
-        ): () =>
-            batch('down'),
-        const SingleActivator(LogicalKeyboardKey.delete): () => batch('delete'),
-        const SingleActivator(LogicalKeyboardKey.keyN, control: true): () {
-          if (!model.reading) edit();
-        },
+  Widget filterBar(int shown) => Theme(
+    data: Theme.of(context).copyWith(
+      inputDecorationTheme: Theme.of(context).inputDecorationTheme.copyWith(
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
+      ),
+    ),
+    child: Focus(
+      focusNode: filterFocus,
+      onFocusChange: (_) {
+        if (mounted) setState(() {});
       },
-      child: Focus(
-        autofocus: true,
-        child: AlertDialog(
-          title: const LText('Register map'),
-          content: SizedBox(
-            width: 800,
-            height: 470,
-            child: Column(
-              children: [
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    TextButton(
-                      onPressed: () => batch('all'),
-                      child: const LText('Select all / clear'),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          SizedBox(
+            width: 160,
+            child: TextField(
+              key: const ValueKey('map-filter-name'),
+              controller: nameFilter,
+              decoration: InputDecoration(labelText: tr('Filter by name')),
+              onChanged: (_) => changeFilters(() {}),
+            ),
+          ),
+          SizedBox(
+            width: 150,
+            child: TextField(
+              key: const ValueKey('map-filter-address'),
+              controller: addressFilter,
+              decoration: InputDecoration(
+                labelText: tr('Address / start-count'),
+                hintText: '100 / 100-20',
+                suffixIcon: PopupMenuButton<String>(
+                  key: const ValueKey('map-address-presets'),
+                  tooltip: tr('Address range presets'),
+                  enabled:
+                      model.rows.isNotEmpty || addressFilter.text.isNotEmpty,
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.arrow_drop_down, size: 20),
+                  onSelected: (value) => changeFilters(() {
+                    addressFilter.text = value;
+                  }),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: '',
+                      child: LText('All addresses'),
                     ),
-                    PopupMenuButton<String>(
-                      tooltip: tr('Selected rows'),
-                      enabled: !model.reading && selectedRows.isNotEmpty,
-                      onSelected: batch,
-                      itemBuilder: (_) => rowActions(),
-                      icon: const Icon(Icons.playlist_add_check),
-                    ),
-                    FilterChip(
-                      label: const LText('Group reads'),
-                      selected: widget.session.mapGrouped,
-                      onSelected: model.reading
-                          ? null
-                          : (v) =>
-                                setState(() => widget.session.mapGrouped = v),
-                    ),
-                    IconButton(
-                      tooltip: tr('Expressions'),
-                      icon: const Icon(Icons.functions),
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) =>
-                            ExpressionsDialog(session: widget.session),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: tr('Graph map'),
-                      icon: const Icon(Icons.multiline_chart),
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => GraphDialog(session: widget.session),
-                      ),
-                    ),
-                    OutlinedButton(
-                      onPressed: model.reading || model.rows.length >= 512
-                          ? null
-                          : edit,
-                      child: const LText('Add row'),
-                    ),
-                    OutlinedButton(
-                      onPressed: model.reading ? null : csvImport,
-                      child: const LText('Import CSV'),
-                    ),
-                    OutlinedButton(
-                      onPressed: model.reading ? null : csvExport,
-                      child: const LText('Export CSV'),
-                    ),
-                    OutlinedButton(
-                      onPressed: model.reading ? null : snapshot,
-                      child: const LText('Snapshot'),
-                    ),
-                    PopupMenuButton<bool>(
-                      tooltip: tr('Snapshot files'),
-                      icon: const Icon(Icons.folder_copy_outlined),
-                      onSelected: snapshotFile,
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(
-                          value: false,
-                          child: LText('Import snapshots'),
+                    const PopupMenuDivider(),
+                    for (final preset in model.addressPresets)
+                      PopupMenuItem(
+                        value: '${preset.start}-${preset.count}',
+                        child: Text(
+                          '${preset.pageStart}–${(preset.pageStart + 99).clamp(0, 65535)} · ${preset.start}-${preset.count}',
                         ),
-                        PopupMenuItem(
-                          value: true,
-                          child: LText('Export snapshots'),
-                        ),
-                      ],
-                    ),
-                    PopupMenuButton<String>(
-                      tooltip: tr('Compare snapshot'),
-                      onSelected: (name) => showText(
-                        context,
-                        trf('Snapshot {name} differences', {'name': name}),
-                        model.diff(name).join('\n').isEmpty
-                            ? 'No differences'
-                            : model.diff(name).join('\n'),
                       ),
-                      itemBuilder: (_) => widget.session.snapshots.keys
-                          .map((n) => PopupMenuItem(value: n, child: LText(n)))
-                          .toList(),
-                      icon: const Icon(Icons.compare),
-                    ),
-                    OutlinedButton(
-                      onPressed: !widget.session.connected || model.reading
-                          ? null
-                          : model.read,
-                      child: const LText('Read map'),
-                    ),
-                    FilledButton.tonal(
-                      onPressed: model.polling
-                          ? model.stop
-                          : !widget.session.connected
-                          ? null
-                          : () => model.start(interval),
-                      child: LText(model.polling ? 'Stop' : 'Poll map'),
-                    ),
-                    toolChoice(
-                      'Interval, ms',
-                      '$interval',
-                      ['100', '500', '1000', '5000'],
-                      model.polling
-                          ? null
-                          : (v) => setState(() => interval = int.parse(v)),
-                      width: 125,
-                    ),
                   ],
                 ),
-                if (model.reading) const LinearProgressIndicator(),
-                if (message != null) LText(message!),
-                if (widget.session.error != null)
-                  LText(widget.session.error!, maxLines: 2),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: model.rows.length,
-                    itemBuilder: (context, i) {
-                      final row = model.rows[i];
-                      final result = i < model.results.length
-                          ? model.results[i]
-                          : null;
-                      final writable =
-                          row['kind'] == 'holding_registers' ||
-                          row['kind'] == 'coils';
-                      return GestureDetector(
-                        onSecondaryTapDown: (event) =>
-                            rowMenu(i, event.globalPosition),
-                        child: ListTile(
-                          dense: true,
-                          selected: selectedRows.contains(i),
-                          leading: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Checkbox(
+                errorText:
+                    addressFilter.text.trim().isNotEmpty && addressRange == null
+                    ? tr('Invalid address range')
+                    : null,
+                errorMaxLines: 2,
+              ),
+              onChanged: (_) => changeFilters(() {}),
+            ),
+          ),
+          SizedBox(
+            width: 140,
+            child: DropdownButtonFormField<String>(
+              key: const ValueKey('map-filter-polling'),
+              initialValue: pollingFilter,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: tr('Polling status')),
+              items: const [
+                DropdownMenuItem(value: 'all', child: LText('All rows')),
+                DropdownMenuItem(
+                  value: 'enabled',
+                  child: LText('Enabled only'),
+                ),
+                DropdownMenuItem(
+                  value: 'disabled',
+                  child: LText('Disabled only'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) changeFilters(() => pollingFilter = value);
+              },
+            ),
+          ),
+          SizedBox(
+            width: 185,
+            child: DropdownButtonFormField<String>(
+              key: const ValueKey('map-filter-area'),
+              initialValue: areaFilter,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: tr('Function area')),
+              items: [
+                const DropdownMenuItem(value: 'all', child: LText('All areas')),
+                for (final entry in areas.entries)
+                  DropdownMenuItem(
+                    value: entry.key,
+                    child: LText(entry.value, overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: (value) {
+                if (value != null) changeFilters(() => areaFilter = value);
+              },
+            ),
+          ),
+          IconButton(
+            tooltip: tr('Clear filters'),
+            onPressed:
+                nameFilter.text.isEmpty &&
+                    addressFilter.text.isEmpty &&
+                    pollingFilter == 'all' &&
+                    areaFilter == 'all'
+                ? null
+                : () => changeFilters(() {
+                    nameFilter.clear();
+                    addressFilter.clear();
+                    pollingFilter = 'all';
+                    areaFilter = 'all';
+                  }),
+            icon: const Icon(Icons.filter_alt_off_outlined, size: 20),
+          ),
+          LText(
+            trf('Showing {shown} / {total}', {
+              'shown': shown,
+              'total': model.rows.length,
+            }),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget toolbarMenuLabel(IconData icon, String label, {bool enabled = true}) {
+    final color = enabled ? null : Theme.of(context).disabledColor;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      child: IconTheme.merge(
+        data: IconThemeData(size: 18, color: color),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon),
+            const SizedBox(width: 6),
+            LText(label, style: TextStyle(color: color)),
+            const Icon(Icons.arrow_drop_down),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([model, widget.session, appLanguage]),
+    builder: (context, _) {
+      final visible = visibleRows;
+      final hasSelection = visible.any(selectedRows.contains);
+      return CallbackShortcuts(
+        bindings: filterFocus.hasFocus
+            ? const {}
+            : {
+                const SingleActivator(
+                  LogicalKeyboardKey.keyC,
+                  control: true,
+                ): () =>
+                    valueAction('copy'),
+                const SingleActivator(
+                  LogicalKeyboardKey.digit0,
+                  control: true,
+                ): () =>
+                    valueAction('zero'),
+                const SingleActivator(
+                  LogicalKeyboardKey.digit1,
+                  control: true,
+                ): () =>
+                    valueAction('one'),
+                const SingleActivator(
+                  LogicalKeyboardKey.equal,
+                  control: true,
+                ): () =>
+                    valueAction('increment'),
+                const SingleActivator(
+                  LogicalKeyboardKey.minus,
+                  control: true,
+                ): () =>
+                    valueAction('decrement'),
+                const SingleActivator(
+                  LogicalKeyboardKey.keyT,
+                  control: true,
+                ): () =>
+                    valueAction('toggle'),
+                const SingleActivator(
+                  LogicalKeyboardKey.keyA,
+                  control: true,
+                ): () =>
+                    batch('all'),
+                const SingleActivator(
+                  LogicalKeyboardKey.keyR,
+                  control: true,
+                ): () {
+                  if (!hasSelection) {
+                    model.read();
+                  } else {
+                    batch('read');
+                  }
+                },
+                const SingleActivator(
+                  LogicalKeyboardKey.keyR,
+                  control: true,
+                  shift: true,
+                ): () =>
+                    model.read(),
+                const SingleActivator(
+                  LogicalKeyboardKey.arrowUp,
+                  control: true,
+                ): () =>
+                    batch('up'),
+                const SingleActivator(
+                  LogicalKeyboardKey.arrowDown,
+                  control: true,
+                ): () =>
+                    batch('down'),
+                const SingleActivator(LogicalKeyboardKey.delete): () =>
+                    batch('delete'),
+                const SingleActivator(
+                  LogicalKeyboardKey.keyN,
+                  control: true,
+                ): () {
+                  if (!model.editingLocked) edit();
+                },
+              },
+        child: Focus(
+          autofocus: widget.autofocus,
+          child: LayoutBuilder(
+            builder: (context, constraints) => Stack(
+              children: [
+                Column(
+                  mainAxisSize: widget.shrinkWrap
+                      ? MainAxisSize.min
+                      : MainAxisSize.max,
+                  children: [
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight:
+                            widget.shrinkWrap || !constraints.hasBoundedHeight
+                            ? double.infinity
+                            : constraints.maxHeight * .6,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Acquisition stays above editing tools at every window width.
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  OutlinedButton.icon(
+                                    onPressed:
+                                        !widget.session.connected ||
+                                            model.editingLocked
+                                        ? null
+                                        : model.read,
+                                    icon: const Icon(Icons.refresh, size: 18),
+                                    label: const LText('Read map'),
+                                  ),
+                                  FilledButton.icon(
+                                    onPressed: model.polling
+                                        ? model.stop
+                                        : !widget.session.connected
+                                        ? null
+                                        : () => model.start(interval),
+                                    icon: Icon(
+                                      model.polling
+                                          ? Icons.stop
+                                          : Icons.play_arrow,
+                                      size: 18,
+                                    ),
+                                    label: LText(
+                                      model.polling ? 'Stop' : 'Start polling',
+                                    ),
+                                  ),
+                                  toolChoice(
+                                    'Interval, ms',
+                                    '$interval',
+                                    ['100', '500', '1000', '5000'],
+                                    model.polling
+                                        ? null
+                                        : (v) => setState(() {
+                                            interval = int.parse(v);
+                                            widget
+                                                    .session
+                                                    .draft['map_interval'] =
+                                                interval;
+                                          }),
+                                    width: 125,
+                                  ),
+                                  OutlinedButton.icon(
+                                    onPressed:
+                                        model.editingLocked ||
+                                            model.rows.length >= maxRegisterRows
+                                        ? null
+                                        : edit,
+                                    icon: const Icon(Icons.add, size: 18),
+                                    label: const LText('Add row'),
+                                  ),
+                                  IconButton(
+                                    tooltip: tr('Select all / clear'),
+                                    onPressed: () => batch('all'),
+                                    icon: const Icon(
+                                      Icons.select_all,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: () =>
+                                        setState(() => showTools = !showTools),
+                                    icon: Icon(
+                                      showTools
+                                          ? Icons.expand_less
+                                          : Icons.expand_more,
+                                      size: 18,
+                                    ),
+                                    label: const LText('More tools'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (showTools)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      FilterChip(
+                                        label: const LText('Group reads'),
+                                        selected: widget.session.mapGrouped,
+                                        onSelected: model.editingLocked
+                                            ? null
+                                            : (v) => setState(
+                                                () =>
+                                                    widget.session.mapGrouped =
+                                                        v,
+                                              ),
+                                      ),
+                                      IconButton(
+                                        tooltip: tr('Graph map'),
+                                        icon: const Icon(Icons.multiline_chart),
+                                        onPressed: () => showDialog<void>(
+                                          context: context,
+                                          builder: (_) => GraphDialog(
+                                            session: widget.session,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        tooltip: tr('Expressions'),
+                                        icon: const Icon(Icons.functions),
+                                        onPressed: () => showDialog<void>(
+                                          context: context,
+                                          builder: (_) => ExpressionsDialog(
+                                            session: widget.session,
+                                          ),
+                                        ),
+                                      ),
+                                      PopupMenuButton<String>(
+                                        tooltip: tr('CSV'),
+                                        enabled: !model.editingLocked,
+                                        onSelected: (action) =>
+                                            action == 'import'
+                                            ? csvImport()
+                                            : csvExport(),
+                                        itemBuilder: (_) => const [
+                                          PopupMenuItem(
+                                            value: 'import',
+                                            child: LText('Import CSV'),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'export',
+                                            child: LText('Export CSV'),
+                                          ),
+                                        ],
+                                        child: toolbarMenuLabel(
+                                          Icons.table_view_outlined,
+                                          'CSV',
+                                          enabled: !model.editingLocked,
+                                        ),
+                                      ),
+                                      PopupMenuButton<String>(
+                                        tooltip: tr('Snapshot'),
+                                        onSelected: (action) {
+                                          if (action == 'capture') {
+                                            snapshot();
+                                          } else if (action == 'import' ||
+                                              action == 'export') {
+                                            snapshotFile(action == 'export');
+                                          } else {
+                                            final name = action.substring(
+                                              'compare:'.length,
+                                            );
+                                            final differences = model
+                                                .diff(name)
+                                                .join('\n');
+                                            showText(
+                                              context,
+                                              trf(
+                                                'Snapshot {name} differences',
+                                                {'name': name},
+                                              ),
+                                              differences.isEmpty
+                                                  ? 'No differences'
+                                                  : differences,
+                                            );
+                                          }
+                                        },
+                                        itemBuilder: (_) => [
+                                          PopupMenuItem(
+                                            value: 'capture',
+                                            child: const LText(
+                                              'Capture snapshot',
+                                            ),
+                                          ),
+                                          const PopupMenuItem(
+                                            value: 'import',
+                                            child: LText('Import snapshots'),
+                                          ),
+                                          const PopupMenuItem(
+                                            value: 'export',
+                                            child: LText('Export snapshots'),
+                                          ),
+                                          const PopupMenuDivider(),
+                                          const PopupMenuItem(
+                                            enabled: false,
+                                            child: LText('Compare snapshot'),
+                                          ),
+                                          for (final name
+                                              in widget.session.snapshots.keys)
+                                            PopupMenuItem(
+                                              value: 'compare:$name',
+                                              child: Text(name),
+                                            ),
+                                        ],
+                                        child: toolbarMenuLabel(
+                                          Icons.photo_camera_outlined,
+                                          'Snapshot',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            SizedBox(
+                              height: 4,
+                              child: model.reading && !model.polling
+                                  ? const LinearProgressIndicator()
+                                  : null,
+                            ),
+                            if (message != null) LText(message!),
+                            if (widget.session.error != null)
+                              LText(widget.session.error!, maxLines: 2),
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: filterBar(visible.length),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Flexible(
+                      fit: widget.shrinkWrap ? FlexFit.loose : FlexFit.tight,
+                      child: DesktopTable(
+                        shrinkWrap: widget.shrinkWrap,
+                        compactByDefault: true,
+                        bottomPadding: hasSelection ? 66 : 14,
+                        columns: const [
+                          TableColumnSpec('select', 'Select', 70),
+                          TableColumnSpec('name', 'Name', 150),
+                          TableColumnSpec(
+                            'kind',
+                            'Area',
+                            160,
+                            hiddenByDefault: true,
+                          ),
+                          TableColumnSpec('address', 'Address', 95),
+                          TableColumnSpec('value', 'Value', 190),
+                          TableColumnSpec('format', 'Format', 85),
+                          TableColumnSpec(
+                            'count',
+                            'Count',
+                            80,
+                            hiddenByDefault: true,
+                          ),
+                          TableColumnSpec(
+                            'unit_id',
+                            'Unit',
+                            80,
+                            hiddenByDefault: true,
+                          ),
+                          TableColumnSpec('trend', 'Trend', 130),
+                          TableColumnSpec('actions', 'Actions', 260),
+                        ],
+                        layout: desktopTableLayout(
+                          widget.session.draft,
+                          'map_table',
+                        ),
+                        key: ValueKey(visible.join(',')),
+                        rowCount: visible.length,
+                        selected: (index) =>
+                            selectedRows.contains(visible[index]),
+                        selectionColumn: 'select',
+                        onToggleRows: (indices) => setState(() {
+                          for (final index in indices) {
+                            final i = visible[index];
+                            if (!selectedRows.add(i)) selectedRows.remove(i);
+                          }
+                        }),
+                        onRowMenu: (index, position) =>
+                            rowMenu(visible[index], position),
+                        onRowTap: model.editingLocked
+                            ? null
+                            : (index) => edit(visible[index]),
+                        cellBuilder: (context, index, key) {
+                          final i = visible[index];
+                          final row = model.rows[i];
+                          final result = i < model.results.length
+                              ? model.results[i]
+                              : null;
+                          final writable =
+                              row['kind'] == 'holding_registers' ||
+                              row['kind'] == 'coils';
+                          if (key == 'trend') {
+                            final historyKey =
+                                '${row['unit_id'] ?? widget.session.unit}/${row['kind']}/${row['address']}/${row['name']}';
+                            final points =
+                                widget.session.histories[historyKey]
+                                    ?.toList() ??
+                                <Sample>[];
+                            return row['trend_enabled'] != true ||
+                                    points.isEmpty
+                                ? const Text('—')
+                                : SizedBox(
+                                    height: 28,
+                                    child: CustomPaint(
+                                      painter: MultiSeriesPainter(
+                                        [points],
+                                        false,
+                                        Theme.of(context).colorScheme,
+                                        null,
+                                      ),
+                                    ),
+                                  );
+                          }
+                          if (key == 'select') {
+                            return Tooltip(
+                              message: tr(
+                                'Click or drag to toggle row selection',
+                              ),
+                              child: Checkbox(
                                 value: selectedRows.contains(i),
                                 onChanged: (v) => setState(() {
                                   if (v!) {
@@ -579,106 +1130,198 @@ class _RegisterMapDialogState extends State<RegisterMapDialog> {
                                   }
                                 }),
                               ),
-                              Tooltip(
-                                message: tr('Poll enabled'),
-                                child: Checkbox(
-                                  value: row['poll_enabled'] != false,
-                                  onChanged: model.reading
-                                      ? null
-                                      : (v) {
-                                          model.stop();
-                                          setState(
-                                            () => row['poll_enabled'] = v,
-                                          );
-                                        },
+                            );
+                          }
+                          if (key == 'actions') {
+                            return SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (row['kind'] == 'holding_registers' &&
+                                      row['count'] == 1)
+                                    IconButton(
+                                      tooltip: tr('Edit bits'),
+                                      onPressed: !model.canWrite
+                                          ? null
+                                          : () => write(i, bits: true),
+                                      icon: const Icon(
+                                        Icons.grid_4x4,
+                                        size: 18,
+                                      ),
+                                    ),
+                                  if (hasInlineEnum(row))
+                                    inlineEnumEditor(
+                                      row,
+                                      result?['values'] as List? ?? [],
+                                      !writable || !model.canWrite
+                                          ? null
+                                          : (v) => writeRaw(i, [v]),
+                                    )
+                                  else
+                                    IconButton(
+                                      tooltip: tr('Write row'),
+                                      onPressed: !writable || !model.canWrite
+                                          ? null
+                                          : () => write(i),
+                                      icon: const Icon(Icons.edit_note),
+                                    ),
+                                  IconButton(
+                                    tooltip: tr('Delete row'),
+                                    onPressed: model.editingLocked
+                                        ? null
+                                        : () {
+                                            model.rows.removeAt(i);
+                                            selectedRows.clear();
+                                            model.changed();
+                                          },
+                                    icon: const Icon(Icons.close, size: 18),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          final text = key == 'value'
+                              ? (result?['display'] ?? '—')
+                              : key == 'unit_id'
+                              ? row[key] ?? widget.session.unit
+                              : row[key] ?? '';
+                          if (key == 'name') {
+                            final paused = row['poll_enabled'] == false;
+                            return Tooltip(
+                              message: paused
+                                  ? '${tr('$text')}\n${tr('Polling disabled; right-click to enable')}'
+                                  : tr('$text'),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 20,
+                                    child: paused
+                                        ? ExcludeSemantics(
+                                            child: Icon(
+                                              Icons.pause_circle_outline,
+                                              size: 16,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                  Expanded(
+                                    child: LText(
+                                      '$text',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: paused
+                                          ? TextStyle(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                            )
+                                          : null,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          final cell = Tooltip(
+                            message: tr('$text'),
+                            child: LText(
+                              '$text',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: key != 'value' || result?['alarm'] == null
+                                  ? null
+                                  : TextStyle(
+                                      color:
+                                          result!['alarm']['color'] == 'yellow'
+                                          ? Colors.amber.shade800
+                                          : Colors.red,
+                                    ),
+                            ),
+                          );
+                          return key == 'value'
+                              ? Container(
+                                  key: ValueKey('map-value-$i'),
+                                  alignment: Alignment.centerLeft,
+                                  color: model.valueChanged(row)
+                                      ? Colors.amber.withValues(alpha: .25)
+                                      : null,
+                                  child: cell,
+                                )
+                              : cell;
+                        },
+                      ),
+                    ),
+                    if (model.rows.isEmpty)
+                      const LText(
+                        'Add named rows at any unit/address, or import a CSV/template.',
+                      ),
+                    if (model.rows.isNotEmpty && visible.isEmpty)
+                      const LText('No registers match the filters.'),
+                  ],
+                ),
+                if (hasSelection)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Material(
+                      key: const ValueKey('map-selection-tools'),
+                      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                      elevation: 2,
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox(
+                        height: 48,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Row(
+                            spacing: 6,
+                            children: [
+                              PopupMenuButton<String>(
+                                tooltip: tr('Selected rows'),
+                                enabled: hasSelection,
+                                onSelected: batch,
+                                itemBuilder: (_) => rowActions(),
+                                child: toolbarMenuLabel(
+                                  Icons.playlist_add_check,
+                                  trf('Selected: {count}', {
+                                    'count': visibleSelection.length,
+                                  }),
+                                  enabled: hasSelection,
                                 ),
                               ),
-                            ],
-                          ),
-                          title: LText(
-                            '${row['name']} · ${tr(row['kind'] as String)} @${row['address']} ×${row['count']} · ${tr('Unit')} ${row['unit_id'] ?? widget.session.unit}',
-                          ),
-                          subtitle: LText(
-                            '${row['format']} · ${result?['display'] ?? '—'}',
-                            style: TextStyle(
-                              color: result?['alarm'] == null
-                                  ? null
-                                  : (result!['alarm']['color'] == 'yellow'
-                                        ? Colors.amber.shade800
-                                        : Colors.red),
-                            ),
-                          ),
-                          onTap: model.reading ? null : () => edit(i),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (row['kind'] == 'holding_registers' &&
-                                  row['count'] == 1)
-                                IconButton(
-                                  tooltip: tr('Edit bits'),
-                                  onPressed:
-                                      !widget.session.canRead || model.reading
-                                      ? null
-                                      : () => write(i, bits: true),
-                                  icon: const Icon(Icons.grid_4x4, size: 18),
-                                ),
-                              if (hasInlineEnum(row))
-                                inlineEnumEditor(
-                                  row,
-                                  result?['values'] as List? ?? [],
-                                  !writable ||
-                                          !widget.session.canRead ||
-                                          model.reading
-                                      ? null
-                                      : (v) => writeRaw(i, [v]),
-                                )
-                              else
-                                IconButton(
-                                  tooltip: tr('Write row'),
-                                  onPressed:
-                                      !writable ||
-                                          !widget.session.canRead ||
-                                          model.reading
-                                      ? null
-                                      : () => write(i),
-                                  icon: const Icon(Icons.edit_note),
-                                ),
-                              IconButton(
-                                tooltip: tr('Delete row'),
-                                onPressed: model.reading
+                              OutlinedButton.icon(
+                                key: const ValueKey('enable-selected-polling'),
+                                onPressed: model.editingLocked || !hasSelection
                                     ? null
-                                    : () {
-                                        model.rows.removeAt(i);
-                                        selectedRows.clear();
-                                        model.changed();
-                                      },
-                                icon: const Icon(Icons.close, size: 18),
+                                    : () => batch('enable'),
+                                icon: const Icon(Icons.play_arrow, size: 18),
+                                label: const LText('Enable polling'),
+                              ),
+                              OutlinedButton.icon(
+                                key: const ValueKey('disable-selected-polling'),
+                                onPressed: model.editingLocked || !hasSelection
+                                    ? null
+                                    : () => batch('disable'),
+                                icon: const Icon(Icons.pause, size: 18),
+                                label: const LText('Disable polling'),
                               ),
                             ],
                           ),
                         ),
-                      );
-                    },
-                  ),
-                ),
-                if (model.rows.isEmpty)
-                  const LText(
-                    'Add named rows at any unit/address, or import a CSV/template.',
+                      ),
+                    ),
                   ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const LText('Close'),
-            ),
-          ],
         ),
-      ),
-    ),
+      );
+    },
   );
 }
 
@@ -702,7 +1345,7 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
   void initState() {
     super.initState();
     for (final e in {
-      'name': 'Register',
+      'name': tr('Register'),
       'address': 0,
       'count': 1,
       'unit_id': '',

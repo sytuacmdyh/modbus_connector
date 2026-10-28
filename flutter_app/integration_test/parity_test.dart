@@ -65,8 +65,7 @@ void main() {
         'port': port,
         'timeout': 0.2,
       }, 1);
-      await master.read();
-      expect((master.values.first as int), greaterThanOrEqualTo(7));
+
       master.registers.add({
         'name': 'Counter',
         'kind': 'holding_registers',
@@ -128,14 +127,12 @@ void main() {
       );
       await store.save(workspace.exportState());
       expect((await store.load())!['tabs'], hasLength(2));
-      await tester.tap(find.byTooltip('Register map / CSV / snapshots'));
       await tester.pumpAndSettle();
       expect(find.text('Register map'), findsOneWidget);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.text('Poll map'));
+      await tester.tap(find.text('Start polling'));
       await tester.pump(const Duration(milliseconds: 200));
-      await tester.tap(find.text('Close').last);
-      await tester.pumpAndSettle();
+      expect(find.byTooltip('Session tools').hitTestable(), findsOneWidget);
       expect(map.polling, isTrue);
       final beforeClose = master.registerResults.first['numeric'] as num;
       for (

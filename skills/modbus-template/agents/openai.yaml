@@ -1,0 +1,4 @@
+interface:
+  display_name: "Modbus 模板生成"
+  short_description: "从目标项目源码和协议文档提取寄存器映射，生成并校验设备模板"
+  default_prompt: "使用 $modbus-template，根据当前目标项目的实际 Modbus 实现生成设备模板 JSON，并记录映射依据。"

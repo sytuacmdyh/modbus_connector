@@ -6,120 +6,104 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:modbus_desktop/main.dart';
 import 'package:modbus_desktop/src/session_controller.dart';
 import 'package:modbus_desktop/src/bridge_client.dart';
-import 'package:modbus_desktop/src/live_chart.dart';
+import 'package:modbus_desktop/src/desktop_table.dart';
+import 'package:modbus_desktop/src/register_map.dart';
 
 import 'fake_bridge.dart';
 
 void main() {
-  testWidgets(
-    'RTU form validates, Enter connects, writes validate and Escape cancels',
-    (tester) async {
-      tester.view.physicalSize = const Size(1280, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      final bridge = FakeBridge();
-      final session = SessionController(bridge);
-      await tester.pumpWidget(ModbusApp(controller: session));
-      await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
-      expect(find.text('Enter COM3 or /dev/ttyUSB0'), findsOneWidget);
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Serial port'),
-        'COM7',
-      );
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-      expect(session.connected, isTrue);
-      expect(bridge.calls.first['transport'], 'rtu');
-      expect(bridge.calls.first['port'], 'COM7');
-      expect(bridge.calls.first['baudrate'], 9600);
-      await tester.tap(find.text('Read'));
-      await tester.pumpAndSettle();
-      expect(session.values.first, 100);
-      expect(session.canRead, isTrue);
-      await tester.tap(find.byTooltip('Write address 0'));
-      await tester.pumpAndSettle();
-      expect(find.byType(AlertDialog), findsOneWidget);
-      await tester.enterText(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.byType(TextFormField),
-        ),
-        '70000',
-      );
-      await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
-      expect(find.text('0–65535'), findsOneWidget);
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      await tester.pumpAndSettle();
-      expect(find.byType(AlertDialog), findsNothing);
-      expect(bridge.calls.where((c) => c['command'] == 'write'), isEmpty);
-      await tester.tap(find.byTooltip('Write address 0'));
-      await tester.pumpAndSettle();
-      expect(find.byType(AlertDialog), findsOneWidget);
-      await tester.enterText(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.byType(TextFormField),
-        ),
-        '0x2A',
-      );
-      await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
-      expect(session.values.first, 42);
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Start · 0-based'),
-        '10',
-      );
-      await tester.pump();
-      expect(find.text('Read to apply range'), findsOneWidget);
-      expect(
-        tester
-            .widget<IconButton>(
-              find.widgetWithIcon(IconButton, Icons.edit_outlined).first,
-            )
-            .onPressed,
-        isNull,
-      );
-      await tester.tap(find.text('Read'));
-      await tester.pumpAndSettle();
-      expect(session.query.address, 10);
-      expect(bridge.calls.last['address'], 10);
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox());
-      session.dispose();
-    },
-  );
+  testWidgets('rare map tools collapse and the table recovers their space', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final session = SessionController(FakeBridge());
+    await tester.pumpWidget(ModbusApp(controller: session));
+    final height = tester.getSize(find.byType(DesktopTable)).height;
+    expect(find.byTooltip('CSV'), findsNothing);
+    expect(find.byTooltip('Snapshot'), findsNothing);
+    await tester.tap(find.text('More tools'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('CSV').hitTestable(), findsOneWidget);
+    expect(find.byTooltip('Snapshot').hitTestable(), findsOneWidget);
+    expect(find.byTooltip('Expressions').hitTestable(), findsOneWidget);
+    expect(tester.getSize(find.byType(DesktopTable)).height, lessThan(height));
+    await tester.tap(find.text('More tools'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('CSV'), findsNothing);
+    expect(tester.getSize(find.byType(DesktopTable)).height, height);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    session.dispose();
+  });
+
+  testWidgets('RTU form validates and Enter connects above the register map', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final bridge = FakeBridge();
+    final session = SessionController(bridge);
+    await tester.pumpWidget(ModbusApp(controller: session));
+    await tester.tap(find.text('Connect'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save and connect'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter COM3 or /dev/ttyUSB0'), findsOneWidget);
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Serial port'),
+      'COM7',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(session.connected, isTrue);
+    expect(bridge.calls.first['transport'], 'rtu');
+    expect(bridge.calls.first['port'], 'COM7');
+    expect(bridge.calls.first['baudrate'], 9600);
+    expect(find.byType(RegisterMapPanel), findsOneWidget);
+    expect(find.text('Read'), findsNothing);
+    expect(find.text('Start polling'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    session.dispose();
+  });
 
   testWidgets(
-    'large bit table is virtualized and minimum desktop layout has no overflow',
+    'register map replaces the quick range and virtualizes large maps',
     (tester) async {
       tester.view.physicalSize = const Size(900, 650);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       final session = SessionController(FakeBridge());
-      session.setQuery(const ReadQuery(kind: 'coils', count: 2000));
+      session.registers.addAll([
+        for (var i = 0; i < 2000; i++)
+          {
+            'name': 'Coil $i',
+            'kind': 'coils',
+            'address': i,
+            'count': 1,
+            'format': 'dec',
+          },
+      ]);
       await tester.pumpWidget(ModbusApp(controller: session));
       expect(find.byType(InkWell).evaluate().length, lessThan(100));
-      expect(find.byTooltip('Write address 1999'), findsNothing);
-      final chart = tester.getRect(find.byType(LiveChart));
-      expect(chart.height, greaterThanOrEqualTo(160));
-      expect(chart.bottom, lessThanOrEqualTo(650));
-      expect(
-        tester.getRect(find.widgetWithText(Card, 'Activity')).bottom,
-        lessThanOrEqualTo(638),
+      expect(find.text('Start · 0-based'), findsNothing);
+      expect(find.byKey(const ValueKey('register-list')), findsNothing);
+      expect(find.text('Register map').hitTestable(), findsOneWidget);
+      expect(find.text('Add row').hitTestable(), findsOneWidget);
+      expect(find.text('Read map').hitTestable(), findsOneWidget);
+      expect(find.text('Start polling').hitTestable(), findsOneWidget);
+      final tableList = find.descendant(
+        of: find.byType(DesktopTable),
+        matching: find.byType(ListView),
       );
-      final tableList = find.byType(ListView).first;
-      expect(tester.getSize(tableList).height, greaterThanOrEqualTo(220));
-      await tester.drag(tableList, const Offset(0, -120));
-      await tester.pumpAndSettle();
       final table = tester.widget<ListView>(tableList).controller!;
-      expect(table.offset, greaterThan(0));
       table.jumpTo(table.position.maxScrollExtent);
       await tester.pumpAndSettle();
-      expect(find.text('1999').hitTestable(), findsOneWidget);
+      expect(find.text('Coil 1999'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       session.dispose();
@@ -127,73 +111,7 @@ void main() {
   );
 
   testWidgets(
-    'minimum window scrolls panes with errors and larger desktop text',
-    (tester) async {
-      // 150% display scale, with a further accessibility text scale.
-      tester.view.physicalSize = const Size(1350, 975);
-      tester.view.devicePixelRatio = 1.5;
-      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      final bridge = FakeBridge();
-      final session = SessionController(bridge);
-      await tester.pumpWidget(ModbusApp(controller: session));
-      await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
-      expect(find.text('Enter COM3 or /dev/ttyUSB0'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-      await session.connect({'transport': 'tcp', 'timeout': 0.1}, 1);
-      for (var i = 0; i < 30; i++) {
-        await session.read();
-      }
-      bridge.heldRead = Completer<BridgeReply>();
-      final reading = session.read();
-      bridge.heldRead!.completeError(
-        const BridgeException(
-          'Device timed out. Check the connection and retry reading.',
-          connected: true,
-        ),
-      );
-      await reading;
-      await tester.pumpAndSettle();
-      expect(find.byTooltip('Dismiss error'), findsOneWidget);
-      final page = tester
-          .widget<CustomScrollView>(find.byType(CustomScrollView))
-          .controller!;
-      expect(page.position.maxScrollExtent, greaterThan(0));
-      page.jumpTo(page.position.maxScrollExtent);
-      await tester.pumpAndSettle();
-      expect(
-        tester.getRect(find.widgetWithText(Card, 'Activity')).bottom,
-        lessThanOrEqualTo(638),
-      );
-      final logs = find.byKey(const ValueKey('activity-list'));
-      final logScroll = tester.widget<ListView>(logs).controller!;
-      await tester.drag(logs, const Offset(0, -100));
-      await tester.pumpAndSettle();
-      expect(logScroll.offset, greaterThan(0));
-      expect(page.offset, page.position.maxScrollExtent);
-      await tester.tap(find.byTooltip('Clear log'));
-      await tester.pumpAndSettle();
-      expect(session.logs, isEmpty);
-      expect(
-        find.text('Connection and error events appear here'),
-        findsOneWidget,
-      );
-      page.jumpTo(0);
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Dismiss error'));
-      await tester.pumpAndSettle();
-      expect(session.error, isNull);
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox());
-      session.dispose();
-    },
-  );
-
-  testWidgets(
-    'serial refresh recovers errors, shows progress and supports selection and cancel',
+    'activity stays on the right and can be hidden to widen the map',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 900);
       tester.view.devicePixelRatio = 1;
@@ -202,8 +120,148 @@ void main() {
       final bridge = FakeBridge();
       final session = SessionController(bridge);
       await tester.pumpWidget(ModbusApp(controller: session));
+      for (var i = 0; i < 80; i++) {
+        bridge.onDiagnostic?.call('Diagnostic $i');
+      }
+      await tester.pumpAndSettle();
+      final map = tester.getRect(find.byType(RegisterMapPanel));
+      final activity = tester.getRect(find.widgetWithText(Card, 'Activity'));
+      expect(activity.left, greaterThan(map.right));
+      expect((activity.bottom - map.bottom).abs(), lessThan(15));
+      expect(
+        tester.getSize(find.byType(DesktopTable)).height,
+        greaterThan(500),
+      );
+      final logs = find.byKey(const ValueKey('activity-list'));
+      await tester.drag(logs, const Offset(0, -300));
+      await tester.pumpAndSettle();
+      expect(tester.widget<ListView>(logs).controller!.offset, greaterThan(0));
+      await tester.tap(find.byTooltip('Clear log'));
+      await tester.pumpAndSettle();
+      expect(session.logs, isEmpty);
+      await tester.tap(find.byTooltip('Hide activity'));
+      await tester.pumpAndSettle();
+      expect(find.text('Activity'), findsNothing);
+      expect(
+        tester.getSize(find.byType(RegisterMapPanel)).width,
+        greaterThan(map.width + 250),
+      );
+      await tester.tap(find.byTooltip('Show activity'));
+      await tester.pumpAndSettle();
+      expect(find.text('Activity'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      session.dispose();
+    },
+  );
+
+  testWidgets('minimum window uses a right drawer with errors and large text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1350, 975);
+    tester.view.devicePixelRatio = 1.5;
+    tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final bridge = FakeBridge();
+    final session = SessionController(bridge);
+    await tester.pumpWidget(ModbusApp(controller: session));
+    await session.connect({'transport': 'tcp', 'timeout': 0.1}, 1);
+    bridge.heldRead = Completer<BridgeReply>();
+    final reading = session.command({'command': 'read', 'count': 1});
+    bridge.heldRead!.completeError(
+      const BridgeException(
+        'Device timed out. Check the connection and retry reading.',
+        connected: true,
+      ),
+    );
+    await reading;
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Dismiss error'), findsOneWidget);
+    expect(find.text('Activity'), findsNothing);
+    expect(tester.getSize(find.byType(DesktopTable)).height, greaterThan(120));
+    await tester.tap(find.text('More tools'));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.byType(DesktopTable)).height, greaterThan(120));
+    await tester.tap(find.byTooltip('Show activity'));
+    await tester.pumpAndSettle();
+    expect(find.text('Activity'), findsOneWidget);
+    expect(tester.getRect(find.byType(Drawer)).right, 900);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Dismiss error'));
+    await tester.pumpAndSettle();
+    expect(session.error, isNull);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    session.dispose();
+  });
+
+  testWidgets(
+    'connection settings apply atomically and cancel restores the draft',
+    (tester) async {
+      final session = SessionController(FakeBridge());
+      session.draft.addAll({'serial': 'COM7', 'baud': '9600'});
+      await tester.pumpWidget(ModbusApp(controller: session));
+      expect(find.widgetWithText(TextFormField, 'Serial port'), findsNothing);
+      await tester.tap(find.text('Connection settings'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Serial port'),
+        'COM99',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Baud'),
+        '31250',
+      );
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(session.draft['serial'], 'COM7');
+      expect(session.draft['baud'], '9600');
+      await tester.tap(find.text('Connection settings'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextFormField>(
+              find.widgetWithText(TextFormField, 'Serial port'),
+            )
+            .controller!
+            .text,
+        'COM7',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Baud'),
+        '19200',
+      );
+      await tester.tap(find.text('Apply'));
+      await tester.pumpAndSettle();
+      expect(session.draft['baud'], '19200');
+      expect(session.connected, isFalse);
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+      expect(session.connected, isTrue);
+      expect(session.connectionConfig['baudrate'], 19200);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      session.dispose();
+    },
+  );
+
+  testWidgets(
+    'serial dropdown recovers errors, shows progress and supports selection and dismiss',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final bridge = FakeBridge();
+      final session = SessionController(bridge);
+      await tester.pumpWidget(ModbusApp(controller: session));
+      await tester.tap(find.text('Connection settings'));
+      await tester.pumpAndSettle();
       bridge.heldPorts = Completer<BridgeReply>();
-      await tester.tap(find.byTooltip('Find serial ports'));
+      await tester.tap(find.byTooltip('Serial ports'));
       await tester.pump();
       expect(find.text('Cancel connection'), findsNothing);
       expect(
@@ -221,7 +279,7 @@ void main() {
       bridge.serialPorts = [
         {'port': 'COM11', 'description': 'USB adapter'},
       ];
-      await tester.tap(find.byTooltip('Find serial ports'));
+      await tester.tap(find.byTooltip('Serial ports'));
       await tester.pumpAndSettle();
       expect(session.error, isNull);
       await tester.tap(find.text('COM11 · USB adapter'));
@@ -235,9 +293,24 @@ void main() {
             .text,
         'COM11',
       );
+      await tester.tap(find.byTooltip('Baud'));
+      await tester.pumpAndSettle();
+      for (final baud in ['1200', '2400', '4800', '9600', '115200', '921600']) {
+        expect(find.text(baud).last, findsOneWidget);
+      }
+      await tester.ensureVisible(find.text('19200'));
+      await tester.tap(find.text('19200'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextFormField>(find.widgetWithText(TextFormField, 'Baud'))
+            .controller!
+            .text,
+        '19200',
+      );
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Baud'),
-        '19200',
+        '31250',
       );
       for (final pair in [('Bits', '7'), ('Parity', 'Even'), ('Stop', '2')]) {
         await tester.tap(
@@ -259,28 +332,35 @@ void main() {
       );
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
       expect(bridge.calls.last, containsPair('bytesize', 7));
-      expect(bridge.calls.last, containsPair('baudrate', 19200));
+      expect(bridge.calls.last, containsPair('baudrate', 31250));
       expect(bridge.calls.last, containsPair('parity', 'E'));
       expect(bridge.calls.last, containsPair('stopbits', 2));
       expect(session.unit, 12);
       expect(session.timeoutSeconds, 0.5);
       await tester.tap(find.text('Disconnect'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Connection settings'));
+      await tester.pumpAndSettle();
       bridge.serialPorts = [];
-      await tester.tap(find.byTooltip('Find serial ports'));
+      await tester.tap(find.byTooltip('Serial ports'));
       await tester.pumpAndSettle();
       expect(
         find.text('No serial ports found. You can type a port manually.'),
         findsOneWidget,
       );
-      await tester.tap(find.text('Cancel'));
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Find serial ports'));
       await tester.pumpAndSettle();
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
-      expect(find.byType(SimpleDialog), findsNothing);
+      expect(
+        find.text('No serial ports found. You can type a port manually.'),
+        findsNothing,
+      );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       session.dispose();
@@ -288,7 +368,7 @@ void main() {
   );
 
   testWidgets(
-    'TCP validation, cancellation, reconnect and all four areas work through controls',
+    'TCP validation, cancellation and reconnect work with the primary map',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 900);
       tester.view.devicePixelRatio = 1;
@@ -297,6 +377,8 @@ void main() {
       final bridge = FakeBridge();
       final session = SessionController(bridge);
       await tester.pumpWidget(ModbusApp(controller: session));
+      await tester.tap(find.text('Connection settings'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Serial RTU'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('TCP').last);
@@ -307,7 +389,7 @@ void main() {
       await enter('Port', '70000');
       await enter('Unit', '0');
       await enter('Timeout, s', 'NaN');
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Apply'));
       await tester.pumpAndSettle();
       expect(find.text('Required'), findsOneWidget);
       expect(find.text('1–65535'), findsOneWidget);
@@ -320,17 +402,23 @@ void main() {
       await enter('Timeout, s', '0.2');
       bridge.heldConnect = Completer<BridgeReply>();
       await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Connect'));
       await tester.pump();
       expect(find.text('Cancel connection'), findsOneWidget);
       expect(
         tester
-            .widget<TextFormField>(find.widgetWithText(TextFormField, 'Host'))
-            .enabled,
-        isFalse,
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, 'Connection settings'),
+            )
+            .onPressed,
+        isNull,
       );
       expect(
         tester
-            .widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Read'))
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, 'Read map'),
+            )
             .onPressed,
         isNull,
       );
@@ -354,82 +442,13 @@ void main() {
         'timeout': 0.2,
       });
       expect(session.unit, 247);
-      await enter('Count', '4');
-      await enter('Start · 0-based', '10');
-      await enter('Interval, ms', '100');
-      for (final entry in areas.entries) {
-        await tester.tap(
-          find.widgetWithText(DropdownButtonFormField<String>, 'Function area'),
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.text(entry.value).last);
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Read'));
-        await tester.pumpAndSettle();
-        expect(bridge.calls.last, containsPair('kind', entry.key));
-        expect(bridge.calls.last, containsPair('unit', 247));
-        expect(session.values.length, 4);
-        if (entry.key == 'coils') {
-          await tester.tap(find.byTooltip('Write address 10'));
-          await tester.pumpAndSettle();
-          final input = find.descendant(
-            of: find.byType(AlertDialog),
-            matching: find.byType(TextFormField),
-          );
-          await tester.enterText(input, '2');
-          await tester.tap(find.text('Write'));
-          await tester.pumpAndSettle();
-          expect(find.text('0–1'), findsOneWidget);
-          await tester.enterText(input, '0');
-          await tester.testTextInput.receiveAction(TextInputAction.done);
-          await tester.pumpAndSettle();
-          expect(session.values.first, isFalse);
-        } else if (!session.query.writable) {
-          expect(
-            tester
-                .widget<IconButton>(
-                  find.widgetWithIcon(IconButton, Icons.lock_outline).first,
-                )
-                .onPressed,
-            isNull,
-          );
-        }
-      }
-      await tester.tap(find.text('12'));
-      await tester.pumpAndSettle();
-      expect(session.selected, 2);
-      expect(find.text('Live trend · @12'), findsOneWidget);
-      await tester.tap(find.text('Start polling'));
-      await tester.pump(const Duration(milliseconds: 350));
-      expect(session.polling, isTrue);
-      expect(session.intervalMs, 100);
-      expect(session.samples, isNotEmpty);
-      await tester.tap(find.text('Stop polling'));
-      await tester.pumpAndSettle();
-      expect(session.polling, isFalse);
-      await enter('Start · 0-based', '65535');
-      final before = bridge.calls.length;
-      await tester.tap(find.text('Read'));
-      await tester.pumpAndSettle();
-      expect(
-        find.textContaining('Use a valid 0-based address range'),
-        findsOneWidget,
-      );
-      expect(bridge.calls.length, before);
-      await enter('Start · 0-based', '10');
-      await tester.tap(find.text('Read'));
-      await tester.pumpAndSettle();
-      expect(
-        find.textContaining('Use a valid 0-based address range'),
-        findsNothing,
-      );
       await tester.tap(find.text('Disconnect'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
       expect(session.connected, isTrue);
       expect(session.error, isNull);
-      expect(session.elapsedMs, isNull);
+      expect(session.registerResults, isEmpty);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       session.dispose();

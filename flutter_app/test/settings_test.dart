@@ -21,6 +21,11 @@ void main() {
         'count': 1,
         'format': 'dec',
       });
+      workspace.sessions.first.draft['map_table'] = {
+        'order': ['value', 'name'],
+        'widths': {'name': 222},
+      };
+      workspace.autoSave = false;
       workspace.sessions.first.draft['host'] = 'plc.local';
       workspace.add();
       workspace.sessions.last.mode = 'simulator';
@@ -33,6 +38,10 @@ void main() {
       while (restored.loading) {
         await Future<void>.delayed(const Duration(milliseconds: 1));
       }
+      expect(restored.autoSave, isFalse);
+      expect((restored.sessions.first.draft['map_table'] as Map)['widths'], {
+        'name': 222,
+      });
       expect(restored.sessions.length, 2);
       expect(restored.sessions.first.registers.single['name'], 'Speed');
       expect(restored.sessions.first.connected, isFalse);

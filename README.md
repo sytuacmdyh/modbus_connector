@@ -21,9 +21,40 @@ A separate Material 3 client is available in [`flutter_app/`](flutter_app/README
 with complete Windows/Linux runners and a Qt-free Python subprocess bridge.
 It provides independent master/simulator/sniffer/gateway tabs, rich register maps,
 scanning, CSV/snapshots, logging/alarms, graphs, templates, separate workspace
-persistence, English/Chinese help, WebDAV sync and manual update checks.
+persistence, English/Chinese help, WebDAV sync and manual update checks. The master
+map fills the available height, activity logs sit in a collapsible right panel,
+connection parameters use a settings dialog, and infrequent map tools collapse.
+Map/sniffer columns retain width/order, device forms discover
+serial ports, simulator rules offer prefix completion, and Settings groups
+appearance/language/workspace preferences.
 The existing PySide6 application remains available. See the
 [migration status](docs/FLUTTER_STATUS.md) for validation and current scope.
+
+## Generate device templates with an agent skill
+
+The [modbus-template skill](skills/modbus-template/SKILL.md) reads a target
+firmware project's register handlers and protocol documents, then generates a
+Modbus Connector device template with source notes and offline validation.
+It includes its own format reference and a Python 3.11+ standard-library validator;
+the target project does not need Modbus Connector installed.
+
+From the target project, install from a checkout containing the skill:
+
+```bash
+npx skills add /path/to/modbus_connector --skill modbus-template
+```
+
+Install from the repository's default branch with:
+
+```bash
+npx skills add sytuacmdyh/modbus_connector --skill modbus-template
+```
+
+Select your coding agent interactively, or add `-a codex -y`. Add `-g` for a
+global installation. The layout follows the [skills CLI discovery rules](https://github.com/vercel-labs/skills/blob/main/docs/creating-skills.md).
+Example request: “Use modbus-template to generate a Modbus Connector template
+from this firmware's current register map, including enum/bit labels and sources.”
+Generated files do not automatically enter an installed application's template catalog.
 
 ## Features
 

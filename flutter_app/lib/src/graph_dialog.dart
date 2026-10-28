@@ -10,6 +10,7 @@ import 'package:flutter/rendering.dart';
 
 import 'session_controller.dart';
 import 'tool_widgets.dart';
+import 'graph_window_host.dart';
 
 const curveColors = [
   Colors.teal,
@@ -31,13 +32,25 @@ Sample? nearestGraphSample(List<Sample> samples, DateTime time) {
 }
 
 class GraphDialog extends StatefulWidget {
-  const GraphDialog({super.key, required this.session});
+  const GraphDialog({
+    super.key,
+    required this.session,
+    this.historyPrefix,
+    this.detached = false,
+    this.onViewerCommand,
+  });
   final SessionController session;
+  final String? historyPrefix;
+  final bool detached;
+  final ValueChanged<Map<String, dynamic>>? onViewerCommand;
   @override
   State<GraphDialog> createState() => _GraphDialogState();
 }
 
 class _GraphDialogState extends State<GraphDialog> {
+  Iterable<String> get availableKeys => widget.session.histories.keys.where(
+    (k) => widget.historyPrefix == null || k.startsWith(widget.historyPrefix!),
+  );
   final selected = <String>{};
   bool normalized = false;
   bool paused = false;
@@ -48,6 +61,21 @@ class _GraphDialogState extends State<GraphDialog> {
   DateTime? pinnedTime;
   final chartKey = GlobalKey();
   final transform = TransformationController();
+  String get settingsKey => 'graph:${widget.historyPrefix ?? 'master'}';
+  bool selectionReady = false;
+  void saveSettings() {
+    final data = {
+      'selected': selected.toList(),
+      'seconds': seconds,
+      'normalized': normalized,
+    };
+    widget.session.draft[settingsKey] = data;
+    widget.onViewerCommand?.call({
+      'selected': selected.toList(),
+      'settings': data,
+    });
+  }
+
   @override
   void dispose() {
     transform.dispose();
@@ -89,14 +117,28 @@ class _GraphDialogState extends State<GraphDialog> {
   @override
   void initState() {
     super.initState();
-    selected.addAll(widget.session.histories.keys.take(4));
+    final saved = widget.session.draft[settingsKey];
+    if (saved is Map) {
+      if (saved['selected'] is List) {
+        selected.addAll((saved['selected'] as List).whereType<String>());
+        selectionReady = true;
+      }
+      if ([10, 30, 60, 300, 3600].contains(saved['seconds'])) {
+        seconds = saved['seconds'] as int;
+      }
+      normalized = saved['normalized'] == true;
+    }
+    if (!selectionReady && availableKeys.isNotEmpty) {
+      selected.addAll(availableKeys.take(4));
+      selectionReady = true;
+    }
   }
 
   Map<String, List<Sample>> series() {
     final source = paused
         ? frozen ?? {}
         : widget.session.histories.map((k, v) => MapEntry(k, v.toList()));
-    final all = source.values.expand((s) => s);
+    final all = availableKeys.expand((key) => source[key] ?? <Sample>[]);
     final last = all.isEmpty
         ? DateTime.now()
         : all.map((s) => s.time).reduce((a, b) => a.isAfter(b) ? a : b);
@@ -141,8 +183,13 @@ class _GraphDialogState extends State<GraphDialog> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.session,
+    listenable: Listenable.merge([widget.session, appLanguage]),
     builder: (context, _) {
+      if (!selectionReady && availableKeys.isNotEmpty) {
+        selected.addAll(availableKeys.take(4));
+        selectionReady = true;
+      }
+      if (selectionReady) saveSettings();
       final curves = series();
       final points = curves.values.expand((v) => v).toList();
       final first = points.isEmpty
@@ -162,10 +209,11 @@ class _GraphDialogState extends State<GraphDialog> {
                     ))
                 .clamp(0.0, 1.0);
       return AlertDialog(
+        scrollable: true,
         title: const LText('Multi-series graph'),
         content: SizedBox(
           width: 800,
-          height: 470,
+          height: 520 * MediaQuery.textScalerOf(context).scale(1).clamp(1, 2),
           child: Column(
             children: [
               Wrap(
@@ -196,6 +244,27 @@ class _GraphDialogState extends State<GraphDialog> {
                     }),
                   ),
                   TextButton(
+                    onPressed: () => setState(() {
+                      transform.value = Matrix4.identity();
+                    }),
+                    child: const LText('Reset zoom'),
+                  ),
+                  if (!widget.detached)
+                    TextButton(
+                      onPressed: () async {
+                        try {
+                          await GraphWindowHost.open(
+                            widget.session,
+                            prefix: widget.historyPrefix,
+                          );
+                          if (context.mounted) Navigator.pop(context);
+                        } catch (e) {
+                          if (mounted) setState(() => message = userError(e));
+                        }
+                      },
+                      child: const LText('Open separate window'),
+                    ),
+                  TextButton(
                     onPressed: export,
                     child: const LText('Export samples'),
                   ),
@@ -204,7 +273,14 @@ class _GraphDialogState extends State<GraphDialog> {
                     child: const LText('Export PNG'),
                   ),
                   TextButton(
-                    onPressed: widget.session.clearHistory,
+                    onPressed: () => setState(() {
+                      if (widget.detached) {
+                        widget.onViewerCommand?.call({'clear': true});
+                      }
+                      for (final key in availableKeys.toList()) {
+                        widget.session.histories[key]?.clear();
+                      }
+                    }),
                     child: const LText('Clear'),
                   ),
                 ],
@@ -221,7 +297,7 @@ class _GraphDialogState extends State<GraphDialog> {
                           width: 205,
                           child: ListView(
                             children: [
-                              for (final key in widget.session.histories.keys)
+                              for (final key in availableKeys)
                                 CheckboxListTile(
                                   dense: true,
                                   contentPadding: EdgeInsets.zero,
@@ -347,7 +423,7 @@ class _GraphDialogState extends State<GraphDialog> {
                                           );
                                           final at = sample?.value;
                                           return LText(
-                                            '${widget.session.historyLabels[key] ?? key}: ${at?.toStringAsPrecision(6) ?? '—'}   ${values.isEmpty ? '' : '${tr('min')} ${values.reduce(math.min).toStringAsPrecision(4)} / ${tr('max')} ${values.reduce(math.max).toStringAsPrecision(4)} / ${tr('mean')} ${(values.reduce((a, b) => a + b) / values.length).toStringAsPrecision(4)}'}',
+                                            '${tr(widget.session.historyLabels[key] ?? key)}: ${at?.toStringAsPrecision(6) ?? '—'}   ${values.isEmpty ? '' : '${tr('min')} ${values.reduce(math.min).toStringAsPrecision(4)} / ${tr('max')} ${values.reduce(math.max).toStringAsPrecision(4)} / ${tr('mean')} ${(values.reduce((a, b) => a + b) / values.length).toStringAsPrecision(4)}'}',
                                             style: TextStyle(
                                               color:
                                                   curveColors[i %
@@ -383,7 +459,7 @@ class _GraphDialogState extends State<GraphDialog> {
               ),
               if (points.isEmpty)
                 const LText(
-                  'Read or poll a range/map to collect samples. Sniffer traffic also adds curves.',
+                  'Read or poll the register map to collect samples. Sniffer traffic also adds curves.',
                 ),
               if (message != null) LText(message!),
               const LText(
@@ -394,7 +470,13 @@ class _GraphDialogState extends State<GraphDialog> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              if (widget.detached) {
+                exit(0);
+              } else {
+                Navigator.pop(context);
+              }
+            },
             child: const LText('Close'),
           ),
         ],

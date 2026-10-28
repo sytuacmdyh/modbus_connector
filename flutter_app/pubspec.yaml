@@ -1,12 +1,14 @@
 name: modbus_desktop
 description: A Material 3 desktop workbench for the existing Python Modbus backend.
 publish_to: none
-version: 0.1.0+1
+version: 0.16.0+9
 
 environment:
   sdk: ^3.13.0
 
 dependencies:
+  flutter_localizations:
+    sdk: flutter
   file_selector: ^1.1.0
   flutter:
     sdk: flutter

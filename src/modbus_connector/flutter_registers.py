@@ -33,6 +33,8 @@ from .models import (
     value_names_from_json,
 )
 
+MAX_REGISTER_ROWS = 4096
+
 
 def bounded(value: object, name: str, low: int, high: int) -> int:
     if type(value) is not int or not low <= value <= high:
@@ -182,12 +184,12 @@ def csv_command(data: dict[str, Any]) -> dict[str, Any]:
             record = {**asdict(row), **asdict(display)}
             row_from_json(record)
             result.append(record)
-        if len(result) > 512:
-            raise ValueError("At most 512 rows")
+        if len(result) > MAX_REGISTER_ROWS:
+            raise ValueError("At most 4096 rows")
         return {"rows": result}
     raw_rows = data.get("rows", [])
-    if not isinstance(raw_rows, list) or len(raw_rows) > 512:
-        raise ValueError("rows must be an array of at most 512 rows")
+    if not isinstance(raw_rows, list) or len(raw_rows) > MAX_REGISTER_ROWS:
+        raise ValueError("rows must be an array of at most 4096 rows")
     rows = [row_from_json(row) for row in raw_rows]
     displays = [
         RowDisplaySettings(scale=row.scale, offset=row.offset, unit=row.unit, order=row.order)

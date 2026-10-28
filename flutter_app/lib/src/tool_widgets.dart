@@ -1,4 +1,5 @@
 import 'translations.dart';
+import 'expression_completion.dart';
 
 import 'package:flutter/material.dart';
 
@@ -92,7 +93,7 @@ Future<void> showText(BuildContext context, String title, String content) =>
         title: LText(title),
         content: SizedBox(
           width: 650,
-          child: SingleChildScrollView(child: SelectableText(content)),
+          child: SingleChildScrollView(child: SelectableText(tr(content))),
         ),
         actions: [
           TextButton(
@@ -115,18 +116,10 @@ Future<String?> expressionPrompt(
       title: const LText('Expression rule'),
       content: SizedBox(
         width: 540,
-        height: 290,
+        height: 380,
         child: Column(
           children: [
-            TextField(
-              controller: input,
-              autofocus: true,
-              minLines: 2,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: tr('Blank rule means manual'),
-              ),
-            ),
+            ExpressionRuleEditor(controller: input, names: names),
             const SizedBox(height: 8),
             const LText('Insert a reference or function at the cursor'),
             Expanded(

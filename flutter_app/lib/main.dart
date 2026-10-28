@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'src/translations.dart';
 
 import 'src/session_controller.dart';
 import 'src/workbench.dart';
 import 'src/workspace.dart';
+import 'src/graph_window.dart';
 
-void main() => runApp(const ModbusApp());
+void main(List<String> args) =>
+    runApp(ModbusApp(graphWindow: args.contains('--graph-window')));
 
 class ModbusApp extends StatefulWidget {
-  const ModbusApp({super.key, this.controller});
+  const ModbusApp({super.key, this.controller, this.graphWindow = false});
   final SessionController? controller;
+  final bool graphWindow;
 
   @override
   State<ModbusApp> createState() => _ModbusAppState();
@@ -62,11 +66,18 @@ class _ModbusAppState extends State<ModbusApp> {
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Modbus Connector',
+    locale: appLanguage.value == 'zh_CN'
+        ? const Locale('zh', 'CN')
+        : const Locale('en'),
+    supportedLocales: const [Locale('en'), Locale('zh', 'CN')],
+    localizationsDelegates: GlobalMaterialLocalizations.delegates,
     debugShowCheckedModeBanner: false,
     theme: _theme(Brightness.light),
     darkTheme: _theme(Brightness.dark),
     themeMode: _themeMode,
-    home: widget.controller == null
+    home: widget.graphWindow
+        ? const GraphWindow()
+        : widget.controller == null
         ? SessionWorkspace(
             themeMode: _themeMode,
             onThemeChanged: (mode) => appTheme.value = mode,

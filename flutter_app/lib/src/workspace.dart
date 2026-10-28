@@ -1,7 +1,10 @@
 import 'file_paths.dart';
+import 'tool_widgets.dart';
 import 'translations.dart';
 
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/material.dart';
@@ -13,6 +16,7 @@ import 'settings_store.dart';
 import 'templates_dialog.dart';
 import 'help_dialog.dart';
 import 'online_dialogs.dart';
+import 'demo.dart';
 
 class WorkspaceController extends ChangeNotifier {
   WorkspaceController({BridgeTransport Function()? bridgeFactory, this.store})
@@ -22,7 +26,9 @@ class WorkspaceController extends ChangeNotifier {
       loading = true;
       unawaited(load());
       _autosave = Timer.periodic(const Duration(seconds: 3), (_) {
-        if (!loading && _allowAutoSave && !closing) unawaited(save());
+        if (!loading && _allowAutoSave && autoSave && !closing) {
+          unawaited(save());
+        }
       });
     }
   }
@@ -39,10 +45,12 @@ class WorkspaceController extends ChangeNotifier {
   }
 
   bool _allowAutoSave = true;
+  bool autoSave = true;
   String? stateError;
   Future<void>? _shutdown;
   Map<String, dynamic> exportState() => {
     'schema': 1,
+    'autosave': autoSave,
     'tabs': sessions.map((s) => s.state()).toList(),
     'active_tab': selected,
     'language': appLanguage.value,
@@ -58,11 +66,11 @@ class WorkspaceController extends ChangeNotifier {
     }
   }
 
-  Future<void> load({String? path}) async {
+  Future<void> load({String? path, Map<String, dynamic>? imported}) async {
     loading = true;
     notifyListeners();
     try {
-      final data = await store?.load(path: path);
+      final data = imported ?? await store?.load(path: path);
       if (data != null && !closing) {
         final staged = <SessionController>[];
         try {
@@ -87,6 +95,7 @@ class WorkspaceController extends ChangeNotifier {
         selected = (data['active_tab'] is int ? data['active_tab'] as int : 0)
             .clamp(0, sessions.length - 1);
       }
+      if (data?['autosave'] is bool) autoSave = data!['autosave'] as bool;
       if (data?['language'] == 'en' || data?['language'] == 'zh_CN') {
         appLanguage.value = data!['language'] as String;
       }
@@ -104,9 +113,19 @@ class WorkspaceController extends ChangeNotifier {
   }
 
   void openState(Map<String, dynamic> state, {String? templateId}) {
-    if (closing || sessions.length >= 64) return;
+    if (closing) throw const FormatException('Workspace is closing');
+    if (sessions.length >= 64) {
+      throw const FormatException(
+        'Close a tab before opening another template (64 tabs maximum).',
+      );
+    }
     final session = SessionController(bridgeFactory());
-    session.restore(state);
+    try {
+      session.restore(state);
+    } catch (_) {
+      session.dispose();
+      rethrow;
+    }
     session.customTemplateId = templateId;
     sessions.add(session);
     selected = sessions.length - 1;
@@ -115,6 +134,15 @@ class WorkspaceController extends ChangeNotifier {
 
   int selected = 0;
   bool closing = false;
+  Future<void> openDemo() async {
+    openState(demoState());
+    final session = sessions.last;
+    await session.connect({'transport': 'demo', 'timeout': 1.0}, 1);
+    if (!closing && sessions.contains(session) && session.connected) {
+      session.registerMap.start(500);
+    }
+  }
+
   void add() {
     if (closing || sessions.length >= 64) return;
     sessions.add(SessionController(bridgeFactory()));
@@ -144,7 +172,7 @@ class WorkspaceController extends ChangeNotifier {
   Future<void> _shutdownOwned() async {
     closing = true;
     _autosave?.cancel();
-    if (_allowAutoSave) await save();
+    if (_allowAutoSave && autoSave) await save();
     await Future.wait([...sessions, ...tools].map((s) => s.shutdown()));
   }
 
@@ -174,6 +202,15 @@ class SessionWorkspace extends StatefulWidget {
 }
 
 class _SessionWorkspaceState extends State<SessionWorkspace> {
+  Future<void> openDemo() async {
+    try {
+      await workspace.openDemo();
+    } catch (e) {
+      workspace.stateError = userError(e);
+      workspace.notifyListeners();
+    }
+  }
+
   late final workspace =
       widget.controller ?? WorkspaceController(store: SettingsStore());
   late final AppLifecycleListener lifecycle;
@@ -194,6 +231,135 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
     if (widget.controller == null) workspace.dispose();
     super.dispose();
   }
+
+  Future<void> workspaceFile(String action) async {
+    if (action == 'save') {
+      await workspace.save();
+      return;
+    }
+    final path = await chooseFilePath(
+      context,
+      save: action == 'export',
+      extension: 'json',
+      suggestedName: 'workspace.json',
+      title: action == 'export'
+          ? 'Export Flutter workspace file path'
+          : action == 'import_qt'
+          ? 'Import Qt configuration'
+          : 'Import Flutter workspace file path',
+    );
+    if (path == null || path.isEmpty) return;
+    if (action == 'export') {
+      await workspace.save(path: path);
+    } else if (action == 'import_qt') {
+      final bridge = workspace.bridgeFactory();
+      try {
+        final source = File(path);
+        if (await source.length() > 2000000) {
+          throw const FormatException('Configuration file is too large');
+        }
+        final converted = await bridge.request({
+          'command': 'template_convert_workspace',
+          'workspace': jsonDecode(await source.readAsString()),
+        });
+        await workspace.load(imported: converted.result);
+      } catch (e) {
+        workspace.stateError = userError(e);
+        workspace.notifyListeners();
+      } finally {
+        await bridge.close();
+      }
+    } else {
+      await workspace.load(path: path);
+    }
+  }
+
+  Future<void> settings() => showDialog<void>(
+    context: context,
+    builder: (context) => ListenableBuilder(
+      listenable: Listenable.merge([appLanguage, appTheme, workspace]),
+      builder: (context, _) => AlertDialog(
+        title: const LText('Settings'),
+        content: SizedBox(
+          width: 540,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                toolChoice(
+                  'Appearance',
+                  appTheme.value.name,
+                  ThemeMode.values.map((m) => m.name),
+                  (v) => widget.onThemeChanged(
+                    ThemeMode.values.firstWhere((m) => m.name == v),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: appLanguage.value,
+                  decoration: InputDecoration(labelText: tr('Language')),
+                  items: const [
+                    DropdownMenuItem(value: 'en', child: Text('English')),
+                    DropdownMenuItem(value: 'zh_CN', child: Text('简体中文')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) appLanguage.value = v;
+                  },
+                ),
+                const SizedBox(height: 16),
+                const LText('Workspace'),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const LText('Automatically save workspace'),
+                  subtitle: const LText(
+                    'Restore tabs disconnected on next launch',
+                  ),
+                  value: workspace.autoSave,
+                  onChanged: (v) {
+                    workspace.autoSave = v;
+                    workspace.notifyListeners();
+                  },
+                ),
+                const LText(
+                  'Use Save workspace to keep preferences when autosave is off.',
+                ),
+                if (workspace.store != null)
+                  SelectableText(workspace.store!.file.path),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    TextButton(
+                      onPressed: () => workspaceFile('save'),
+                      child: const LText('Save workspace'),
+                    ),
+                    TextButton(
+                      onPressed: () => workspaceFile('export'),
+                      child: const LText('Export workspace'),
+                    ),
+                    TextButton(
+                      onPressed: () => workspaceFile('import'),
+                      child: const LText('Import workspace'),
+                    ),
+                    TextButton(
+                      onPressed: () => workspaceFile('import_qt'),
+                      child: const LText('Import Qt configuration'),
+                    ),
+                  ],
+                ),
+                if (workspace.stateError != null) LText(workspace.stateError!),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const LText('Close'),
+          ),
+        ],
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -226,7 +392,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                                   size: 16,
                                 ),
                                 label: LText(
-                                  '${workspace.sessions[i].mode} ${i + 1}',
+                                  '${tr(workspace.sessions[i].draft['transport'] == 'demo' ? 'Local demo' : workspace.sessions[i].mode)} ${i + 1}',
                                 ),
                                 onPressed: () => workspace.select(i),
                                 onDeleted: () => unawaited(
@@ -244,21 +410,19 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                   onPressed: () => showFeatureHelp(context),
                   icon: const Icon(Icons.help_outline),
                 ),
-                PopupMenuButton<String>(
-                  tooltip: tr('Language'),
-                  icon: const Icon(Icons.translate),
-                  onSelected: (v) {
-                    appLanguage.value = v;
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'en', child: Text('English')),
-                    PopupMenuItem(value: 'zh_CN', child: Text('简体中文')),
-                  ],
+                IconButton(
+                  tooltip: tr('Settings'),
+                  onPressed: settings,
+                  icon: const Icon(Icons.settings_outlined),
                 ),
                 PopupMenuButton<String>(
                   tooltip: tr('Workspace'),
                   icon: const Icon(Icons.folder_open),
                   onSelected: (v) async {
+                    if (v == 'demo') {
+                      await openDemo();
+                      return;
+                    }
                     final session = workspace.sessions[workspace.selected];
                     if (['templates', 'cloud', 'updates'].contains(v)) {
                       final tool = SessionController(workspace.bridgeFactory());
@@ -285,27 +449,10 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                       }
                       return;
                     }
-                    if (v == 'save') {
-                      await workspace.save();
-                      return;
-                    }
-                    final path = await chooseFilePath(
-                      context,
-                      save: v == 'export',
-                      extension: 'json',
-                      suggestedName: 'workspace.json',
-                      title: v == 'export'
-                          ? 'Export Flutter workspace file path'
-                          : 'Import Flutter workspace file path',
-                    );
-                    if (path == null || path.isEmpty) return;
-                    if (v == 'export') {
-                      await workspace.save(path: path);
-                    } else {
-                      await workspace.load(path: path);
-                    }
+                    await workspaceFile(v);
                   },
                   itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'demo', child: LText('Local demo')),
                     PopupMenuItem(
                       value: 'templates',
                       child: LText('Templates / history'),
@@ -326,6 +473,10 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                     PopupMenuItem(
                       value: 'import',
                       child: LText('Import workspace'),
+                    ),
+                    PopupMenuItem(
+                      value: 'import_qt',
+                      child: LText('Import Qt configuration'),
                     ),
                   ],
                 ),
@@ -368,12 +519,19 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                     index: workspace.selected,
                     children: [
                       for (final session in workspace.sessions)
-                        Workbench(
+                        TickerMode(
                           key: ObjectKey(session),
-                          controller: session,
-                          manageLifecycle: false,
-                          themeMode: widget.themeMode,
-                          onThemeChanged: widget.onThemeChanged,
+                          enabled: identical(
+                            session,
+                            workspace.sessions[workspace.selected],
+                          ),
+                          child: Workbench(
+                            controller: session,
+                            manageLifecycle: false,
+                            onOpenDemo: () => unawaited(openDemo()),
+                            themeMode: widget.themeMode,
+                            onThemeChanged: widget.onThemeChanged,
+                          ),
                         ),
                     ],
                   ),
