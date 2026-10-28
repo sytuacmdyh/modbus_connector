@@ -64,7 +64,7 @@ void main() {
     expect(bridge.calls.first['baudrate'], 9600);
     expect(find.byType(RegisterMapPanel), findsOneWidget);
     expect(find.text('Read'), findsNothing);
-    expect(find.text('Start polling'), findsNothing);
+    expect(find.text('Start polling'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     session.dispose();
@@ -95,7 +95,7 @@ void main() {
       expect(find.text('Register map').hitTestable(), findsOneWidget);
       expect(find.text('Add row').hitTestable(), findsOneWidget);
       expect(find.text('Read map').hitTestable(), findsOneWidget);
-      expect(find.text('Poll map').hitTestable(), findsOneWidget);
+      expect(find.text('Start polling').hitTestable(), findsOneWidget);
       final tableList = find.descendant(
         of: find.byType(DesktopTable),
         matching: find.byType(ListView),

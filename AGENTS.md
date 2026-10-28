@@ -46,12 +46,20 @@ GUI-приложение на PySide6 для отладки шины Modbus и �
   rows and persists column layouts/visibility/density in session drafts. The master
   map defaults to compact 48 px rows with Area/Count/Unit hidden; explicit saved
   visibility/density overrides these defaults, and Reset columns restores them. Master
-  map filters combine name, address/range, polling status and function area; address
+  map filters combine name, address/start-count, polling status and function area; address
   spans match by overlap. Filtering changes only the view, never acquisition or
   exports/snapshots. Filtered table indices map back to original rows for every
   action; filter edits clear selection, batch actions use visible selected rows, and row movement skips hidden rows. Filter inputs bypass map shortcuts.
   map reads publish UI changes at cycle boundaries; per-group bridge commands
   suppress busy notifications while preserving I/O serialization/cancellation.
+  Polling hides the map progress animation and keeps value/enum/bit writes enabled;
+  writes queue after the active read request without stopping polling. Recoverable
+  transaction errors are logged and polling continues; disconnect/bridge exit stops it.
+  Row trends require explicit trend_enabled=true (missing defaults to disabled).
+  Structural tools stay locked throughout polling, avoiding per-read enabled-state flicker;
+  selection and writes remain available. Raw value changes highlight only the value cell
+  for 3 seconds; unchanged reads do not extend the highlight. Address filter A-N
+  covers A through A+N-1, validates the 16-bit address bounds, and matches overlaps.
   Inactive workspace tabs mute animation tickers without stopping acquisition.
   The map uses one selection checkbox column with mouse sweep toggling and edge
   auto-scroll; polling flags stay separate in row/batch menus, with paused-name

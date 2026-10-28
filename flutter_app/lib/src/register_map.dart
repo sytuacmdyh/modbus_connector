@@ -102,11 +102,15 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
     ).firstMatch(addressFilter.text.trim());
     if (match == null) return null;
     final start = int.tryParse(match[1]!);
-    final end = int.tryParse(match[2] ?? match[1]!);
-    if (start == null || end == null || start > end || end > 65535) {
+    final count = int.tryParse(match[2] ?? '1');
+    if (start == null ||
+        start > 65535 ||
+        count == null ||
+        count < 1 ||
+        start + count > 65536) {
       return null;
     }
-    return (start: start, end: end);
+    return (start: start, end: start + count - 1);
   }
 
   List<int> get visibleRows {
@@ -181,7 +185,6 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
       valueAction(action);
       return;
     }
-    if (model.reading || widget.session.busy) return;
     final visible = visibleRows;
     final indices = visible.where(selectedRows.contains).toList();
     if (action == 'all') {
@@ -194,7 +197,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
       });
       return;
     }
-    if (indices.isEmpty) return;
+    if (model.editingLocked || indices.isEmpty) return;
     if (action == 'read') {
       model.read(onlyIndices: indices.toSet());
       return;
@@ -241,8 +244,12 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
     model.changed();
   }
 
-  List<PopupMenuEntry<String>> rowActions() => const [
-    PopupMenuItem(value: 'read', child: LText('Read selected rows')),
+  List<PopupMenuEntry<String>> rowActions() => [
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'read',
+      child: LText('Read selected rows'),
+    ),
     PopupMenuItem(value: 'copy', child: LText('Copy value')),
     PopupMenuItem(value: 'zero', child: LText('Write 0')),
     PopupMenuItem(value: 'one', child: LText('Write 1')),
@@ -250,18 +257,50 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
     PopupMenuItem(value: 'decrement', child: LText('Decrement')),
     PopupMenuItem(value: 'toggle', child: LText('Toggle')),
     PopupMenuDivider(),
-    PopupMenuItem(value: 'trend_on', child: LText('Enable trend')),
-    PopupMenuItem(value: 'trend_off', child: LText('Disable trend')),
-    PopupMenuItem(value: 'enable', child: LText('Enable selected polling')),
-    PopupMenuItem(value: 'disable', child: LText('Disable selected polling')),
-    PopupMenuItem(value: 'duplicate', child: LText('Duplicate selected rows')),
-    PopupMenuItem(value: 'up', child: LText('Move up')),
-    PopupMenuItem(value: 'down', child: LText('Move down')),
-    PopupMenuItem(value: 'delete', child: LText('Delete selected rows')),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'trend_on',
+      child: LText('Enable trend'),
+    ),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'trend_off',
+      child: LText('Disable trend'),
+    ),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'enable',
+      child: LText('Enable selected polling'),
+    ),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'disable',
+      child: LText('Disable selected polling'),
+    ),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'duplicate',
+      child: LText('Duplicate selected rows'),
+    ),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'up',
+      child: LText('Move up'),
+    ),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'down',
+      child: LText('Move down'),
+    ),
+    PopupMenuItem(
+      enabled: !model.editingLocked,
+      value: 'delete',
+      child: LText('Delete selected rows'),
+    ),
   ];
 
   Future<void> rowMenu(int i, Offset position) async {
-    if (model.reading) return;
+    if (model.editingLocked && !model.polling) return;
     setState(() {
       if (!selectedRows.contains(i)) {
         selectedRows
@@ -407,23 +446,11 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
     }
   }
 
-  Future<void> writeRaw(int i, List<dynamic> values) async {
-    model.stop();
-    if (model.reading || widget.session.busy) return;
-    final row = model.rows[i];
-    await widget.session.command({
-      'command': 'write',
-      'unit': row['unit_id'] ?? widget.session.unit,
-      'kind': row['kind'],
-      'address': row['address'],
-      'values': values,
-    });
-    await model.read();
-  }
+  Future<void> writeRaw(int i, List<dynamic> values) =>
+      model.writeRow(i, values: values);
 
   Future<void> write(int i, {bool bits = false}) async {
-    model.stop();
-    if (model.reading || widget.session.busy) return;
+    if (!model.canWrite) return;
     final row = model.rows[i];
     final raw = i < model.results.length
         ? model.results[i]['values'] as List? ?? []
@@ -451,22 +478,10 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
         value: '',
       );
       if (content == null) return;
-      final encoded = await widget.session.command({
-        'command': 'encode_values',
-        'row': row,
-        'text': content,
-      });
-      values = encoded?['values'] as List?;
+      await model.writeRow(i, text: content);
+      return;
     }
-    if (values == null) return;
-    await widget.session.command({
-      'command': 'write',
-      'unit': row['unit_id'] ?? widget.session.unit,
-      'kind': row['kind'],
-      'address': row['address'],
-      'values': values,
-    });
-    await model.read();
+    if (values != null) await model.writeRow(i, values: values);
   }
 
   Future<void> snapshotFile(bool save) async {
@@ -563,8 +578,8 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
               key: const ValueKey('map-filter-address'),
               controller: addressFilter,
               decoration: InputDecoration(
-                labelText: tr('Address / range'),
-                hintText: '100 / 100-200',
+                labelText: tr('Address / start-count'),
+                hintText: '100 / 100-20',
                 errorText:
                     addressFilter.text.trim().isNotEmpty && addressRange == null
                     ? tr('Invalid address range')
@@ -741,7 +756,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                   LogicalKeyboardKey.keyN,
                   control: true,
                 ): () {
-                  if (!model.reading) edit();
+                  if (!model.editingLocked) edit();
                 },
               },
         child: Focus(
@@ -776,7 +791,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                   OutlinedButton.icon(
                                     onPressed:
                                         !widget.session.connected ||
-                                            model.reading
+                                            model.editingLocked
                                         ? null
                                         : model.read,
                                     icon: const Icon(Icons.refresh, size: 18),
@@ -795,7 +810,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                       size: 18,
                                     ),
                                     label: LText(
-                                      model.polling ? 'Stop' : 'Poll map',
+                                      model.polling ? 'Stop' : 'Start polling',
                                     ),
                                   ),
                                   toolChoice(
@@ -815,7 +830,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                   ),
                                   OutlinedButton.icon(
                                     onPressed:
-                                        model.reading ||
+                                        model.editingLocked ||
                                             model.rows.length >= maxRegisterRows
                                         ? null
                                         : edit,
@@ -858,7 +873,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                       FilterChip(
                                         label: const LText('Group reads'),
                                         selected: widget.session.mapGrouped,
-                                        onSelected: model.reading
+                                        onSelected: model.editingLocked
                                             ? null
                                             : (v) => setState(
                                                 () =>
@@ -888,7 +903,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                       ),
                                       PopupMenuButton<String>(
                                         tooltip: tr('CSV'),
-                                        enabled: !model.reading,
+                                        enabled: !model.editingLocked,
                                         onSelected: (action) =>
                                             action == 'import'
                                             ? csvImport()
@@ -906,7 +921,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                         child: toolbarMenuLabel(
                                           Icons.table_view_outlined,
                                           'CSV',
-                                          enabled: !model.reading,
+                                          enabled: !model.editingLocked,
                                         ),
                                       ),
                                       PopupMenuButton<String>(
@@ -939,7 +954,6 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                         itemBuilder: (_) => [
                                           PopupMenuItem(
                                             value: 'capture',
-                                            enabled: !model.reading,
                                             child: const LText(
                                               'Capture snapshot',
                                             ),
@@ -975,7 +989,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                               ),
                             SizedBox(
                               height: 4,
-                              child: model.reading
+                              child: model.reading && !model.polling
                                   ? const LinearProgressIndicator()
                                   : null,
                             ),
@@ -1042,7 +1056,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                         }),
                         onRowMenu: (index, position) =>
                             rowMenu(visible[index], position),
-                        onRowTap: model.reading
+                        onRowTap: model.editingLocked
                             ? null
                             : (index) => edit(visible[index]),
                         cellBuilder: (context, index, key) {
@@ -1061,7 +1075,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                 widget.session.histories[historyKey]
                                     ?.toList() ??
                                 <Sample>[];
-                            return row['trend_enabled'] == false ||
+                            return row['trend_enabled'] != true ||
                                     points.isEmpty
                                 ? const Text('—')
                                 : SizedBox(
@@ -1103,9 +1117,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                       row['count'] == 1)
                                     IconButton(
                                       tooltip: tr('Edit bits'),
-                                      onPressed:
-                                          !widget.session.canRead ||
-                                              model.reading
+                                      onPressed: !model.canWrite
                                           ? null
                                           : () => write(i, bits: true),
                                       icon: const Icon(
@@ -1117,26 +1129,21 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                     inlineEnumEditor(
                                       row,
                                       result?['values'] as List? ?? [],
-                                      !writable ||
-                                              !widget.session.canRead ||
-                                              model.reading
+                                      !writable || !model.canWrite
                                           ? null
                                           : (v) => writeRaw(i, [v]),
                                     )
                                   else
                                     IconButton(
                                       tooltip: tr('Write row'),
-                                      onPressed:
-                                          !writable ||
-                                              !widget.session.canRead ||
-                                              model.reading
+                                      onPressed: !writable || !model.canWrite
                                           ? null
                                           : () => write(i),
                                       icon: const Icon(Icons.edit_note),
                                     ),
                                   IconButton(
                                     tooltip: tr('Delete row'),
-                                    onPressed: model.reading
+                                    onPressed: model.editingLocked
                                         ? null
                                         : () {
                                             model.rows.removeAt(i);
@@ -1194,7 +1201,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                               ),
                             );
                           }
-                          return Tooltip(
+                          final cell = Tooltip(
                             message: tr('$text'),
                             child: LText(
                               '$text',
@@ -1210,6 +1217,16 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                     ),
                             ),
                           );
+                          return key == 'value'
+                              ? Container(
+                                  key: ValueKey('map-value-$i'),
+                                  alignment: Alignment.centerLeft,
+                                  color: model.valueChanged(row)
+                                      ? Colors.amber.withValues(alpha: .25)
+                                      : null,
+                                  child: cell,
+                                )
+                              : cell;
                         },
                       ),
                     ),
@@ -1241,7 +1258,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                             children: [
                               PopupMenuButton<String>(
                                 tooltip: tr('Selected rows'),
-                                enabled: !model.reading && hasSelection,
+                                enabled: hasSelection,
                                 onSelected: batch,
                                 itemBuilder: (_) => rowActions(),
                                 child: toolbarMenuLabel(
@@ -1249,15 +1266,12 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                   trf('Selected: {count}', {
                                     'count': visibleSelection.length,
                                   }),
-                                  enabled: !model.reading && hasSelection,
+                                  enabled: hasSelection,
                                 ),
                               ),
                               OutlinedButton.icon(
                                 key: const ValueKey('enable-selected-polling'),
-                                onPressed:
-                                    model.reading ||
-                                        widget.session.busy ||
-                                        !hasSelection
+                                onPressed: model.editingLocked || !hasSelection
                                     ? null
                                     : () => batch('enable'),
                                 icon: const Icon(Icons.play_arrow, size: 18),
@@ -1265,10 +1279,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                               ),
                               OutlinedButton.icon(
                                 key: const ValueKey('disable-selected-polling'),
-                                onPressed:
-                                    model.reading ||
-                                        widget.session.busy ||
-                                        !hasSelection
+                                onPressed: model.editingLocked || !hasSelection
                                     ? null
                                     : () => batch('disable'),
                                 icon: const Icon(Icons.pause, size: 18),

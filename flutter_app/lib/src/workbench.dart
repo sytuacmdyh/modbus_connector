@@ -489,12 +489,14 @@ class _WorkbenchState extends State<Workbench> {
       ),
       PopupMenuItem(
         value: 'scanner',
-        enabled: session.connected && !session.busy,
+        enabled:
+            session.connected && !session.busy && !session.registerMap.polling,
         child: const LText('Scanner'),
       ),
       PopupMenuItem(
         value: 'advanced',
-        enabled: session.connected && !session.busy,
+        enabled:
+            session.connected && !session.busy && !session.registerMap.polling,
         child: const LText('Advanced Modbus'),
       ),
       const PopupMenuDivider(),

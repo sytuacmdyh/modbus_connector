@@ -89,6 +89,170 @@ void main() {
     session.dispose();
   });
 
+  testWidgets('polling hides progress and keeps value writes enabled', (
+    tester,
+  ) async {
+    final bridge = MapBridge();
+    final session = SessionController(bridge);
+    await session.connect({'timeout': 0.1}, 1);
+    session.registers.add({
+      'name': 'x',
+      'kind': 'holding_registers',
+      'address': 0,
+      'count': 1,
+    });
+    await tester.pumpWidget(
+      MaterialApp(home: RegisterMapDialog(session: session)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Start polling'), findsOneWidget);
+    bridge.held = Completer<BridgeReply>();
+    session.registerMap.start(100);
+    await tester.pump();
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    final write = tester.widget<IconButton>(
+      find.ancestor(
+        of: find.byTooltip('Write row'),
+        matching: find.byType(IconButton),
+      ),
+    );
+    expect(write.onPressed, isNotNull);
+    session.registerMap.stop();
+    bridge.held!.complete(const BridgeReply({'rows': []}, true));
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox());
+    session.dispose();
+  });
+
+  testWidgets('poll cycle keeps toolbar and row enabled states stable', (
+    tester,
+  ) async {
+    final bridge = MapBridge();
+    final session = SessionController(bridge);
+    await session.connect({'timeout': 0.1}, 1);
+    session.registers.add({
+      'name': 'x',
+      'kind': 'holding_registers',
+      'address': 0,
+      'count': 1,
+    });
+    await tester.pumpWidget(
+      MaterialApp(home: RegisterMapDialog(session: session)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('More tools'));
+    await tester.pumpAndSettle();
+    final held = bridge.held = Completer<BridgeReply>();
+    session.registerMap.start(5000);
+    await tester.pump();
+    List<bool> enabled() => [
+      tester
+              .widget<OutlinedButton>(
+                find.widgetWithText(OutlinedButton, 'Read map'),
+              )
+              .onPressed !=
+          null,
+      tester
+              .widget<OutlinedButton>(
+                find.widgetWithText(OutlinedButton, 'Add row'),
+              )
+              .onPressed !=
+          null,
+      tester.widget<DesktopTable>(find.byType(DesktopTable)).onRowTap != null,
+      tester
+              .widget<FilterChip>(
+                find.widgetWithText(FilterChip, 'Group reads'),
+              )
+              .onSelected !=
+          null,
+      tester
+          .widget<PopupMenuButton<String>>(
+            find.ancestor(
+              of: find.byTooltip('CSV'),
+              matching: find.byType(PopupMenuButton<String>),
+            ),
+          )
+          .enabled,
+    ];
+    final during = enabled();
+    held.complete(
+      const BridgeReply({
+        'rows': [
+          {
+            'values': [1],
+            'display': '1',
+            'numeric': 1,
+          },
+        ],
+      }, true),
+    );
+    await tester.pump();
+    expect(session.registerMap.reading, isFalse);
+    expect(enabled(), during);
+    session.registerMap.stop();
+    await tester.pumpWidget(const SizedBox());
+    session.dispose();
+  });
+
+  testWidgets(
+    'value changes highlight only that cell and expire after three seconds',
+    (tester) async {
+      final bridge = MapBridge();
+      final session = SessionController(bridge);
+      await session.connect({'timeout': 0.1}, 1);
+      session.registers.add({
+        'name': 'x',
+        'kind': 'holding_registers',
+        'address': 0,
+        'count': 1,
+      });
+      session.registers.add({
+        ...session.registers.single,
+        'address': 1,
+        'name': 'y',
+      });
+      await tester.pumpWidget(
+        MaterialApp(home: RegisterMapDialog(session: session)),
+      );
+      await session.registerMap.read();
+      await tester.pump();
+      Color? color() => tester
+          .widget<Container>(find.byKey(const ValueKey('map-value-0')))
+          .color;
+      expect(color(), isNull);
+      bridge.value = 101;
+      await session.registerMap.read(onlyIndices: {0});
+      await tester.pump();
+      expect(color(), isNotNull);
+      expect(
+        tester
+            .widget<Container>(find.byKey(const ValueKey('map-value-1')))
+            .color,
+        isNull,
+      );
+      await tester.pump(const Duration(seconds: 2));
+      await session.registerMap.read(onlyIndices: {0});
+      await tester.pump();
+      expect(color(), isNotNull);
+      await tester.pump(const Duration(milliseconds: 1001));
+      expect(color(), isNull);
+      bridge.value = 102;
+      await session.registerMap.read(onlyIndices: {0});
+      await tester.pump();
+      expect(color(), isNotNull);
+      await tester.pump(const Duration(seconds: 2));
+      bridge.value = 103;
+      await session.registerMap.read(onlyIndices: {0});
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
+      expect(color(), isNotNull);
+      await tester.pump(const Duration(milliseconds: 1001));
+      expect(color(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      session.dispose();
+    },
+  );
+
   test(
     'large map publishes a bounded number of UI updates per read cycle',
     () async {
@@ -110,7 +274,7 @@ void main() {
       session.addListener(() => updates++);
       await session.registerMap.read();
       expect(session.registerResults, hasLength(248));
-      expect(session.histories, hasLength(248));
+      expect(session.histories, isEmpty);
       expect(
         bridge.calls.where((c) => c['command'] == 'read_rows'),
         hasLength(248),
@@ -284,7 +448,7 @@ void main() {
       );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Poll map'));
+      await tester.tap(find.text('Start polling'));
       await tester.pump();
       await tester.tap(find.text('Close'));
       await tester.pumpAndSettle();

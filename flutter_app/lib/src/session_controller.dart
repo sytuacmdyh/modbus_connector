@@ -254,6 +254,14 @@ class SessionController extends ChangeNotifier {
     if (value is BridgeException && value.connected == false) {
       connected = false;
       description = 'Disconnected';
+      registerMap.stop();
+      _cancelLogger();
+    }
+  }
+
+  Future<void> waitForIdle() async {
+    while (_operation != null) {
+      await _operation!.future;
     }
   }
 
@@ -345,7 +353,7 @@ class SessionController extends ChangeNotifier {
       final key =
           '${row['unit_id'] ?? unit}/${row['kind']}/${row['address']}/${row['name']}';
       final numeric = results[i]['numeric'];
-      if (numeric is num && row['trend_enabled'] != false) {
+      if (numeric is num && row['trend_enabled'] == true) {
         recordPoint(
           key,
           '${row['name'] ?? row['kind']} @${row['address']}',

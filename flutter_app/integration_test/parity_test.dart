@@ -130,7 +130,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Register map'), findsOneWidget);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.text('Poll map'));
+      await tester.tap(find.text('Start polling'));
       await tester.pump(const Duration(milliseconds: 200));
       expect(find.byTooltip('Session tools').hitTestable(), findsOneWidget);
       expect(map.polling, isTrue);

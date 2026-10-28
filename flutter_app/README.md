@@ -101,7 +101,7 @@ installer (NSIS must be installed), run from the repository root:
 
 ```powershell
 .venv/Scripts/python.exe packaging/windows/build_installer.py --flutter `
-  --bundle flutter_app/build/windows/x64/runner/Release --version 0.16.0+6
+  --bundle flutter_app/build/windows/x64/runner/Release --version 0.16.0+8
 .venv/Scripts/python.exe flutter_app/tool/verify_windows_bundle.py `
   --bundle flutter_app/build/windows/x64/runner/Release
 ```
@@ -219,10 +219,10 @@ The master map defaults to 48 px compact rows with Area, Count and Unit hidden.
 Saved visibility and density preferences take precedence; Reset columns restores
 these defaults, and the header menu can show any hidden column again.
 The filter bar combines case-insensitive name matching, a zero-based address or
-inclusive range (decimal or `0x` hex), polling status and function area. Address
+start-count range (decimal or `0x` hex; `100-20` covers 100–119), polling status and function area. Address
 filters include rows whose register spans overlap the range. The count shows
 visible/total rows; Clear filters restores the full map. Filters only affect the
-view: Read map/Poll map, CSV exports and snapshots still use the whole map as
+view: Read map/Start polling, CSV exports and snapshots still use the whole map as
 before. Changing a filter clears selection; select-all and batch actions affect
 only visible selected rows, and movement skips hidden rows.
 The map has one selection checkbox column: hold the left mouse button and sweep
@@ -259,3 +259,13 @@ were verified on 2026-10-24. Physical COM, multi-monitor DPI and audio audibilit
 still require hardware verification.
 See [FLUTTER_STATUS.md](../docs/FLUTTER_STATUS.md) for the detailed feature and
 validation inventory, including hardware and UI gaps.
+
+Map polling: **Start polling** keeps value, enum and bit writes available while
+reading. Writes wait for the current read request and run serially; recoverable read
+or write errors are logged without stopping polling. Disconnecting stops polling.
+The progress animation is hidden during polling. Row trends default to disabled;
+use **Enable trend** on selected rows to collect and show history.
+
+During polling, structural editing tools keep a stable disabled state; selection
+and value writes remain available. Raw value changes highlight only the current
+value cell in amber for three seconds; repeated identical reads do not extend it.

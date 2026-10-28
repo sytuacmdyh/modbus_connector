@@ -83,7 +83,7 @@ void main() {
       expect(find.text('Showing 4 / 5'), findsOneWidget);
       await tester.enterText(
         find.byKey(const ValueKey('map-filter-address')),
-        '0x65–0x6c',
+        '0x65–0x8',
       );
       await tester.pumpAndSettle();
       expect(find.text('Showing 3 / 5'), findsOneWidget);
@@ -105,6 +105,34 @@ void main() {
       await chooseFilter(tester, 'map-filter-polling', 'Disabled only');
       expect(find.text('TEMPERATURE outlet'), findsOneWidget);
       expect(find.text('Temperature inlet'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'address-count filter covers exactly count addresses with overlap',
+    (tester) async {
+      final session = SessionController(FakeBridge());
+      session.registers.addAll([
+        row('Overlap', 99, count: 2),
+        row('First', 100),
+        row('Last', 119),
+        row('Outside', 120),
+        row('Top', 65535),
+      ]);
+      await mountMap(tester, session);
+      final input = find.byKey(const ValueKey('map-filter-address'));
+      for (final text in ['100-20', '0x64-0x14']) {
+        await tester.enterText(input, text);
+        await tester.pumpAndSettle();
+        expect(find.text('Showing 3 / 5'), findsOneWidget);
+        expect(find.text('Overlap'), findsOneWidget);
+        expect(find.text('Last'), findsOneWidget);
+        expect(find.text('Outside'), findsNothing);
+      }
+      await tester.enterText(input, '65535-1');
+      await tester.pumpAndSettle();
+      expect(find.text('Showing 1 / 5'), findsOneWidget);
+      expect(find.text('Top'), findsOneWidget);
     },
   );
 
@@ -210,7 +238,15 @@ void main() {
       final session = SessionController(FakeBridge());
       session.registers.addAll([row('First', 0), row('Last', 65535)]);
       await mountMap(tester, session);
-      for (final address in ['-1', '65536', '200-100', '1-', 'abc']) {
+      for (final address in [
+        '-1',
+        '65536',
+        '65535-2',
+        '1-0',
+        '0-65537',
+        '1-',
+        'abc',
+      ]) {
         await tester.enterText(
           find.byKey(const ValueKey('map-filter-address')),
           address,
