@@ -44,7 +44,7 @@ From the target project, install from a checkout containing the skill:
 npx skills add /path/to/modbus_connector --skill modbus-template
 ```
 
-Once these files are published to the repository's default branch, install with:
+Install from the repository's default branch with:
 
 ```bash
 npx skills add sytuacmdyh/modbus_connector --skill modbus-template

@@ -1,7 +1,8 @@
 # Flutter desktop parity status
 
-Branch: `feature/flutter-parity-workspace`. Updated 2026-10-25. Windows completion
-is committed locally; unified master workspace changes are uncommitted; no push or PR. The PySide6 application, its settings, dependencies and
+Release line: `0.16.0`. Updated 2026-10-28. The Flutter parity workspace feature
+is integrated through `develop` into `main` for stable publication.
+The PySide6 application, its settings, dependencies and
 Windows installer remain available. Flutter now implements the main interactive
 workflows below. It still has the explicit parity gaps listed later in this file.
 
@@ -62,6 +63,13 @@ transfers never replace sessions or personal templates. Consumer mode rejects
 backend writes before network access; server permissions still apply.
 
 ## Linux verification
+
+Stable-release preflight (2026-10-28): Flutter analyzer clean; all 95 Flutter
+unit/widget tests and 113 focused Python bridge/online/release/update/skill tests
+passed. The UTF-8 subprocess regression now creates its own Chinese template
+fixture instead of depending on a developer's template catalog. Native desktop
+integration and physical-device tests were not rerun in this preflight; the
+historical checks below retain their original scope.
 
 Environment: Flutter 3.47.8 stable / Dart 3.13.7; Python 3.13.5 development and
 Python 3.11.17 frozen bridge; x64 Linux, GTK 3, Xvfb.

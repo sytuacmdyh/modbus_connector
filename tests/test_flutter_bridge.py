@@ -246,10 +246,16 @@ def test_subprocess_protocol_eof_and_no_qt(shutdown: bool) -> None:
 
 @pytest.mark.parametrize("system_encoding", ["gbk", "cp1252"])
 def test_subprocess_uses_utf8_for_unescaped_chinese_template_paths(system_encoding, tmp_path):
-    from modbus_connector.flutter_catalog import public_catalog
-
-    template = next(t for t in public_catalog() if not t.resource.isascii())
-    command = {"id": 1, "command": "template_load", "resource": template.resource}
+    resource = "测试厂家/中文设备.json"
+    template = {
+        "name": "中文设备", "connection": {"type": "RTU", "unit": 1},
+        "registers": [{"name": "温度", "kind": "holding_registers", "address": 0,
+                       "count": 1, "format": "s16"}],
+    }
+    (tmp_path / "cloud_templates.json").write_text(
+        json.dumps({resource: template}, ensure_ascii=False), encoding="utf-8",
+    )
+    command = {"id": 1, "command": "template_load", "resource": resource}
     completed = subprocess.run(
         [sys.executable, "-u", "-m", "modbus_connector.flutter_bridge"],
         input=(json.dumps(command, ensure_ascii=False) + "\n").encode("utf-8"),
@@ -260,7 +266,7 @@ def test_subprocess_uses_utf8_for_unescaped_chinese_template_paths(system_encodi
     assert completed.returncode == 0, completed.stderr
     reply = json.loads(completed.stdout)
     assert reply["ok"], reply
-    assert reply["result"]["state"]["name"] == template.name
+    assert reply["result"]["state"]["name"] == template["name"]
     assert reply["result"]["state"]["registers"]
 
 
