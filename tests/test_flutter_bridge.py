@@ -62,7 +62,8 @@ def test_qt_workspace_conversion_preserves_raw_semantics_and_device_parameters(b
     assert not request(bridge, "template_convert_workspace", workspace={"tabs": []})["ok"]
 
 
-def test_all_public_template_rows_are_usable_after_flutter_conversion():
+def test_all_public_template_rows_are_usable_after_flutter_conversion(cloud_template_cache):
+    del cloud_template_cache
     from modbus_connector.flutter_catalog import flutter_state, public_catalog, public_template
     from modbus_connector.flutter_registers import row_from_json
 
