@@ -27,7 +27,7 @@ def test_manual_config_external_persistent_without_password(tmp_path, monkeypatc
     stored = uploader.load_config()
     assert path == tmp_path / "config.json"
     assert stored == {"url": "https://example.invalid/dav/模板", "username": "alice", "timeout": 15}
-    assert "not-saved" not in path.read_text()
+    assert "not-saved" not in path.read_text(encoding="utf-8")
     client = WebDavClient(uploader.settings(stored))
     assert client._url("模板/.catalog.json").endswith("/dav/%E6%A8%A1%E6%9D%BF/.catalog.json")
 

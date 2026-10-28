@@ -35,6 +35,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           REQUESTED_TAG: ${{ inputs.tag }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: |
           $tag = $env:REQUESTED_TAG
           if (!$tag) {
@@ -42,20 +43,59 @@ jobs:
             $tag = "v$version"
           }
           if ($tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') { throw 'Invalid stable release tag' }
-          $release = gh api "repos/$env:GH_REPO/releases/tags/$tag" | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0) { throw 'Release must already exist' }
+          $zipName = 'modbus-connector-windows.zip'
           $version = $tag.Substring(1)
           $name = "modbus-connector-$version-windows-x64-setup.exe"
-          if ($release.assets.name -contains $name) {
-            'skip=true' >> $env:GITHUB_OUTPUT
-            exit 0
+          $maxAttempts = if ($env:GITHUB_EVENT_NAME -eq 'push') { 30 } else { 5 }
+          $delaySeconds = 60
+          $release = $null
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            gh api "repos/$env:GH_REPO/releases/tags/$tag" --jq '.' > release.json 2>$null
+            if ($LASTEXITCODE -ne 0) {
+              if ($attempt -lt $maxAttempts) {
+                Write-Host "::notice::Release $tag not found yet (attempt $attempt/$maxAttempts); waiting ${delaySeconds}s"
+                Start-Sleep -Seconds $delaySeconds
+                continue
+              }
+              break
+            }
+            $release = Get-Content release.json -Raw | ConvertFrom-Json
+            if ($release.assets.name -contains $name) {
+              'skip=true' >> $env:GITHUB_OUTPUT
+              exit 0
+            }
+            if ($release.assets.name -contains $zipName) {
+              break
+            }
+            if ($attempt -lt $maxAttempts) {
+              Write-Host "::notice::Release $tag exists but $zipName is not uploaded yet (attempt $attempt/$maxAttempts); waiting ${delaySeconds}s"
+              Start-Sleep -Seconds $delaySeconds
+              $release = $null
+              continue
+            }
           }
-          gh release download $tag --pattern modbus-connector-windows.zip --dir dist
+          if (-not $release) {
+            if ($env:GITHUB_EVENT_NAME -eq 'push') {
+              Write-Host "::notice::Release $tag is not ready after $maxAttempts attempts; skipping installer backfill on this push."
+              'skip=true' >> $env:GITHUB_OUTPUT
+              exit 0
+            }
+            throw 'Release must already exist'
+          }
+          if ($release.assets.name -notcontains $zipName) {
+            if ($env:GITHUB_EVENT_NAME -eq 'push') {
+              Write-Host "::notice::Release $tag has no $zipName after waiting; skipping installer backfill on this push."
+              'skip=true' >> $env:GITHUB_OUTPUT
+              exit 0
+            }
+            throw "Could not find published asset: $zipName"
+          }
+          gh release download $tag --pattern $zipName --dir dist
           if ($LASTEXITCODE -ne 0) { throw 'Could not download the published Windows bundle' }
-          $asset = $release.assets | Where-Object name -eq 'modbus-connector-windows.zip'
-          $hash = (Get-FileHash dist/modbus-connector-windows.zip -Algorithm SHA256).Hash.ToLower()
+          $asset = $release.assets | Where-Object name -eq $zipName
+          $hash = (Get-FileHash dist/$zipName -Algorithm SHA256).Hash.ToLower()
           if ($asset.digest -and $asset.digest -ne "sha256:$hash") { throw 'Release bundle checksum mismatch' }
-          Expand-Archive dist/modbus-connector-windows.zip -DestinationPath dist
+          Expand-Archive dist/$zipName -DestinationPath dist
           "tag=$tag" >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
           "name=$name" >> $env:GITHUB_OUTPUT
