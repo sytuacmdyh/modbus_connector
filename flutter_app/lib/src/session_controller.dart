@@ -390,7 +390,17 @@ class SessionController extends ChangeNotifier {
     List<Map<String, dynamic>> rows, {
     List<Map<String, dynamic>> expressionRows = const [],
   }) async {
-    if (logging || busy || !connected) return;
+    if (logging) return;
+    if (busy) {
+      error = 'Wait for the current operation to finish before starting logging.';
+      notifyListeners();
+      return;
+    }
+    if (!connected) {
+      error = 'Connect to a device before starting logging.';
+      notifyListeners();
+      return;
+    }
     final frozen = rows
         .map(
           (row) => <String, dynamic>{...row, 'unit_id': row['unit_id'] ?? unit},

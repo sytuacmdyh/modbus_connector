@@ -327,6 +327,7 @@ def test_logger_wide_csv_jsonl_and_disconnect(bridge: Bridge, tmp_path) -> None:
     rows = [{"name": "Speed", "address": 0, "scale": 0.1}, {"name": "State", "address": 1}]
     path = tmp_path / "samples.csv"
     assert request(bridge, "logger_start", rows=rows, path=str(path), interval_ms=100)["ok"]
+    assert path.exists()
     assert request(bridge, "logger_sample", values=[[100], [3]])["result"]["rows_written"] == 1
     assert request(bridge, "logger_sample", values=[[200], [4]])["result"]["rows_written"] == 1
     assert "10" in path.read_text() and "Speed@0/u1" in path.read_text()
@@ -680,7 +681,7 @@ def test_logger_expressions_share_safe_engine_without_changing_map_csv(
     assert reply["ok"] and reply["result"]["expressions"][0]["numeric"] == 25
     assert reply["result"]["expressions"][1]["error"]
     assert request(bridge, "logger_stop")["ok"]
-    content = path.read_text(encoding="utf-8")
+    content = path.read_text(encoding="utf-8-sig")
     if fmt == "csv":
         import csv
 

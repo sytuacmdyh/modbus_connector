@@ -172,6 +172,10 @@ class _LoggingDialogState extends State<LoggingDialog> {
             LText(
               widget.session.logging
                   ? 'Logging · ${widget.session.loggedSamples} samples written'
+                  : !widget.session.connected
+                  ? 'Connect to a device before starting logging.'
+                  : widget.session.busy
+                  ? 'Wait for the current operation to finish.'
                   : 'Stopped',
             ),
             if (error != null || widget.session.error != null)

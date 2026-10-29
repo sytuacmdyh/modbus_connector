@@ -18,7 +18,16 @@ def _sample(**overrides: object) -> LogSample:
 
 
 def _read_csv(path: Path) -> list[list[str]]:
-    return list(csv.reader(path.read_text(encoding="utf-8").splitlines()))
+    return list(csv.reader(path.read_text(encoding="utf-8-sig").splitlines()))
+
+
+def test_csv_starts_with_utf8_bom_for_excel(tmp_path: Path) -> None:
+    path = tmp_path / "log.csv"
+    logger = DataLogger()
+    logger.open(LogSettings(path=str(path)))
+    logger.close()
+
+    assert path.read_bytes().startswith(b"\xef\xbb\xbf")
 
 
 def test_csv_writes_header_and_rows(tmp_path: Path) -> None:
@@ -90,6 +99,7 @@ def test_append_keeps_content_and_skips_header(tmp_path: Path) -> None:
     rows = _read_csv(path)
     assert rows == [["name", "value"], ["temperature", "-39.9"],
                     ["temperature", "8.25"]]
+    assert path.read_bytes().count(b"\xef\xbb\xbf") == 1
 
 
 def test_overwrite_truncates_and_writes_header(tmp_path: Path) -> None:

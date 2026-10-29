@@ -60,8 +60,12 @@ class DataLogger:
                 previous = None
             if previous is not None and previous != header:
                 raise ValueError("CSV columns differ; choose a new file or disable append")
+        # ``utf-8-sig`` writes a BOM only at the beginning of a new stream.
+        # Excel uses it to detect UTF-8 reliably when the file is opened by
+        # double-click, while csv/jsonl readers still consume the same text.
+        encoding = "utf-8-sig" if settings.format == "csv" else "utf-8"
         file = open(  # noqa: SIM115  # closed explicitly in close()
-            settings.path, "a" if settings.append else "w", newline="", encoding="utf-8"
+            settings.path, "a" if settings.append else "w", newline="", encoding=encoding
         )
         self._file = file
         self._settings = settings

@@ -787,7 +787,7 @@ def test_logging_starts_polling_and_writes_csv(
     assert panel.is_polling()  # polling keeps running after logging stops
     panel.stop_polling()
 
-    rows = list(csv.reader(path.read_text(encoding="utf-8").splitlines()))
+    rows = list(csv.reader(path.read_text(encoding="utf-8-sig").splitlines()))
     assert rows[0] == ["timestamp", "temp@1_5"]
     timestamp, value = rows[1]
     assert timestamp[10] == " " and "T" not in timestamp
@@ -935,7 +935,7 @@ def test_logging_skips_unchecked_rows(qapp: QApplication, tmp_path: Path) -> Non
     panel.stop_logging()
     panel.stop_polling()
 
-    rows = list(csv.reader(path.read_text(encoding="utf-8").splitlines()))
+    rows = list(csv.reader(path.read_text(encoding="utf-8-sig").splitlines()))
     assert rows[0] == ["timestamp", "a@1_0"]
     assert rows[1][1:] == ["10"]  # "b" excluded
 
@@ -949,7 +949,7 @@ def test_logging_skips_unchecked_rows(qapp: QApplication, tmp_path: Path) -> Non
     panel.handle_read_finished(_read_row(panel, 0), True, [11], "")
     panel.stop_logging()
     panel.stop_polling()
-    assert none_path.read_text(encoding="utf-8").splitlines() == ["timestamp"]
+    assert none_path.read_text(encoding="utf-8-sig").splitlines() == ["timestamp"]
 
     # a row added after the selection defaults to logged
     panel._add_row(RegisterRow(name="c", kind="holding_registers", address=2))
