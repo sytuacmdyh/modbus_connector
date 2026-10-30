@@ -72,7 +72,7 @@ def generate_notes(tag: str, repository: str, *, published_tags: set[str] | None
 
 
 def completed_release_tags(repository: str) -> set[str]:
-    """A partial matrix upload has no finalized notes and is not a release base."""
+    """Historical note synchronization must not make partial uploads a base."""
     request = Request(
         f"https://api.github.com/repos/{repository}/releases?per_page=100",
         headers={
@@ -83,8 +83,21 @@ def completed_release_tags(repository: str) -> set[str]:
     )
     with urlopen(request, timeout=30) as response:
         releases = json.load(response)
-    return {release["tag_name"] for release in releases
-            if not release.get("draft") and (release.get("body") or "").strip()}
+    required = {
+        "modbus-flutter-windows.zip", "modbus-flutter-linux.zip",
+        "ModbusConnector.AppImage",
+    } | {f"modbus-connector-{tool}-{platform}" for tool in ("cli", "mcp")
+         for platform in ("macos", "linux", "windows.exe")}
+    completed = set()
+    for release in releases:
+        assets = {asset["name"] for asset in release.get("assets", [])
+                  if asset.get("state") == "uploaded" and asset.get("size", 0) > 0}
+        if (not release.get("draft") and (release.get("body") or "").strip()
+                and required <= assets
+                and any(name.endswith("-windows-x64-setup.exe") for name in assets)
+                and any(name.endswith("_amd64.deb") for name in assets)):
+            completed.add(release["tag_name"])
+    return completed
 
 
 def sync_notes(tag: str, title: str, body: str, *, missing_ok: bool) -> None:

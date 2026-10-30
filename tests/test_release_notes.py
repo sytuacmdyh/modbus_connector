@@ -1,6 +1,8 @@
 """Release ranges must exclude future work and tags on unrelated branches."""
 
 import importlib.util
+import io
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -69,6 +71,20 @@ def test_partial_release_tag_does_not_hide_changes(repo):
     assert "Automatic updater" in body and "Release checks" in body
     assert "Old change" not in body
     assert "compare/v0.1.0...v0.1.2" in body
+
+
+def test_historical_notes_do_not_complete_partial_release(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "test")
+    names = ["modbus-flutter-windows.zip", "modbus-flutter-linux.zip",
+             "ModbusConnector.AppImage", "app-windows-x64-setup.exe", "app_amd64.deb"]
+    names += [f"modbus-connector-{tool}-{platform}" for tool in ("cli", "mcp")
+              for platform in ("macos", "linux", "windows.exe")]
+    complete = {"tag_name": "v0.1.0", "draft": False, "body": "Notes", "assets": [
+        {"name": name, "state": "uploaded", "size": 1} for name in names]}
+    partial = {**complete, "tag_name": "v0.1.1", "assets": complete["assets"][:2]}
+    monkeypatch.setattr(notes, "urlopen", lambda *a, **kw: io.BytesIO(
+        json.dumps([complete, partial]).encode()))
+    assert notes.completed_release_tags("owner/repo") == {"v0.1.0"}
 
 
 def test_version_noise_removed_without_hiding_release_work():
