@@ -3,11 +3,66 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:modbus_desktop/src/bridge_client.dart';
+import 'package:modbus_desktop/src/desktop_table.dart';
 import 'package:modbus_desktop/src/workspace.dart';
 
 import 'fake_bridge.dart';
 
 void main() {
+  testWidgets(
+    'local demo keeps row selection visible on the left while polling',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final workspace = WorkspaceController(bridgeFactory: FakeBridge.new);
+      try {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: SessionWorkspace(
+              controller: workspace,
+              themeMode: ThemeMode.light,
+              onThemeChanged: (_) {},
+            ),
+          ),
+        );
+        await workspace.openDemo();
+        await tester.pump(const Duration(milliseconds: 100));
+        final demo = workspace.sessions.last;
+        expect(demo.registerMap.polling, isTrue);
+        final selectHeader = find.byKey(const ValueKey('column-select'));
+        expect(selectHeader, findsOneWidget);
+        expect(
+          tester.getTopLeft(selectHeader).dx,
+          lessThan(
+            tester.getTopLeft(find.byKey(const ValueKey('column-name'))).dx,
+          ),
+        );
+        final checkbox = find
+            .descendant(
+              of: find.byType(DesktopTable),
+              matching: find.byType(Checkbox),
+            )
+            .hitTestable()
+            .first;
+        expect(tester.widget<Checkbox>(checkbox).onChanged, isNotNull);
+        await tester.tap(checkbox);
+        await tester.pump();
+        expect(tester.widget<Checkbox>(checkbox).value, isTrue);
+        expect(
+          find.byKey(const ValueKey('map-selection-tools')),
+          findsOneWidget,
+        );
+        expect(demo.registerMap.polling, isTrue);
+      } finally {
+        await workspace.shutdown();
+        await tester.pumpWidget(const SizedBox());
+        workspace.dispose();
+      }
+    },
+  );
+
   testWidgets('background reads keep running without animating hidden tabs', (
     tester,
   ) async {
