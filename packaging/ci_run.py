@@ -30,9 +30,12 @@ def main() -> int:
         tail.append(detail)
         result = 1
     if result and os.environ.get("GITHUB_ACTIONS") == "true":
-        message = "".join(tail)[-24000:]
-        message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-        print(f"::error title=Command failed::{message}", flush=True)
+        message = "".join(line for line in tail if not line.startswith("✅"))[-24000:]
+        # Actions truncates long annotations. Keep each diagnostic chunk readable.
+        for offset in range(0, len(message), 2500):
+            chunk = message[offset:offset + 2500]
+            chunk = chunk.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+            print(f"::error title=Command failed ({offset // 2500 + 1})::{chunk}", flush=True)
     return result
 
 

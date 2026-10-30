@@ -47,11 +47,12 @@ def summarize(subjects: list[str]) -> list[str]:
     return summaries
 
 
-def generate_notes(tag: str, repository: str) -> str:
+def generate_notes(tag: str, repository: str, *, published_tags: set[str] | None = None) -> str:
     # Only consider earlier tags reachable from this release, not newer or sibling branches.
     commit = git("rev-parse", f"{tag}^{{commit}}")
     previous = next((candidate for candidate in release_tags("--merged", tag)
-                     if git("rev-parse", f"{candidate}^{{commit}}") != commit), None)
+                     if git("rev-parse", f"{candidate}^{{commit}}") != commit
+                     and (published_tags is None or candidate in published_tags)), None)
     revision = f"{previous}..{tag}" if previous else tag
     subjects = git("log", "--no-merges", "--format=%s", revision).splitlines()
     summaries = summarize(subjects)
@@ -68,6 +69,22 @@ def generate_notes(tag: str, repository: str) -> str:
     path = f"compare/{previous}...{tag}" if previous else f"commits/{tag}"
     lines += ["", f"[完整变更](https://github.com/{repository}/{path})"]
     return "\n".join(lines)
+
+
+def completed_release_tags(repository: str) -> set[str]:
+    """A partial matrix upload has no finalized notes and is not a release base."""
+    request = Request(
+        f"https://api.github.com/repos/{repository}/releases?per_page=100",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+            "User-Agent": "ModbusConnector-release-notes",
+        },
+    )
+    with urlopen(request, timeout=30) as response:
+        releases = json.load(response)
+    return {release["tag_name"] for release in releases
+            if not release.get("draft") and (release.get("body") or "").strip()}
 
 
 def sync_notes(tag: str, title: str, body: str, *, missing_ok: bool) -> None:
@@ -112,8 +129,9 @@ def main() -> None:
     if not tags:
         parser.error("no release tags found")
     repository = os.environ["GITHUB_REPOSITORY"]
+    published_tags = None if args.preview else completed_release_tags(repository)
     for tag in tags:
-        body = generate_notes(tag, repository)
+        body = generate_notes(tag, repository, published_tags=published_tags)
         if args.preview:
             print(f"# {tag}\n\n{body}\n")
         else:

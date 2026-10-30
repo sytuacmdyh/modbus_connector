@@ -58,6 +58,19 @@ def test_first_release_is_short_and_keeps_one_history_link(repo):
     assert "/commits/v0.1.0" in body
 
 
+def test_partial_release_tag_does_not_hide_changes(repo):
+    commit(repo, "feat: Old change")
+    repo("tag", "v0.1.0")
+    commit(repo, "feat: Automatic updater")
+    repo("tag", "v0.1.1")
+    commit(repo, "fix: Release checks")
+    repo("tag", "v0.1.2")
+    body = notes.generate_notes("v0.1.2", "owner/repo", published_tags={"v0.1.0"})
+    assert "Automatic updater" in body and "Release checks" in body
+    assert "Old change" not in body
+    assert "compare/v0.1.0...v0.1.2" in body
+
+
 def test_version_noise_removed_without_hiding_release_work():
     assert notes.summarize([
         "chore(release): 发布0.15.0版本", "Bump version to 0.15.0",
