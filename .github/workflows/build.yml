@@ -74,7 +74,7 @@ jobs:
           flutter pub get
           flutter analyze
           flutter test
-          dart test test_backend
+          python ../packaging/ci_run.py dart test test_backend
       - name: Build (Linux/macOS)
         if: runner.os != 'Windows'
         run: ./build.sh
@@ -97,8 +97,8 @@ jobs:
         working-directory: flutter_app
         run: |
           export MODBUS_FLUTTER_HOME="$(mktemp -d)"
-          xvfb-run -a flutter drive --driver=test_driver/native_driver.dart --target=integration_test/desktop_test.dart -d linux --profile
-          xvfb-run -a flutter drive --driver=test_driver/native_driver.dart --target=integration_test/parity_test.dart -d linux --profile
+          python ../packaging/ci_run.py xvfb-run -a flutter drive --driver=test_driver/native_driver.dart --target=integration_test/desktop_test.dart -d linux --profile
+          python ../packaging/ci_run.py xvfb-run -a flutter drive --driver=test_driver/native_driver.dart --target=integration_test/parity_test.dart -d linux --profile
       - name: Build and verify Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
