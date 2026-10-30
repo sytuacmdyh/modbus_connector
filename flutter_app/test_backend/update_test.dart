@@ -20,6 +20,17 @@ class LoopbackClient implements HttpClient {
 }
 
 void main() {
+  test(
+    'Windows PowerShell discards inherited module paths case insensitively',
+    () {
+      final inherited = {
+        'PSMODULEPATH': 'PowerShell7/modules',
+        'Path': 'system',
+      };
+      expect(powershellEnvironment(inherited), {'Path': 'system'});
+      expect(inherited['PSMODULEPATH'], 'PowerShell7/modules');
+    },
+  );
   final payload = [77, 90, ...List.generate(512, (i) => i % 256)];
   final digest = sha256.convert(payload).toString();
   const tag = 'v0.17.0';

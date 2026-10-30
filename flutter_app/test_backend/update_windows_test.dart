@@ -102,6 +102,8 @@ try {
             ],
             stdoutEncoding: null,
             stderrEncoding: null,
+            environment: powershellEnvironment(),
+            includeParentEnvironment: false,
           ).timeout(const Duration(seconds: 60));
           expect(
             result.exitCode,

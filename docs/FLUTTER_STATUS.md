@@ -20,6 +20,16 @@ includes installer selection, invalid redirects and payloads, download cancellat
 late handoff cancellation, explicit Save with autosave off, save/helper failures,
 settings persistence, resource cleanup before exit and both Windows helper paths.
 
+Release validation follow-up: Windows PowerShell child processes discard inherited
+`PSModulePath` so apps launched from PowerShell 7 still load the Windows PowerShell
+5.1 utility/CIM modules. The same launch environment is used by the helper smoke
+tests. See Microsoft's [module-path guidance](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_psmodulepath).
+The backend suite now has 380 tests. Linux native integration waits for the
+workspace menu animation before selecting Local demo; both integration files pass
+separately under Xvfb. Local WSL verification uses `LIBGL_ALWAYS_SOFTWARE=1` to
+avoid a captured crash inside the host Intel GPU shader compiler. Linux GitHub CI
+also passes both native files and AppImage/deb packaging checks.
+
 Local Windows update acceptance (2026-10-30): rebuilt the Windows release from
 this working tree, passed all 379 backend tests with Windows Dart, and produced
 `modbus-connector-flutter-0.16.3-windows-x64-setup.exe` (9,915,371 bytes, SHA-256

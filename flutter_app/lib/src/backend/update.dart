@@ -135,6 +135,12 @@ String get powershell =>
     '${Platform.environment['SystemRoot'] ?? r'C:\Windows'}'
     r'\System32\WindowsPowerShell\v1.0\powershell.exe';
 
+// A parent launched by PowerShell 7 can pass incompatible system modules to 5.1.
+// Let Windows PowerShell construct its own module paths at startup.
+Map<String, String> powershellEnvironment([Map<String, String>? inherited]) =>
+    Map<String, String>.from(inherited ?? Platform.environment)
+      ..removeWhere((key, _) => key.toLowerCase() == 'psmodulepath');
+
 String encodePowerShell(String script) => base64Encode([
   for (final unit in script.codeUnits) ...[unit & 255, unit >> 8],
 ]);
@@ -156,12 +162,17 @@ if ([IO.Path]::GetFullPath(\$location).TrimEnd('\\') -ne [IO.Path]::GetFullPath(
 [Console]::Write('installed')
 ''';
   try {
-    final process = await Process.start(powershell, [
-      '-NoProfile',
-      '-NonInteractive',
-      '-EncodedCommand',
-      encodePowerShell(script),
-    ]);
+    final process = await Process.start(
+      powershell,
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-EncodedCommand',
+        encodePowerShell(script),
+      ],
+      environment: powershellEnvironment(),
+      includeParentEnvironment: false,
+    );
     final output = process.stdout.transform(utf8.decoder).join();
     unawaited(process.stderr.drain<void>());
     try {
@@ -373,16 +384,22 @@ class UpdateInstaller {
     try {
       await download(asset, File('${directory.path}/setup.exe'), progress);
       checkCancel();
-      final process = await Process.start(powershell, [
-        '-NoProfile',
-        '-NonInteractive',
-        '-WindowStyle',
-        'Hidden',
-        '-EncodedCommand',
-        encodePowerShell(
-          updaterScript(directory, executable, pid, asset.digest),
-        ),
-      ], workingDirectory: directory.parent.path);
+      final process = await Process.start(
+        powershell,
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-WindowStyle',
+          'Hidden',
+          '-EncodedCommand',
+          encodePowerShell(
+            updaterScript(directory, executable, pid, asset.digest),
+          ),
+        ],
+        workingDirectory: directory.parent.path,
+        environment: powershellEnvironment(),
+        includeParentEnvironment: false,
+      );
       handoff = WindowsUpdateHandoff(directory, process);
       final deadline = DateTime.now().add(const Duration(seconds: 15));
       while (!await File('${directory.path}/ready').exists()) {
