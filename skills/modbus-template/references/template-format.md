@@ -11,7 +11,7 @@
 在 modbus_connector 仓库添加内置模板时写入 `src/modbus_connector/templates/`；
 在其他目标项目中生成文件不会自动把它注册到已安装应用的菜单。
 
-`connection` 使用 Qt 公共模板字段（Flutter 模板加载器会转换）：
+`connection` 使用 兼容公共模板字段（Flutter 模板加载器会转换）：
 
 | 字段 | 值与意义 |
 | --- | --- |

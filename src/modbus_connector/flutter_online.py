@@ -147,14 +147,13 @@ class FlutterOnline:
                 "newer": release.is_newer_than(__version__) if release else False,
                 "install_supported": False,
                 "install_reason": (
-                    "Automatic installation requires a Flutter-specific installer. "
-                    "The current Windows installer is for the Qt application. "
+                    "Automatic installation is not supported by this Flutter client. "
                     "Use the releases page for manual installation."
                 ),
             }
         if command == "update_install":
             raise ValueError(
-                "Automatic installation requires a Flutter-specific installer; "
+                "Automatic installation is not supported by this Flutter client; "
                 "use manual installation."
             )
         if command == "update_open_page":

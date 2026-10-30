@@ -1,6 +1,6 @@
 ---
 name: modbus-template
-description: 基于目标固件项目的源码、寄存器表或协议文档，创建或更新 Modbus Connector 设备模板 JSON。用于提取 Modbus 地址、数据类型、缩放、枚举和位定义，生成可供 Qt/Flutter 模板目录加载的文件；不负责设备控制或固件修改。
+description: 基于目标固件项目的源码、寄存器表或协议文档，创建或更新 Modbus Connector 设备模板 JSON。用于提取 Modbus 地址、数据类型、缩放、枚举和位定义，生成可供 Flutter 模板目录加载的文件；不负责设备控制或固件修改。
 ---
 
 # Modbus 设备模板

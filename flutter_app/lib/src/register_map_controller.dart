@@ -104,7 +104,7 @@ class RegisterMapController extends ChangeNotifier {
       (polling || session.canRead);
 
   /// Writes wait for the active read request; pending writes take priority over
-  /// the next read group. The bridge still receives only one transaction at a time.
+  /// the next read group. The native service still receives one transaction at a time.
   Future<void> writeRow(
     int index, {
     List<dynamic>? values,

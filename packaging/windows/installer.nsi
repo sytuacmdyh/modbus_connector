@@ -1,20 +1,20 @@
 Unicode true
 !include "MUI2.nsh"
 !include "x64.nsh"
-Name "Modbus Connector ${VERSION}"
+Name "Modbus Connector Flutter ${VERSION}"
 OutFile "${OUTPUT_FILE}"
-InstallDir "$LOCALAPPDATA\Programs\ModbusConnector"
-InstallDirRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnector" "InstallLocation"
+InstallDir "$LOCALAPPDATA\Programs\ModbusConnectorFlutter"
+InstallDirRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnectorFlutter" "InstallLocation"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 ShowInstDetails show
 ShowUninstDetails show
 VIProductVersion "${VERSION_QUAD}"
-VIAddVersionKey "ProductName" "Modbus Connector"
+VIAddVersionKey "ProductName" "Modbus Connector Flutter"
 VIAddVersionKey "ProductVersion" "${VERSION}"
 VIAddVersionKey "FileVersion" "${VERSION_QUAD}"
-VIAddVersionKey "FileDescription" "Modbus Connector Windows x64 Setup"
-VIAddVersionKey "LegalCopyright" "MIT License - Modbus Connector contributors"
+VIAddVersionKey "FileDescription" "Modbus Connector Flutter Windows x64 Setup"
+VIAddVersionKey "LegalCopyright" "MIT License - Modbus Connector Flutter contributors"
 !define MUI_ICON "${ICON_FILE}"
 !define MUI_UNICON "${ICON_FILE}"
 !define MUI_ABORTWARNING
@@ -44,7 +44,7 @@ Function un.onInit
   SetShellVarContext current
 FunctionEnd
 
-Section "Modbus Connector" Main
+Section "Modbus Connector Flutter" Main
   SectionIn RO
   SetOutPath "$INSTDIR"
   ClearErrors
@@ -53,27 +53,27 @@ Section "Modbus Connector" Main
     SetErrorLevel 1
     Abort
   WriteUninstaller "$INSTDIR\Uninstall.exe"
-  CreateDirectory "$SMPROGRAMS\Modbus Connector"
-  CreateShortcut "$SMPROGRAMS\Modbus Connector\Modbus Connector.lnk" "$INSTDIR\ModbusConnector.exe"
-  CreateShortcut "$SMPROGRAMS\Modbus Connector\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnector" "DisplayName" "Modbus Connector"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnector" "DisplayVersion" "${VERSION}"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnector" "Publisher" "Modbus Connector contributors"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnector" "InstallLocation" "$INSTDIR"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnector" "DisplayIcon" "$INSTDIR\ModbusConnector.exe"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnector" "UninstallString" '"$INSTDIR\Uninstall.exe"'
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnector" "QuietUninstallString" '"$INSTDIR\Uninstall.exe" /S'
-  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnector" "NoModify" 1
-  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnector" "NoRepair" 1
-  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnector" "EstimatedSize" ${INSTALLED_KIB}
+  CreateDirectory "$SMPROGRAMS\Modbus Connector Flutter"
+  CreateShortcut "$SMPROGRAMS\Modbus Connector Flutter\Modbus Connector Flutter.lnk" "$INSTDIR\modbus_desktop.exe"
+  CreateShortcut "$SMPROGRAMS\Modbus Connector Flutter\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnectorFlutter" "DisplayName" "Modbus Connector Flutter"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnectorFlutter" "DisplayVersion" "${VERSION}"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnectorFlutter" "Publisher" "Modbus Connector Flutter contributors"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnectorFlutter" "InstallLocation" "$INSTDIR"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnectorFlutter" "DisplayIcon" "$INSTDIR\modbus_desktop.exe"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnectorFlutter" "UninstallString" '"$INSTDIR\Uninstall.exe"'
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnectorFlutter" "QuietUninstallString" '"$INSTDIR\Uninstall.exe" /S'
+  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnectorFlutter" "NoModify" 1
+  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnectorFlutter" "NoRepair" 1
+  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnectorFlutter" "EstimatedSize" ${INSTALLED_KIB}
 SectionEnd
 
 Section "Uninstall"
   !include "${UNINSTALL_FILES}"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"
-  Delete "$SMPROGRAMS\Modbus Connector\Modbus Connector.lnk"
-  Delete "$SMPROGRAMS\Modbus Connector\Uninstall.lnk"
-  RMDir "$SMPROGRAMS\Modbus Connector"
-  DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnector"
+  Delete "$SMPROGRAMS\Modbus Connector Flutter\Modbus Connector Flutter.lnk"
+  Delete "$SMPROGRAMS\Modbus Connector Flutter\Uninstall.lnk"
+  RMDir "$SMPROGRAMS\Modbus Connector Flutter"
+  DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnectorFlutter"
 SectionEnd

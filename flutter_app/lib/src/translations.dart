@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import 'qt_translations.dart';
+import 'common_translations.dart';
 
 final appLanguage = ValueNotifier<String>('en');
 final appTheme = ValueNotifier<ThemeMode>(ThemeMode.system);
@@ -11,7 +11,7 @@ String tr(String value) =>
 
 // Match specific messages before broad patterns such as "Unit {unit}".
 final _dynamicChinese = <(RegExp, String, List<String>)>[
-  for (final entry in {...qtChinese, ...flutterChinese}.entries)
+  for (final entry in {...commonChinese, ...flutterChinese}.entries)
     if (RegExp(r'\{\w+\}').hasMatch(entry.key))
       _translationPattern(entry.key, entry.value),
 ]..sort((a, b) => b.$1.pattern.length.compareTo(a.$1.pattern.length));
@@ -35,7 +35,7 @@ final _dynamicChinese = <(RegExp, String, List<String>)>[
 }
 
 String _translate(String value, int depth) {
-  final exact = flutterChinese[value] ?? qtChinese[value];
+  final exact = flutterChinese[value] ?? commonChinese[value];
   if (exact != null) return exact;
   if (depth > 2) return value;
   for (final (pattern, translation, names) in _dynamicChinese) {
@@ -132,7 +132,7 @@ const flutterChinese = <String, String>{
   '{kind} @{address}': '{kind} @{address}',
   'unit {unit} {kind} @{address}': '站号 {unit} {kind} @{address}',
   '{kind}/{address}': '{kind}/{address}',
-  'Python bridge stopped. Reconnect to recover.': 'Python 桥接进程已停止，请重新连接以恢复。',
+  'Native backend stopped. Reconnect to recover.': '原生 backend 已停止，请重新连接以恢复。',
   'Restore requires a disconnected session': '恢复工作区需要先断开会话',
   'Activate selected template version?': '启用选中的模板版本？',
   'Cancel transfer': '取消传输',
@@ -151,9 +151,7 @@ const flutterChinese = <String, String>{
   'Bridge is closing': '桥接进程正在关闭',
   'Bridge operation already in progress': '桥接操作正在进行中',
   'Bridge timed out. Reconnect to recover.': '桥接进程超时，请重新连接以恢复。',
-  'Install the Python package and set MODBUS_PYTHON to its interpreter.':
-      '请安装 Python 包，并将 MODBUS_PYTHON 设置为对应的解释器路径。',
-  'Unsupported Python bridge protocol': '不支持的 Python 桥接协议',
+  'Unsupported native backend protocol': '不支持的 Python 桥接协议',
   'Expression name': '表达式名称',
   'Expression: [register name], arithmetic, sin(), sqrt(), clamp()':
       '表达式：[寄存器名称]、算术、sin()、sqrt()、clamp()',

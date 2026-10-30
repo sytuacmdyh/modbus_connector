@@ -197,7 +197,7 @@ def test_poll_with_map_and_log(
     assert [line["name"] for line in lines] == ["temperature", "flags"]
     assert lines[0]["raw"] == [100, 101]
     assert lines[1]["raw"] == [True, False, True, False]
-    log_lines = log_file.read_text().splitlines()  # файл корректно закрыт
+    log_lines = log_file.read_text(encoding="utf-8-sig").splitlines()  # файл корректно закрыт
     assert log_lines[0] == "timestamp,name,address,kind,value"
     assert len(log_lines) == 3
     assert "temperature" in log_lines[1]

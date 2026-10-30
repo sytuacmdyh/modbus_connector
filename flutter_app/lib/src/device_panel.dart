@@ -435,7 +435,7 @@ class _DevicePanelState extends State<DevicePanel> {
 
   Future<void> templates() async {
     final service = SessionController(
-      (widget.utilityBridgeFactory ?? ProcessBridge.new)(),
+      (widget.utilityBridgeFactory ?? NativeBridge.new)(),
     );
     List<Map<String, dynamic>>? incoming;
     try {

@@ -20,7 +20,7 @@ import 'demo.dart';
 
 class WorkspaceController extends ChangeNotifier {
   WorkspaceController({BridgeTransport Function()? bridgeFactory, this.store})
-    : bridgeFactory = bridgeFactory ?? ProcessBridge.new {
+    : bridgeFactory = bridgeFactory ?? NativeBridge.new {
     add();
     if (store != null) {
       loading = true;

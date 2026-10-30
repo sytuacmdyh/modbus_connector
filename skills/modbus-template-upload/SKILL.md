@@ -10,7 +10,7 @@ description: 将用户指定的 Modbus Connector 模板 JSON 上传到 WebDAV �
 技能可以独立安装，但运行脚本的 Python 环境需有本项目的 `modbus_connector` 包。
 优先使用用户现有的项目虚拟环境；若没有，在独立虚拟环境安装此仓库的 headless 包
 （`python -m pip install 'git+https://github.com/sytuacmdyh/modbus_connector.git@v0.16.0'`），
-无需 `gui` extra。不要把依赖或用户配置装入技能目录。
+无需 Python GUI 依赖。不要把依赖或用户配置装入技能目录。
 
 下列 `<script>` 指本 SKILL.md 同目录下的 `scripts/upload_templates.py`。
 
@@ -34,7 +34,7 @@ python <script> configure --url '<用户输入的模板目录URL>' --username '<
 
 默认配置文件为 `~/.modbus_connector/skills/template-upload/config.json`。
 `MODBUS_TEMPLATE_UPLOAD_HOME` 可指定外部配置目录；它不能位于当前技能目录内
-（包括软链接解析后的路径）。技能升级/重装不修改这个文件。它与 Qt/Flutter 的
+（包括软链接解析后的路径）。技能升级/重装不修改这个文件。它与 Flutter 的
 `cloud.json`、工作区设置和模板缓存互相独立，不提交到 Git，不作为上传内容。
 默认只保存 URL、用户名和超时。认证密码通过 `MODBUS_TEMPLATE_UPLOAD_PASSWORD`
 环境变量提供，或由用户在交互终端隐藏输入。用户明确要求保存凭据时，可为 configure

@@ -8,8 +8,8 @@ import 'package:modbus_desktop/src/workspace.dart';
 import 'package:modbus_desktop/src/session_controller.dart';
 
 // A small real-device response delay prevents instant local replies from hiding
-// per-request rebuilds between frames. All protocol I/O still uses the real bridge.
-class PacedBridge extends ProcessBridge {
+// per-request rebuilds between frames. All service I/O uses the real native backend.
+class PacedBridge extends NativeBridge {
   @override
   Future<BridgeReply> request(
     Map<String, dynamic> command, {

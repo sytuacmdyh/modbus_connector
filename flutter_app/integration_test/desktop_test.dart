@@ -10,6 +10,8 @@ void main() {
   testWidgets(
     'local demo opens isolated map, animates, writes, graphs and reconnects',
     (tester) async {
+      // Profile desktop runs use the native IME unless the test keyboard is registered.
+      binding.testTextInput.register();
       await binding.setSurfaceSize(const Size(1280, 800));
       final workspace = WorkspaceController();
       final device = workspace.sessions.first;
@@ -30,7 +32,7 @@ void main() {
           ),
         );
         await tester.tap(find.byTooltip('Workspace'));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 100));
         await tester.tap(find.text('Local demo'));
         for (
           var i = 0;
@@ -45,7 +47,11 @@ void main() {
         expect(device.registers.single['address'], 600);
         expect(device.connected, isFalse);
         final demo = workspace.sessions.last;
-        expect(demo.connected, isTrue);
+        expect(
+          demo.connected,
+          isTrue,
+          reason: 'busy=${demo.busy}; error=${demo.error}; logs=${demo.logs}',
+        );
         expect(demo.registerMap.polling, isTrue);
         expect(demo.error, isNull);
         expect(demo.registers, hasLength(6));
@@ -56,6 +62,9 @@ void main() {
         expect(demo.registerResults[2]['values'], [100]);
         expect(demo.registerResults[4]['values'], [true]);
         expect(demo.registerResults[5]['values'], [true]);
+        for (final row in demo.registers) {
+          row['trend_enabled'] = true;
+        }
         final first = demo.registerResults[0]['values'].single;
         for (var i = 0; i < 20; i++) {
           await tester.pump(const Duration(milliseconds: 100));
@@ -65,17 +74,38 @@ void main() {
         expect(find.text('Read'), findsNothing);
         expect(find.byType(RegisterMapPanel), findsOneWidget);
         await tester.tap(find.text('Stop'));
-        while (demo.busy || demo.registerMap.reading) {
+        expect(demo.registerMap.polling, isFalse);
+        for (
+          var i = 0;
+          i < 500 && (demo.busy || demo.registerMap.reading);
+          i++
+        ) {
           await tester.pump(const Duration(milliseconds: 20));
         }
-        await tester.pumpAndSettle();
+        expect(demo.busy, isFalse, reason: demo.error);
+        expect(demo.registerMap.reading, isFalse);
+        await tester.pump(const Duration(milliseconds: 100));
         await tester.tap(find.byTooltip('Write row').at(2));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pump(const Duration(milliseconds: 300));
         await tester.enterText(
           find.descendant(
             of: find.byType(AlertDialog),
             matching: find.byType(TextField),
           ),
+          '23.5',
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(
+          tester
+              .widget<TextField>(
+                find.descendant(
+                  of: find.byType(AlertDialog),
+                  matching: find.byType(TextField),
+                ),
+              )
+              .controller!
+              .text,
           '23.5',
         );
         await tester.tap(find.text('Apply'));
@@ -86,19 +116,19 @@ void main() {
         ) {
           await tester.pump(const Duration(milliseconds: 50));
         }
-        expect(demo.error, isNull);
+        expect(demo.error, isNull, reason: '${demo.registers[2]}');
         expect(demo.registerResults[2]['values'], [235]);
         await demo.registerMap.quickValue(4, 'zero');
         expect(demo.registerResults[4]['values'], [false]);
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 100));
         await tester.tap(find.text('More tools'));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 100));
         await tester.tap(find.byTooltip('Graph map'));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 100));
         expect(find.byType(GraphDialog), findsOneWidget);
         expect(find.text('Demo signal A @0'), findsOneWidget);
         await tester.tap(find.text('Close'));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 100));
         await tester.ensureVisible(find.text('Disconnect'));
         await tester.tap(find.text('Disconnect'));
         for (var i = 0; i < 100 && demo.disconnecting; i++) {
@@ -106,7 +136,7 @@ void main() {
         }
         expect(demo.connected, isFalse);
         expect(demo.registerMap.polling, isFalse);
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 100));
         await tester.tap(find.text('Connect'));
         for (var i = 0; i < 100 && !demo.connected; i++) {
           await tester.pump(const Duration(milliseconds: 50));
@@ -117,10 +147,11 @@ void main() {
         expect(demo.error, isNull);
         expect(tester.takeException(), isNull);
       } finally {
-        await workspace.shutdown();
+        await workspace.shutdown().timeout(const Duration(seconds: 10));
         await tester.pumpWidget(const SizedBox());
         workspace.dispose();
         await binding.setSurfaceSize(null);
+        binding.testTextInput.unregister();
       }
     },
   );

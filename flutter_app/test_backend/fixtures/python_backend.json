@@ -1,0 +1,10140 @@
+[
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3, -3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "6550, 6550, 6550, 6550 ℃",
+          "numeric": 6550.5,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-2.9, -2.8, -2.7, -2.6 ℃",
+          "numeric": -2.9,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1694, -3, -3, -3 ℃",
+          "numeric": 1693.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3, -3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "6550, 6550, 6550, 6550 ℃",
+          "numeric": 6550.5,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-2.9, -2.8, -2.7, -2.6 ℃",
+          "numeric": -2.9,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1694, -3, -3, -3 ℃",
+          "numeric": 1693.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3, -3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "6550, 6550, 6550, 6550 ℃",
+          "numeric": 6550.5,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-2.9, -2.8, -2.7, -2.6 ℃",
+          "numeric": -2.9,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1694, -3, -3, -3 ℃",
+          "numeric": 1693.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3, -3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "6550, 6550, 6550, 6550 ℃",
+          "numeric": 6550.5,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-2.9, -2.8, -2.7, -2.6 ℃",
+          "numeric": -2.9,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1694, -3, -3, -3 ℃",
+          "numeric": 1693.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3, -3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "-3.1, -3.1, -3.1, -3.1 ℃",
+          "numeric": -3.1,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-2.9, -2.8, -2.7, -2.6 ℃",
+          "numeric": -2.9,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1694, -3, -3, -3 ℃",
+          "numeric": 1693.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3, -3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "-3.1, -3.1, -3.1, -3.1 ℃",
+          "numeric": -3.1,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-2.9, -2.8, -2.7, -2.6 ℃",
+          "numeric": -2.9,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1694, -3, -3, -3 ℃",
+          "numeric": 1693.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3, -3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "-3.1, -3.1, -3.1, -3.1 ℃",
+          "numeric": -3.1,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-2.9, -2.8, -2.7, -2.6 ℃",
+          "numeric": -2.9,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1694, -3, -3, -3 ℃",
+          "numeric": 1693.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3, -3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "-3.1, -3.1, -3.1, -3.1 ℃",
+          "numeric": -3.1,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-2.9, -2.8, -2.7, -2.6 ℃",
+          "numeric": -2.9,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1694, -3, -3, -3 ℃",
+          "numeric": 1693.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "4.295e+08, 4.295e+08 ℃",
+          "numeric": 429496726.5,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "6551, 1.966e+04 ℃",
+          "numeric": 6550.8,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1.112e+08, -3 ℃",
+          "numeric": 111201481.80000001,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "4.295e+08, 4.295e+08 ℃",
+          "numeric": 429496726.5,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "1.678e+06, 5.033e+06 ℃",
+          "numeric": 1677769.8,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1.212e+08, -3 ℃",
+          "numeric": 121228489.80000001,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "4.295e+08, 4.295e+08 ℃",
+          "numeric": 429496726.5,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "1.31e+04, 2.621e+04 ℃",
+          "numeric": 13104.300000000001,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1694, -3 ℃",
+          "numeric": 1693.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "4.295e+08, 4.295e+08 ℃",
+          "numeric": 429496726.5,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "3.355e+06, 6.711e+06 ℃",
+          "numeric": 3355465.8000000003,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u32",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1847, -3 ℃",
+          "numeric": 1846.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "-3.1, -3.1 ℃",
+          "numeric": -3.1,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "6551, 1.966e+04 ℃",
+          "numeric": 6550.8,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1.112e+08, -3 ℃",
+          "numeric": 111201481.80000001,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "-3.1, -3.1 ℃",
+          "numeric": -3.1,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "1.678e+06, 5.033e+06 ℃",
+          "numeric": 1677769.8,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1.212e+08, -3 ℃",
+          "numeric": 121228489.80000001,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "-3.1, -3.1 ℃",
+          "numeric": -3.1,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "1.31e+04, 2.621e+04 ℃",
+          "numeric": 13104.300000000001,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1694, -3 ℃",
+          "numeric": 1693.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "-3.1, -3.1 ℃",
+          "numeric": -3.1,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "3.355e+06, 6.711e+06 ℃",
+          "numeric": 3355465.8000000003,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s32",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1847, -3 ℃",
+          "numeric": 1846.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "nan, nan ℃",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "2, -3 ℃",
+          "numeric": 2.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "nan, nan ℃",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1.986e+04, -3 ℃",
+          "numeric": 19862.600000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "nan, nan ℃",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "nan, nan ℃",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f32",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "-3, -3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "1.845e+18 ℃",
+          "numeric": 1.8446744073709553e+18,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "2.815e+13 ℃",
+          "numeric": 28148356684183.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "4.776e+17 ℃",
+          "numeric": 4.7760674048264115e+17,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "1.845e+18 ℃",
+          "numeric": 1.8446744073709553e+18,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "7.206e+15 ℃",
+          "numeric": 7205979311151613.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "5.207e+17 ℃",
+          "numeric": 5.206724119193715e+17,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "1.845e+18 ℃",
+          "numeric": 1.8446744073709553e+18,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "1.126e+14 ℃",
+          "numeric": 112591279187555.5,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1694 ℃",
+          "numeric": 1693.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "1.845e+18 ℃",
+          "numeric": 1.8446744073709553e+18,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "2.882e+16 ℃",
+          "numeric": 2.8823367472014972e+16,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "u64",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1847 ℃",
+          "numeric": 1846.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "-3.1 ℃",
+          "numeric": -3.1,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "2.815e+13 ℃",
+          "numeric": 28148356684183.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "4.776e+17 ℃",
+          "numeric": 4.7760674048264115e+17,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "-3.1 ℃",
+          "numeric": -3.1,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "7.206e+15 ℃",
+          "numeric": 7205979311151613.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "5.207e+17 ℃",
+          "numeric": 5.206724119193715e+17,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "-3.1 ℃",
+          "numeric": -3.1,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "1.126e+14 ℃",
+          "numeric": 112591279187555.5,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1694 ℃",
+          "numeric": 1693.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "-3.1 ℃",
+          "numeric": -3.1,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "2.882e+16 ℃",
+          "numeric": 2.8823367472014972e+16,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s64",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1847 ℃",
+          "numeric": 1846.8000000000002,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "nan ℃",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "2.062e+10 ℃",
+          "numeric": 20615843017.800003,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "nan ℃",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "1.225e+39 ℃",
+          "numeric": 1.2250165209153785e+39,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "nan ℃",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "nan ℃",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "f64",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "-3 ℃",
+          "numeric": -3.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "0x0000, 0x0000, 0x0000, 0x0000",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "0x0001, 0x0002, 0x0003, 0x0004",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "0x4248, 0x0000, 0x0000, 0x0000",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "0x0000, 0x0000, 0x0000, 0x0000",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "0x0001, 0x0002, 0x0003, 0x0004",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "0x4248, 0x0000, 0x0000, 0x0000",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "0x0000, 0x0000, 0x0000, 0x0000",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "0x0001, 0x0002, 0x0003, 0x0004",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "0x4248, 0x0000, 0x0000, 0x0000",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "0x0000, 0x0000, 0x0000, 0x0000",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "0x0001, 0x0002, 0x0003, 0x0004",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "0x4248, 0x0000, 0x0000, 0x0000",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "........",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "BH",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "........",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "BH",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "........",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "BH",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "........",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "BH",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "....",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "....",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "ABCD",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "H",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "....",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "....",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "BADC",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "H",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "....",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "....",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "CDAB",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "H",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "display": "",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535,
+            65535,
+            65535,
+            65535
+          ],
+          "display": "....",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "display": "....",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "ascii1",
+          "order": "DCBA",
+          "count": 4,
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "scale": 0.1,
+          "offset": -3,
+          "unit": "℃"
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            16968,
+            0,
+            0,
+            0
+          ],
+          "display": "H",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "ABCD",
+        "count": 1
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "ABCD",
+        "count": 1
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "ABCD",
+        "count": 1
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        4
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "ABCD",
+        "count": 1
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        1234
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "BADC",
+        "count": 1
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "BADC",
+        "count": 1
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "BADC",
+        "count": 1
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        4
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "BADC",
+        "count": 1
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        1234
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "CDAB",
+        "count": 1
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "CDAB",
+        "count": 1
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "CDAB",
+        "count": 1
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        4
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "CDAB",
+        "count": 1
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        1234
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "DCBA",
+        "count": 1
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "DCBA",
+        "count": 1
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "DCBA",
+        "count": 1
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        4
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "dec",
+        "order": "DCBA",
+        "count": 1
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        1234
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "ABCD",
+        "count": 1
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        65534
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "ABCD",
+        "count": 1
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "ABCD",
+        "count": 1
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        4
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "ABCD",
+        "count": 1
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        1234
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "BADC",
+        "count": 1
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        65534
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "BADC",
+        "count": 1
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "BADC",
+        "count": 1
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        4
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "BADC",
+        "count": 1
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        1234
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "CDAB",
+        "count": 1
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        65534
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "CDAB",
+        "count": 1
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "CDAB",
+        "count": 1
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        4
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "CDAB",
+        "count": 1
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        1234
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "DCBA",
+        "count": 1
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        65534
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "DCBA",
+        "count": 1
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "DCBA",
+        "count": 1
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        4
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s16",
+        "order": "DCBA",
+        "count": 1
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        1234
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "ABCD",
+        "count": 2
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "ABCD",
+        "count": 2
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "ABCD",
+        "count": 2
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        0,
+        4
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "ABCD",
+        "count": 2
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        0,
+        1234
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "BADC",
+        "count": 2
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "BADC",
+        "count": 2
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "BADC",
+        "count": 2
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        0,
+        1024
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "BADC",
+        "count": 2
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        0,
+        53764
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "CDAB",
+        "count": 2
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "CDAB",
+        "count": 2
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "CDAB",
+        "count": 2
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        4,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "CDAB",
+        "count": 2
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        1234,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "DCBA",
+        "count": 2
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "DCBA",
+        "count": 2
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "DCBA",
+        "count": 2
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        1024,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u32",
+        "order": "DCBA",
+        "count": 2
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        53764,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "ABCD",
+        "count": 2
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        65535,
+        65534
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "ABCD",
+        "count": 2
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "ABCD",
+        "count": 2
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        0,
+        4
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "ABCD",
+        "count": 2
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        0,
+        1234
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "BADC",
+        "count": 2
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        65535,
+        65279
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "BADC",
+        "count": 2
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "BADC",
+        "count": 2
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        0,
+        1024
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "BADC",
+        "count": 2
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        0,
+        53764
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "CDAB",
+        "count": 2
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        65534,
+        65535
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "CDAB",
+        "count": 2
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "CDAB",
+        "count": 2
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        4,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "CDAB",
+        "count": 2
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        1234,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "DCBA",
+        "count": 2
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        65279,
+        65535
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "DCBA",
+        "count": 2
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "DCBA",
+        "count": 2
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        1024,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s32",
+        "order": "DCBA",
+        "count": 2
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        53764,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "ABCD",
+        "count": 2
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        49184,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "ABCD",
+        "count": 2
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "ABCD",
+        "count": 2
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        16480,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "ABCD",
+        "count": 2
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        17562,
+        17408
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "BADC",
+        "count": 2
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        8384,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "BADC",
+        "count": 2
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "BADC",
+        "count": 2
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        24640,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "BADC",
+        "count": 2
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        39492,
+        68
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "CDAB",
+        "count": 2
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0,
+        49184
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "CDAB",
+        "count": 2
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "CDAB",
+        "count": 2
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        0,
+        16480
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "CDAB",
+        "count": 2
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        17408,
+        17562
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "DCBA",
+        "count": 2
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0,
+        8384
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "DCBA",
+        "count": 2
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "DCBA",
+        "count": 2
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        0,
+        24640
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f32",
+        "order": "DCBA",
+        "count": 2
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        68,
+        39492
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "ABCD",
+        "count": 4
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "ABCD",
+        "count": 4
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "ABCD",
+        "count": 4
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        4
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "ABCD",
+        "count": 4
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        1234
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "BADC",
+        "count": 4
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "BADC",
+        "count": 4
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "BADC",
+        "count": 4
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        1024
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "BADC",
+        "count": 4
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        53764
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "CDAB",
+        "count": 4
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "CDAB",
+        "count": 4
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "CDAB",
+        "count": 4
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        4,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "CDAB",
+        "count": 4
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        1234,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "DCBA",
+        "count": 4
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "DCBA",
+        "count": 4
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "DCBA",
+        "count": 4
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        1024,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "u64",
+        "order": "DCBA",
+        "count": 4
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        53764,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "ABCD",
+        "count": 4
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        65535,
+        65535,
+        65535,
+        65534
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "ABCD",
+        "count": 4
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "ABCD",
+        "count": 4
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        4
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "ABCD",
+        "count": 4
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        1234
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "BADC",
+        "count": 4
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        65535,
+        65535,
+        65535,
+        65279
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "BADC",
+        "count": 4
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "BADC",
+        "count": 4
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        1024
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "BADC",
+        "count": 4
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        53764
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "CDAB",
+        "count": 4
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        65534,
+        65535,
+        65535,
+        65535
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "CDAB",
+        "count": 4
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "CDAB",
+        "count": 4
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        4,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "CDAB",
+        "count": 4
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        1234,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "DCBA",
+        "count": 4
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        65279,
+        65535,
+        65535,
+        65535
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "DCBA",
+        "count": 4
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "DCBA",
+        "count": 4
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        1024,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "s64",
+        "order": "DCBA",
+        "count": 4
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        53764,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "ABCD",
+        "count": 4
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        49156,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "ABCD",
+        "count": 4
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "ABCD",
+        "count": 4
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        16396,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "ABCD",
+        "count": 4
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        16531,
+        18560,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "BADC",
+        "count": 4
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        1216,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "BADC",
+        "count": 4
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "BADC",
+        "count": 4
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        3136,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "BADC",
+        "count": 4
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        37696,
+        32840,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "CDAB",
+        "count": 4
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        49156
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "CDAB",
+        "count": 4
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "CDAB",
+        "count": 4
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        16396
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "CDAB",
+        "count": 4
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        18560,
+        16531
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "DCBA",
+        "count": 4
+      },
+      "text": "-2.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        1216
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "DCBA",
+        "count": 4
+      },
+      "text": "0"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "DCBA",
+        "count": 4
+      },
+      "text": "3.5"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        0,
+        3136
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "encode_values",
+      "row": {
+        "format": "f64",
+        "order": "DCBA",
+        "count": 4
+      },
+      "text": "1234.125"
+    },
+    "result": {
+      "values": [
+        0,
+        0,
+        32840,
+        37696
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "1+2*3"
+        }
+      ],
+      "values": {
+        "温度": 123
+      }
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 7.0,
+          "display": "7",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "-2**2"
+        }
+      ],
+      "values": {
+        "温度": 123
+      }
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": -4.0,
+          "display": "-4",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "2**-2"
+        }
+      ],
+      "values": {
+        "温度": 123
+      }
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 0.25,
+          "display": "0.25",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "7//-2"
+        }
+      ],
+      "values": {
+        "温度": 123
+      }
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": -4.0,
+          "display": "-4",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "7%-2"
+        }
+      ],
+      "values": {
+        "温度": 123
+      }
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": -1.0,
+          "display": "-1",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "round(2.5)"
+        }
+      ],
+      "values": {
+        "温度": 123
+      }
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 2.0,
+          "display": "2",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "round(3.5)"
+        }
+      ],
+      "values": {
+        "温度": 123
+      }
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 4.0,
+          "display": "4",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "clamp([温度],0,10)"
+        }
+      ],
+      "values": {
+        "温度": 123
+      }
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 10.0,
+          "display": "10",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "log(8,2)"
+        }
+      ],
+      "values": {
+        "温度": 123
+      }
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 3.0,
+          "display": "3",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "[温度]*0.1+2"
+        }
+      ],
+      "values": {
+        "温度": 123
+      }
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 14.3,
+          "display": "14.3",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "min(4,2,8)"
+        }
+      ],
+      "values": {
+        "温度": 123
+      }
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 2.0,
+          "display": "2",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "sin(pi/2)"
+        }
+      ],
+      "values": {
+        "温度": 123
+      }
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 1.0,
+          "display": "1",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "sqrt(-1)"
+        }
+      ],
+      "values": {
+        "温度": 123
+      }
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": null,
+          "display": "—",
+          "error": "Expression result is not finite",
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "values": [
+            0
+          ],
+          "bitmask": false,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0
+          ],
+          "display": "Off (0)",
+          "numeric": 0.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "values": [
+            0
+          ],
+          "bitmask": true,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0
+          ],
+          "display": "0000 0000 0000 0000",
+          "numeric": 0.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "values": [
+            0
+          ],
+          "bitmask": false,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0
+          ],
+          "display": "Off (0)",
+          "numeric": 0.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "values": [
+            0
+          ],
+          "bitmask": true,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0
+          ],
+          "display": "0000 0000 0000 0000",
+          "numeric": 0.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "values": [
+            0
+          ],
+          "bitmask": false,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0
+          ],
+          "display": "Off (0)",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "values": [
+            0
+          ],
+          "bitmask": true,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            0
+          ],
+          "display": "0000 0000 0000 0000",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "values": [
+            1
+          ],
+          "bitmask": false,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1
+          ],
+          "display": "Run (1)",
+          "numeric": 1.0,
+          "alarm": {
+            "condition": "ge",
+            "value": 1.0,
+            "color": "red",
+            "log": true,
+            "sound": false
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "values": [
+            1
+          ],
+          "bitmask": true,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1
+          ],
+          "display": "Off (0000 0000 0000 0001)",
+          "numeric": 1.0,
+          "alarm": {
+            "condition": "ge",
+            "value": 1.0,
+            "color": "red",
+            "log": true,
+            "sound": false
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "values": [
+            1
+          ],
+          "bitmask": false,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1
+          ],
+          "display": "Run (1)",
+          "numeric": 1.0,
+          "alarm": {
+            "condition": "ge",
+            "value": 1.0,
+            "color": "red",
+            "log": true,
+            "sound": false
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "values": [
+            1
+          ],
+          "bitmask": true,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1
+          ],
+          "display": "Off (0000 0000 0000 0001)",
+          "numeric": 1.0,
+          "alarm": {
+            "condition": "ge",
+            "value": 1.0,
+            "color": "red",
+            "log": true,
+            "sound": false
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "values": [
+            1
+          ],
+          "bitmask": false,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1
+          ],
+          "display": "Run (1)",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "values": [
+            1
+          ],
+          "bitmask": true,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            1
+          ],
+          "display": "Off (0000 0000 0000 0001)",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "values": [
+            5
+          ],
+          "bitmask": false,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            5
+          ],
+          "display": "5",
+          "numeric": 5.0,
+          "alarm": {
+            "condition": "ge",
+            "value": 1.0,
+            "color": "red",
+            "log": true,
+            "sound": false
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "values": [
+            5
+          ],
+          "bitmask": true,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            5
+          ],
+          "display": "Off, Alarm (0000 0000 0000 0101)",
+          "numeric": 5.0,
+          "alarm": {
+            "condition": "ge",
+            "value": 1.0,
+            "color": "red",
+            "log": true,
+            "sound": false
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "values": [
+            5
+          ],
+          "bitmask": false,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            5
+          ],
+          "display": "5",
+          "numeric": 5.0,
+          "alarm": {
+            "condition": "ge",
+            "value": 1.0,
+            "color": "red",
+            "log": true,
+            "sound": false
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "values": [
+            5
+          ],
+          "bitmask": true,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            5
+          ],
+          "display": "Off, Alarm (0000 0000 0000 0101)",
+          "numeric": 5.0,
+          "alarm": {
+            "condition": "ge",
+            "value": 1.0,
+            "color": "red",
+            "log": true,
+            "sound": false
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "values": [
+            5
+          ],
+          "bitmask": false,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            5
+          ],
+          "display": "0x0005",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "values": [
+            5
+          ],
+          "bitmask": true,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            5
+          ],
+          "display": "Off, Alarm (0000 0000 0000 0101)",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "values": [
+            65535
+          ],
+          "bitmask": false,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535
+          ],
+          "display": "6.554e+04",
+          "numeric": 65535.0,
+          "alarm": {
+            "condition": "ge",
+            "value": 1.0,
+            "color": "red",
+            "log": true,
+            "sound": false
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "dec",
+          "values": [
+            65535
+          ],
+          "bitmask": true,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535
+          ],
+          "display": "Off, Run, Alarm, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15 (1111 1111 1111 1111)",
+          "numeric": 65535.0,
+          "alarm": {
+            "condition": "ge",
+            "value": 1.0,
+            "color": "red",
+            "log": true,
+            "sound": false
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "values": [
+            65535
+          ],
+          "bitmask": false,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535
+          ],
+          "display": "-1",
+          "numeric": -1.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "s16",
+          "values": [
+            65535
+          ],
+          "bitmask": true,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535
+          ],
+          "display": "Off, Run, Alarm, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15 (1111 1111 1111 1111)",
+          "numeric": -1.0,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "values": [
+            65535
+          ],
+          "bitmask": false,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535
+          ],
+          "display": "0xFFFF",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "render_rows",
+      "rows": [
+        {
+          "format": "hex",
+          "values": [
+            65535
+          ],
+          "bitmask": true,
+          "value_names": {
+            "0": "Off",
+            "1": "Run",
+            "2": "Alarm"
+          },
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "result": {
+      "rows": [
+        {
+          "values": [
+            65535
+          ],
+          "display": "Off, Run, Alarm, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15 (1111 1111 1111 1111)",
+          "numeric": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "1",
+          "alarms": [
+            {
+              "condition": "gt",
+              "value": 2,
+              "color": "yellow",
+              "sound": true
+            }
+          ]
+        }
+      ],
+      "values": {}
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 1.0,
+          "display": "1",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "1",
+          "alarms": [
+            {
+              "condition": "ge",
+              "value": 2,
+              "color": "yellow",
+              "sound": true
+            }
+          ]
+        }
+      ],
+      "values": {}
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 1.0,
+          "display": "1",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "1",
+          "alarms": [
+            {
+              "condition": "lt",
+              "value": 2,
+              "color": "yellow",
+              "sound": true
+            }
+          ]
+        }
+      ],
+      "values": {}
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 1.0,
+          "display": "1",
+          "error": null,
+          "alarm": {
+            "condition": "lt",
+            "value": 2.0,
+            "color": "yellow",
+            "log": true,
+            "sound": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "1",
+          "alarms": [
+            {
+              "condition": "le",
+              "value": 2,
+              "color": "yellow",
+              "sound": true
+            }
+          ]
+        }
+      ],
+      "values": {}
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 1.0,
+          "display": "1",
+          "error": null,
+          "alarm": {
+            "condition": "le",
+            "value": 2.0,
+            "color": "yellow",
+            "log": true,
+            "sound": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "1",
+          "alarms": [
+            {
+              "condition": "eq",
+              "value": 2,
+              "color": "yellow",
+              "sound": true
+            }
+          ]
+        }
+      ],
+      "values": {}
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 1.0,
+          "display": "1",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "1",
+          "alarms": [
+            {
+              "condition": "ne",
+              "value": 2,
+              "color": "yellow",
+              "sound": true
+            }
+          ]
+        }
+      ],
+      "values": {}
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 1.0,
+          "display": "1",
+          "error": null,
+          "alarm": {
+            "condition": "ne",
+            "value": 2.0,
+            "color": "yellow",
+            "log": true,
+            "sound": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "1",
+          "alarms": [
+            {
+              "condition": "in_range",
+              "value": 2,
+              "color": "yellow",
+              "sound": true,
+              "value2": -1
+            }
+          ]
+        }
+      ],
+      "values": {}
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 1.0,
+          "display": "1",
+          "error": null,
+          "alarm": {
+            "condition": "in_range",
+            "value": -1.0,
+            "color": "yellow",
+            "log": true,
+            "sound": true,
+            "value2": 2.0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "evaluate_expressions",
+      "expressions": [
+        {
+          "text": "1",
+          "alarms": [
+            {
+              "condition": "outside_range",
+              "value": 2,
+              "color": "yellow",
+              "sound": true,
+              "value2": -1
+            }
+          ]
+        }
+      ],
+      "values": {}
+    },
+    "result": {
+      "rows": [
+        {
+          "numeric": 1.0,
+          "display": "1",
+          "error": null,
+          "alarm": null
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "csv_parse",
+      "text": "name,type,address\n温度,holding_registers,0x10\n"
+    },
+    "result": {
+      "rows": [
+        {
+          "name": "温度",
+          "kind": "holding_registers",
+          "address": 16,
+          "count": 1,
+          "format": "dec",
+          "order": null,
+          "scale": 1.0,
+          "offset": 0.0,
+          "unit": "",
+          "unit_id": null,
+          "poll_ms": null,
+          "log": true,
+          "trend_enabled": true,
+          "value_names": {},
+          "bitmask": false,
+          "alarms": []
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "command": "csv_parse",
+      "text": "name,kind,address,count,format,unit_id,poll_ms\nSensor,input_registers,4,2,f32,7,100\n"
+    },
+    "result": {
+      "rows": [
+        {
+          "name": "Sensor",
+          "kind": "input_registers",
+          "address": 4,
+          "count": 2,
+          "format": "f32",
+          "order": null,
+          "scale": 1.0,
+          "offset": 0.0,
+          "unit": "",
+          "unit_id": 7,
+          "poll_ms": 100,
+          "log": true,
+          "trend_enabled": true,
+          "value_names": {},
+          "bitmask": false,
+          "alarms": []
+        }
+      ]
+    }
+  }
+]

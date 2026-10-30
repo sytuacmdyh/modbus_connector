@@ -118,9 +118,23 @@ def publish(version: str, remote: str, *, dry_run: bool, resume: bool) -> str:
         return head
     if not resume:
         if current != version:
+            version_files = [VERSION_FILE]
+            flutter_version = ROOT / "flutter_app/pubspec.yaml"
+            if flutter_version.exists():
+                flutter_source = flutter_version.read_text(encoding="utf-8")
+                flutter_match = re.search(r"^version: ([^\n]+)$", flutter_source, re.MULTILINE)
+                if flutter_match is None:
+                    raise ValueError("未找到 Flutter 版本号。")
+                build = flutter_match[1].partition("+")[2]
+                flutter_version.write_text(
+                    flutter_source[:flutter_match.start(1)] + version
+                    + (f"+{build}" if build else "")
+                    + flutter_source[flutter_match.end(1):], encoding="utf-8",
+                )
+                version_files.append("flutter_app/pubspec.yaml")
             path.write_text(source[:match.start(1)] + version + source[match.end(1):],
                             encoding="utf-8")
-            git("add", "--", VERSION_FILE)
+            git("add", "--", *version_files)
             git("commit", "-m", f"chore(release): 发布{version}版本")
         head = git("rev-parse", "HEAD")
         git("tag", "-a", tag, "-m", f"发布 {tag}")
@@ -152,9 +166,9 @@ def api(repository: str, path: str) -> dict:
 
 def expected_assets(version: str) -> set[str]:
     assets = {
-        "ModbusConnector.dmg", "modbus-connector-windows.zip", "modbus-connector-linux.zip",
+        "modbus-flutter-linux.zip",
         "ModbusConnector.AppImage", f"modbus-connector_{version}_amd64.deb",
-        f"modbus-connector-{version}-windows-x64-setup.exe",
+        f"modbus-connector-flutter-{version}-windows-x64-setup.exe",
         "modbus-flutter-windows.zip",
     } | {f"modbus-connector-{tool}-{suffix}" for tool in ("cli", "mcp")
          for suffix in ("macos", "linux", "windows.exe")}
@@ -212,7 +226,8 @@ def main() -> int:
         repository = github_repository(args.remote)
         if args.status:
             check_release(
-                repository, args.version, git("rev-parse", f"{tag_for_version(args.version)}^{{commit}}"),
+                repository, args.version,
+                git("rev-parse", f"{tag_for_version(args.version)}^{{commit}}"),
             )
             return 0
         head = publish(args.version, args.remote, dry_run=args.dry_run, resume=args.resume)

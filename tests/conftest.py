@@ -1,24 +1,11 @@
 import asyncio
 import socket
-import sys
 import threading
 import time
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-
-# Tests don't use live OS-theme switching. Disable listener creation entirely:
-# a no-op darkdetect.listener still creates a QThread, whose atexit terminate()
-# can crash in pthread_cancel after the thread has already finished.
-# One-shot theme lookups and real light/dark styles remain enabled.
-try:
-    import qdarktheme._main as qdarktheme_main
-
-    qdarktheme_main._sync_theme_with_system = lambda app, callback: None  # noqa: E731
-except ImportError:
-    pass  # qdarktheme only ships with the GUI dependencies
-
 from pymodbus.datastore import (
     ModbusSequentialDataBlock,
     ModbusServerContext,
@@ -29,26 +16,6 @@ from pymodbus.framer import Framer
 from pymodbus.server import ModbusTcpServer
 
 UNIT_ID = 1
-
-
-@pytest.hookimpl(hookwrapper=True, tryfirst=True)
-def pytest_runtest_teardown() -> Iterator[None]:
-    yield
-    # Tests don't run app.exec(): processEvents() alone leaves deleteLater()
-    # queued until interpreter shutdown, when Qt parents may already be gone.
-    qtcore = sys.modules.get("PySide6.QtCore")
-    if qtcore is not None and qtcore.QCoreApplication.instance() is not None:
-        qtcore.QCoreApplication.sendPostedEvents(None, qtcore.QEvent.Type.DeferredDelete)
-
-
-@pytest.fixture(autouse=True)
-def _english_ui() -> None:
-    # the UI language defaults to the system locale: pin tests to English
-    try:
-        from modbus_connector.i18n import set_language
-    except ImportError:
-        return  # Qt-less environment: Qt tests are skipped anyway
-    set_language("en")
 
 
 def _serve(framer: Framer) -> Iterator[int]:

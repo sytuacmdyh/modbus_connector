@@ -103,7 +103,7 @@ def check_for_update() -> ReleaseInfo | None:
         raise UpdateCheckError("Invalid GitHub release response.")
     version_tuple(data["tag_name"])
     tag = data["tag_name"]
-    name = f"modbus-connector-{tag.removeprefix('v')}-windows-x64-setup.exe"
+    name = f"modbus-connector-flutter-{tag.removeprefix('v')}-windows-x64-setup.exe"
     url = f"https://github.com/{REPOSITORY}/releases/download/{tag}/{name}"
     installer = None
     assets = data.get("assets", [])

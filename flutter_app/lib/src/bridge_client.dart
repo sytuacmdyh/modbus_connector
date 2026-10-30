@@ -1,6 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
+import 'dart:isolate';
+
+import 'backend/service.dart';
+import 'backend/worker.dart';
 
 class BridgeReply {
   const BridgeReply(this.result, this.connected);
@@ -27,182 +29,150 @@ abstract class BridgeTransport {
   Future<void> close();
 }
 
-/// One owned subprocess, one outstanding request. No shell or network listener.
-class ProcessBridge extends BridgeTransport {
-  Process? _process;
-  Future<void>? _starting;
-  Completer<BridgeReply>? _pending;
-  StreamSubscription<String>? _stdout;
-  StreamSubscription<String>? _stderr;
-  int _id = 0;
-  int? _pendingId;
-  bool _closing = false;
+/// An owned Dart isolate keeps communication independent of Flutter rendering.
+/// Tests may inject a local service to inspect state without crossing isolates.
+class NativeBridge extends BridgeTransport {
+  NativeBridge({NativeService? service, this.directory}) : _local = service;
+  final NativeService? _local;
+  final String? directory;
+  NativeService get service =>
+      _local ?? (throw StateError('Backend is isolated'));
+  bool _closing = false, _dead = false;
+  Future<BridgeReply>? _pending;
+  Future<SendPort>? _starting;
+  SendPort? _commands;
+  ReceivePort? _messages, _exits, _errors;
+  Completer<Map<String, dynamic>>? _response;
+  Completer<void>? _closed;
+  Future<void>? _closeTask;
 
-  Future<void> _start() async {
-    final configured =
-        Platform.environment['MODBUS_PYTHON'] ??
-        const String.fromEnvironment('MODBUS_PYTHON');
-    final directory = File(Platform.resolvedExecutable).parent.path;
-    final bundled = File(
-      '$directory${Platform.pathSeparator}bridge${Platform.pathSeparator}'
-      'modbus_bridge${Platform.isWindows ? '.exe' : ''}',
+  Future<SendPort> _start() => _starting ??= _spawn();
+  Future<SendPort> _spawn() async {
+    final ready = Completer<SendPort>();
+    _messages = ReceivePort();
+    _exits = ReceivePort();
+    _errors = ReceivePort();
+    void failed(String message) {
+      if (_dead) return;
+      _dead = true;
+      final error = BridgeException(message, connected: false);
+      if (!ready.isCompleted) ready.completeError(error);
+      if (_response != null && !_response!.isCompleted) {
+        _response!.completeError(error);
+      }
+      if (_closed != null && !_closed!.isCompleted) _closed!.complete();
+      if (!_closing) onExit?.call();
+    }
+
+    _messages!.listen((dynamic message) {
+      if (message is SendPort) {
+        _commands = message;
+        ready.complete(message);
+      } else if (message is Map && message['closed'] == true) {
+        _dead = true;
+        if (_closed != null && !_closed!.isCompleted) _closed!.complete();
+      } else if (_response != null && !_response!.isCompleted) {
+        _response!.complete(Map<String, dynamic>.from(message as Map));
+      }
+    });
+    _exits!.listen(
+      (_) => failed('Native backend stopped. Reconnect to recover.'),
     );
-    final useBundled = configured.isEmpty && await bundled.exists();
-    final executable = useBundled
-        ? bundled.path
-        : configured.isNotEmpty
-        ? configured
-        : Platform.isWindows
-        ? 'python'
-        : 'python3';
+    _errors!.listen((dynamic error) => failed('Native backend error: $error'));
     try {
-      final process = await Process.start(
-        executable,
-        useBundled ? [] : ['-u', '-m', 'modbus_connector.flutter_bridge'],
-        environment: {'PYTHONUNBUFFERED': '1', 'PYTHONIOENCODING': 'utf-8'},
+      await Isolate.spawn(
+        nativeWorker,
+        [_messages!.sendPort, directory],
+        onExit: _exits!.sendPort,
+        onError: _errors!.sendPort,
+        debugName: 'modbus-session',
       );
-      _process = process;
-      _stdout = process.stdout
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())
-          .listen(_receive, onError: (Object error) => _fail('$error'));
-      _stderr = process.stderr
-          .transform(const Utf8Decoder(allowMalformed: true))
-          .transform(const LineSplitter())
-          .listen((line) => onDiagnostic?.call(line));
-      unawaited(
-        process.exitCode.then((code) {
-          if (identical(_process, process)) {
-            _process = null;
-            _fail('Bridge exited ($code). Reconnect to start it again.');
-            if (!_closing) onExit?.call();
-          }
-        }),
-      );
-      final hello = await _exchange({
-        'command': 'hello',
-      }, const Duration(seconds: 15));
-      if (hello.result['protocol'] != 1) {
-        throw const BridgeException('Unsupported Python bridge protocol');
-      }
     } catch (error) {
-      _process?.kill();
-      _process = null;
-      throw BridgeException(
-        'Could not start the Python bridge: $error. '
-        'Install the Python package and set MODBUS_PYTHON to its interpreter.',
-      );
+      failed('$error');
     }
-  }
-
-  void _receive(String line) {
-    try {
-      final message = jsonDecode(line) as Map<String, dynamic>;
-      if (message['id'] != _pendingId || _pending == null) return;
-      final pending = _pending!;
-      _pending = null;
-      _pendingId = null;
-      final connected = message['connected'] == true;
-      onTraffic?.call(
-        (message['traffic'] as List? ?? []).cast<Map<String, dynamic>>(),
-        Map<String, dynamic>.from(message['statistics'] as Map? ?? {}),
-      );
-      if (message['ok'] == true) {
-        pending.complete(
-          BridgeReply(message['result'] as Map<String, dynamic>, connected),
-        );
-      } else {
-        pending.completeError(
-          BridgeException(
-            (message['error'] as Map<String, dynamic>)['message'] as String,
-            connected: connected,
-          ),
-        );
-      }
-    } catch (error) {
-      _fail('Invalid response from Python bridge: $error');
-      _process?.kill();
-    }
-  }
-
-  void _fail(String message) {
-    final pending = _pending;
-    _pending = null;
-    _pendingId = null;
-    if (pending != null && !pending.isCompleted) {
-      pending.completeError(BridgeException(message, connected: false));
-    }
-  }
-
-  Future<BridgeReply> _exchange(
-    Map<String, dynamic> command,
-    Duration timeout,
-  ) async {
-    if (_pending != null) {
-      throw const BridgeException('Bridge operation already in progress');
-    }
-    final completer = Completer<BridgeReply>();
-    _pending = completer;
-    _pendingId = ++_id;
-    try {
-      _process!.stdin.writeln(jsonEncode({...command, 'id': _pendingId}));
-      return await completer.future.timeout(timeout);
-    } on TimeoutException {
-      _process?.kill();
-      throw const BridgeException(
-        'Bridge timed out. Reconnect to recover.',
-        connected: false,
-      );
-    } finally {
-      if (identical(_pending, completer)) {
-        _pending = null;
-        _pendingId = null;
-      }
-    }
+    return ready.future;
   }
 
   @override
   Future<BridgeReply> request(
     Map<String, dynamic> command, {
     Duration? timeout,
-  }) async {
+  }) {
     if (_closing) {
-      throw const BridgeException('Bridge is closing', connected: false);
+      throw const BridgeException('Backend is closing', connected: false);
     }
-    if (_process == null) {
-      _starting ??= _start();
-      try {
-        await _starting;
-      } finally {
+    if (_pending != null) {
+      throw const BridgeException('Backend operation already in progress');
+    }
+    final result = _request(command, timeout);
+    _pending = result;
+    return result.whenComplete(() {
+      if (identical(_pending, result)) _pending = null;
+    });
+  }
+
+  Future<BridgeReply> _request(
+    Map<String, dynamic> command,
+    Duration? timeout,
+  ) async {
+    Map<String, dynamic> response;
+    if (_local != null) {
+      response = await _local.respond(command);
+    } else {
+      if (_dead) {
+        _disposePorts();
         _starting = null;
+        _dead = false;
+      }
+      final port = await _start();
+      final waiting = _response = Completer<Map<String, dynamic>>();
+      port.send(command);
+      try {
+        response = await waiting.future;
+      } finally {
+        if (identical(_response, waiting)) _response = null;
       }
     }
-    if (_closing) {
-      throw const BridgeException('Bridge is closing', connected: false);
+    onTraffic?.call(
+      (response['traffic'] as List).cast<Map<String, dynamic>>(),
+      Map<String, dynamic>.from(response['statistics'] as Map),
+    );
+    if (response['ok'] != true) {
+      throw BridgeException(
+        response['error']['message'],
+        connected: response['connected'] == true,
+      );
     }
-    return _exchange(command, timeout ?? const Duration(seconds: 20));
+    return BridgeReply(
+      Map<String, dynamic>.from(response['result'] as Map),
+      response['connected'] == true,
+    );
+  }
+
+  void _disposePorts() {
+    _messages?.close();
+    _exits?.close();
+    _errors?.close();
+    _commands = null;
   }
 
   @override
-  Future<void> close() async {
+  Future<void> close() => _closeTask ??= _close();
+
+  Future<void> _close() async {
     _closing = true;
     try {
-      await _starting;
+      await _pending;
     } catch (_) {
-      // A failed startup has already released its process.
+      /* The caller receives transaction errors. */
     }
-    // EOF releases the backend even if the native window closes abruptly.
-    final process = _process;
-    if (process != null) {
-      await process.stdin.close();
-      try {
-        await process.exitCode.timeout(const Duration(seconds: 3));
-      } on TimeoutException {
-        process.kill();
-        await process.exitCode;
-      }
+    if (_local != null) {
+      await _local.close();
+    } else if (_commands != null && !_dead) {
+      _closed = Completer<void>();
+      _commands!.send({'command': '_close_worker'});
+      await _closed!.future;
     }
-    await _stdout?.cancel();
-    await _stderr?.cancel();
+    _disposePorts();
   }
 }

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Собрать ModbusConnector.AppImage из папки PyInstaller (dist/ModbusConnector/).
+# Собрать ModbusConnector.AppImage из Flutter bundle (dist/ModbusConnectorFlutter/).
 # Нужен appimagetool (переменная APPIMAGETOOL или в PATH); Linux-only.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-DIST=dist/ModbusConnector
+DIST=dist/ModbusConnectorFlutter
 APPDIR=dist/AppDir
-if [ ! -x "$DIST/ModbusConnector" ]; then
-    echo "error: $DIST/ModbusConnector not found — run ./build.sh first" >&2
+if [ ! -x "$DIST/modbus_desktop" ]; then
+    echo "error: $DIST/modbus_desktop not found — run ./build.sh first" >&2
     exit 1
 fi
 
@@ -20,7 +20,7 @@ cp assets/icon.png "$APPDIR/modbus-connector.png"
 cat > "$APPDIR/AppRun" <<'EOF'
 #!/bin/sh
 HERE="$(dirname "$(readlink -f "$0")")"
-exec "$HERE/ModbusConnector/ModbusConnector" "$@"
+exec "$HERE/ModbusConnector/modbus_desktop" "$@"
 EOF
 chmod +x "$APPDIR/AppRun"
 

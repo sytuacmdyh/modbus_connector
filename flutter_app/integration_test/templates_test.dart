@@ -14,7 +14,7 @@ void main() {
   ) async {
     expect(Platform.environment['MODBUS_FLUTTER_HOME'], isNotEmpty);
     await binding.setSurfaceSize(const Size(1280, 800));
-    final service = SessionController(ProcessBridge());
+    final service = SessionController(NativeBridge());
     final workspace = WorkspaceController();
     try {
       final catalog = await service.command({'command': 'template_list'});
@@ -31,7 +31,7 @@ void main() {
         });
         expect(service.error, isNull, reason: '${entry['resource']}');
         final state = loaded!['state'] as Map<String, dynamic>;
-        final restored = SessionController(ProcessBridge());
+        final restored = SessionController(NativeBridge());
         try {
           restored.restore(state);
           expect(

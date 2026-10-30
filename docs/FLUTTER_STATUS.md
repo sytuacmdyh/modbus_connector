@@ -1,3 +1,65 @@
+# Flutter-only transition (2026-10-29)
+
+The desktop now uses Flutter with an asynchronous Dart backend and a bundled
+native libserialport plugin. Qt UI modules, GUI extras, Qt release paths and the
+desktop Python bridge have been removed. Python is retained for the independent
+CLI/MCP tools and behavioral reference tests. Template schemas, local histories
+and explicit legacy JSON import remain compatible.
+Windows NSIS packaging retains the ModbusConnectorFlutter identity and data paths.
+Windows/Linux CI now builds Flutter by default. Updates remain manual because
+this client has no automatic install handoff. macOS has headless tools only.
+
+## Architecture and storage
+
+Flutter calls the Dart `NativeService` directly through a `NativeBridge` and an owned Dart isolate; no
+Python interpreter, NDJSON child or Qt runtime is part of the desktop. Each session
+serializes transactions, validates ranges before I/O, cancels between read groups,
+and suppresses late read/error/alarm effects. Disconnect and shutdown wait for
+active I/O; TCP IDs reject late replies and RTU drains a timed-out transaction
+before polling resumes. Template/cloud/update services share the same owned Dart
+lifecycle. The request/result contract is documented in
+[BACKEND_PROTOCOL.md](../flutter_app/BACKEND_PROTOCOL.md).
+
+Flutter data uses `~/.modbus_connector/flutter` (Windows:
+`%USERPROFILE%\.modbus_connector\flutter`), overridable with `MODBUS_FLUTTER_HOME`:
+
+- `settings.json`: schema-1 workspace; sessions always restore disconnected.
+- `custom_templates/`: personal version histories, separate from Qt histories.
+- `cloud_templates.json`: validated, atomically replaced public catalog overlay.
+- `cloud.json`: separate settings; password saved only with explicit opt-in.
+
+Workspace exports and public cloud publication exclude cloud credentials. Cloud
+transfers never replace sessions or personal templates. Consumer mode rejects
+backend writes before network access; server permissions still apply.
+
+## Current native verification
+
+`flutter analyze` is clean. The 95 Flutter unit/widget tests, 367 Dart native
+backend tests, 631 Python reference/CLI/MCP tests and 23 distribution/release
+tests pass. The native suite covers Python-derived numeric fixtures, expression
+safety, TCP and RTU-over-TCP simulator/gateway transactions, RTU-over-UDP,
+framing/CRC recovery, timeout recovery, sniffer noise, WebDAV publication/history,
+CSV/logging, custom template history and wide integer boundaries. Both native
+Linux profile integration files pass independently under Xvfb: the local-demo
+window covers polling, engineering writes, graphing and reconnect; the parity
+window covers separate simulator/master tabs, rules, grouped reads, expressions,
+logging, templates and workspace state. No Python bridge is started. The rebuilt
+Linux release bundle is 25.70 MiB; the Windows release bundle is 29.67 MiB.
+Both contain Flutter assets plus libserialport and have no `bridge` directory or
+Python runtime. Both native Windows profile integration files also pass. The
+Windows release executable opens a responsive `Modbus Connector Flutter` window,
+with no backend children and no Qt/Python DLLs. The NSIS installer is 9,892,482
+bytes (9.43 MiB), versus the previous local Flutter installer at 16,921,338 bytes,
+a 41.54% reduction. This is an actual Windows build, not a cross-platform estimate.
+The build used an isolated Windows staging directory and emitted MSB8029 temporary
+build-directory warnings. Installation/upgrade/uninstall were not performed;
+physical COM/RS-485, DPI and audio acceptance still require hardware.
+
+## Historical verification records
+
+The entries below are historical acceptance records; references to a parallel Qt
+application or former release assets describe the state at the recorded date.
+
 # Flutter desktop parity status
 
 Release line: `0.16.0`. Updated 2026-10-28. The Flutter parity workspace feature
@@ -33,34 +95,6 @@ map is embedded in the master page. Other tools are dialogs with wrapping contro
 and scrollable content. File operations use native desktop choosers with manual
 path entry when the plugin/host is unavailable. All addresses are zero-based PDU
 addresses.
-
-## Architecture and storage
-
-Flutter uses the existing Qt-free synchronous Python backends through an owned
-NDJSON subprocess per session. New adapters reuse models/CSV/expression/alarm
-logic, DataLogger, SimBackend, SnifferBackend, GatewayBackend, custom templates,
-WebDAV and the stable release checker. No Qt or numpy is needed by the bridge.
-The request limit is bounded at 2,097,152 characters; master maps support 4096 rows
-within that byte limit. Oversize-frame recovery remains supported. Protocol additions are in
-[BRIDGE_PROTOCOL.md](../flutter_app/BRIDGE_PROTOCOL.md).
-
-Each session serializes transactions, skips busy timer ticks and cancels between
-read groups. Stop suppresses late read/error/alarm/graph effects. Disconnect and
-shutdown wait for active I/O; EOF closes connections, servers, logger files and
-simulator rule timers. Template/cloud/update dialogs own a separate utility
-bridge, preserving ongoing bus sessions.
-
-Flutter data uses `~/.modbus_connector/flutter` (Windows:
-`%USERPROFILE%\.modbus_connector\flutter`), overridable with `MODBUS_FLUTTER_HOME`:
-
-- `settings.json`: schema-1 workspace; sessions always restore disconnected.
-- `custom_templates/`: personal version histories, separate from Qt histories.
-- `cloud_templates.json`: validated, atomically replaced public catalog overlay.
-- `cloud.json`: separate settings; password saved only with explicit opt-in.
-
-Workspace exports and public cloud publication exclude cloud credentials. Cloud
-transfers never replace sessions or personal templates. Consumer mode rejects
-backend writes before network access; server permissions still apply.
 
 ## Linux verification
 

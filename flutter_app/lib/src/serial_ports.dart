@@ -86,7 +86,7 @@ class _BaudRatePickerState extends State<BaudRatePicker> {
   );
 }
 
-/// Reuses the session's serialized, cancellable bridge request path.
+/// Reuses the session serialized, cancellable native request path.
 class SerialPortPicker extends StatefulWidget {
   const SerialPortPicker({
     super.key,

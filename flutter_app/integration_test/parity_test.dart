@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:modbus_desktop/src/settings_store.dart';
+import 'package:modbus_desktop/src/backend/catalog.dart';
+import 'package:modbus_desktop/src/bridge_client.dart';
 import 'package:modbus_desktop/src/workspace.dart';
 
 void main() {
@@ -19,7 +21,28 @@ void main() {
       final port = reservation.port;
       await reservation.close();
       final temporary = await Directory.systemTemp.createTemp('modbus-parity');
-      final workspace = WorkspaceController();
+      final catalogStore = NativeCatalog(directory: temporary);
+      await atomicJson(catalogStore.file('cloud_templates.json'), {
+        'Acceptance/Counter.json': {
+          'name': 'Counter',
+          'connection': {
+            'type': 'TCP',
+            'tcp_host': '127.0.0.1',
+            'tcp_port': port,
+          },
+          'registers': [
+            {
+              'name': 'Counter',
+              'address': 0,
+              'kind': 'holding_registers',
+              'count': 1,
+            },
+          ],
+        },
+      });
+      final workspace = WorkspaceController(
+        bridgeFactory: () => NativeBridge(directory: temporary.path),
+      );
       final sim = workspace.sessions.first;
       sim.mode = 'simulator';
       sim.deviceConfig['listen'] = {
@@ -30,6 +53,7 @@ void main() {
       };
       sim.simRows.add({
         'name': 'Counter',
+        'trend_enabled': true,
         'kind': 'holding_registers',
         'address': 0,
         'count': 1,
@@ -56,7 +80,11 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
       }
       expect(sim.error, isNull);
-      expect(sim.deviceRunning, isTrue);
+      expect(
+        sim.deviceRunning,
+        isTrue,
+        reason: 'busy=${sim.busy}, logs=${sim.logs}',
+      );
       workspace.select(1);
       await tester.pumpAndSettle();
       await master.connect({
@@ -68,6 +96,7 @@ void main() {
 
       master.registers.add({
         'name': 'Counter',
+        'trend_enabled': true,
         'kind': 'holding_registers',
         'address': 0,
         'count': 1,
@@ -144,7 +173,11 @@ void main() {
       }
       expect(master.registerResults.first['numeric'], greaterThan(beforeClose));
       await workspace.remove(master);
-      expect(sim.deviceRunning, isTrue);
+      expect(
+        sim.deviceRunning,
+        isTrue,
+        reason: 'busy=${sim.busy}, logs=${sim.logs}',
+      );
       expect(workspace.sessions, hasLength(1));
       await workspace.shutdown();
       await tester.pumpWidget(const SizedBox());

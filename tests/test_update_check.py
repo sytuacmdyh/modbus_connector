@@ -125,7 +125,7 @@ def test_package_and_runtime_version_agree() -> None:
 
 
 def test_only_matching_verified_installer_is_selected(github):
-    name = 'modbus-connector-1.0.0-windows-x64-setup.exe'
+    name = 'modbus-connector-flutter-1.0.0-windows-x64-setup.exe'
     url = f'https://github.com/{update_check.REPOSITORY}/releases/download/v1.0.0/{name}'
     asset = dict(name=name, browser_download_url=url, size=100, digest='sha256:' + 'a' * 64,
                  state='uploaded')

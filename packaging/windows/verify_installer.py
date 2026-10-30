@@ -9,7 +9,7 @@ import traceback
 import winreg
 from pathlib import Path
 
-KEY = r'Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnector'
+KEY = r'Software\Microsoft\Windows\CurrentVersion\Uninstall\ModbusConnectorFlutter'
 
 
 def installed():
@@ -34,8 +34,8 @@ def main():
     args = parser.parse_args()
     if installed():
         raise RuntimeError('Refusing to replace an existing installation; use a clean runner')
-    settings = Path.home() / '.modbus_connector'
-    settings.mkdir(exist_ok=True)
+    settings = Path.home() / '.modbus_connector' / 'flutter'
+    settings.mkdir(parents=True, exist_ok=True)
     sentinel = settings / 'installer-preservation-check.txt'
     sentinel.write_text('Preserve settings and personal templates', encoding='utf-8')
     with tempfile.TemporaryDirectory(prefix='Modbus installer test ') as tmp:
@@ -49,12 +49,13 @@ def main():
             if source.is_file():
                 assert digest(source) == digest(target / source.relative_to(args.bundle))
         shortcut = (Path(os.environ['APPDATA']) / 'Microsoft/Windows/Start Menu/Programs'
-                    / 'Modbus Connector/Modbus Connector.lnk')
+                    / 'Modbus Connector Flutter/Modbus Connector Flutter.lnk')
         assert shortcut.is_file()
         profile = Path(tmp) / 'Isolated profile'
         profile.mkdir()
-        env = dict(os.environ, USERPROFILE=str(profile), HOME=str(profile))
-        process = subprocess.Popen([str(target / 'ModbusConnector.exe')], cwd=target, env=env)
+        env = dict(os.environ, USERPROFILE=str(profile), HOME=str(profile),
+                   MODBUS_FLUTTER_HOME=str(profile / "flutter"))
+        process = subprocess.Popen([str(target / 'modbus_desktop.exe')], cwd=target, env=env)
         try:
             time.sleep(10)
             assert process.poll() is None, 'Installed GUI exited during startup'
@@ -62,7 +63,7 @@ def main():
                 'powershell', '-NoProfile', '-Command',
                 f'(Get-Process -Id {process.pid}).MainWindowTitle',
             ], text=True).strip()
-            assert 'Modbus Connector' in title, f'No application window: {title!r}'
+            assert 'Modbus Connector Flutter' in title, f'No application window: {title!r}'
         finally:
             if process.poll() is None:
                 process.terminate()
@@ -75,7 +76,7 @@ def main():
         subprocess.run(f'"{target / "Uninstall.exe"}" /S _?={target}',
                        check=True, timeout=180)
         assert installed() is None
-        assert not (target / 'ModbusConnector.exe').exists()
+        assert not (target / 'modbus_desktop.exe').exists()
         assert not shortcut.exists()
         assert extra.read_text() == 'keep me'
         assert sentinel.read_text() == 'Preserve settings and personal templates'

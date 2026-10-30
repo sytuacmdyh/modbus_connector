@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Собрать modbus-connector_<version>_amd64.deb из папки PyInstaller.
+# Собрать modbus-connector_<version>_amd64.deb из Flutter bundle.
 # Использование: packaging/linux/make_deb.sh 1.2.3   (Linux-only, нужен dpkg-deb)
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 VERSION=${1:?usage: make_deb.sh <version>}
-DIST=dist/ModbusConnector
+DIST=dist/ModbusConnectorFlutter
 PKGROOT=dist/deb-root
-if [ ! -x "$DIST/ModbusConnector" ]; then
-    echo "error: $DIST/ModbusConnector not found — run ./build.sh first" >&2
+if [ ! -x "$DIST/modbus_desktop" ]; then
+    echo "error: $DIST/modbus_desktop not found — run ./build.sh first" >&2
     exit 1
 fi
 
@@ -20,7 +20,7 @@ mkdir -p "$PKGROOT/DEBIAN" \
          "$PKGROOT/usr/share/pixmaps"
 
 cp -r "$DIST/." "$PKGROOT/opt/modbus-connector/"
-ln -s /opt/modbus-connector/ModbusConnector "$PKGROOT/usr/bin/modbus-connector"
+ln -s /opt/modbus-connector/modbus_desktop "$PKGROOT/usr/bin/modbus-connector"
 cp packaging/linux/ModbusConnector.desktop \
    "$PKGROOT/usr/share/applications/modbus-connector.desktop"
 cp assets/icon.png "$PKGROOT/usr/share/pixmaps/modbus-connector.png"

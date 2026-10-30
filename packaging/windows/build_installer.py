@@ -26,16 +26,20 @@ def version_quad(version: str) -> str:
 
 
 def build(
-    bundle: Path, version: str, output: Path, compiler: str, *, flutter: bool = False,
+    bundle: Path, version: str, output: Path, compiler: str,
 ) -> None:
     if not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][\w.]+)?", version):
         raise ValueError("Expected MAJOR.MINOR.PATCH or prerelease suffix")
     bundle = bundle.resolve()
-    executable = "modbus_desktop.exe" if flutter else "ModbusConnector.exe"
+    executable = "modbus_desktop.exe"
     if not (bundle / executable).is_file():
         raise ValueError(f"Bundle must contain {executable}")
-    if flutter and not (bundle / "bridge/modbus_bridge.exe").is_file():
-        raise ValueError("Flutter bundle must contain its frozen bridge/modbus_bridge.exe")
+    if not (bundle / "data/flutter_assets").is_dir():
+        raise ValueError("Flutter bundle must contain data/flutter_assets")
+    for path in bundle.rglob("*"):
+        name = path.name.lower()
+        if name == "bridge" or name.startswith(("libpython", "python3")):
+            raise ValueError("Desktop bundles must not contain a Python runtime or bridge")
     files = sorted(p for p in bundle.rglob('*') if p.is_file())
     directories = sorted(
         (p for p in bundle.rglob('*') if p.is_dir()),
@@ -71,12 +75,6 @@ def build(
         # Compile-time file paths do not use runtime dollar escaping.
         script = '\n'.join(f'!define {k} `{v}`' for k, v in definitions.items())
         installer = (ROOT / 'packaging/windows/installer.nsi').read_text(encoding='utf-8')
-        if flutter:
-            # Separate install directory, uninstall key, shortcuts and executable.
-            # A Flutter setup must never replace or unregister the Qt application.
-            installer = (installer.replace('ModbusConnector.exe', 'modbus_desktop.exe')
-                         .replace('ModbusConnector', 'ModbusConnectorFlutter')
-                         .replace('Modbus Connector', 'Modbus Connector Flutter'))
         script += '\n' + installer
         source = stage / 'installer.nsi'
         source.write_text(script, encoding='utf-8')
@@ -91,10 +89,7 @@ def build(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--bundle', type=Path, default=ROOT / 'dist/ModbusConnector')
-    parser.add_argument(
-        '--flutter', action='store_true', help='Build the independent Flutter installer',
-    )
+    parser.add_argument('--bundle', type=Path, default=ROOT / 'dist/ModbusConnectorFlutter')
     parser.add_argument('--version', default=re.search(
         r'__version__ = "([^"]+)"',
         (ROOT / 'src/modbus_connector/__init__.py').read_text(),
@@ -103,11 +98,10 @@ def main() -> None:
     parser.add_argument('--makensis', default=shutil.which('makensis') or
                         r'C:\Program Files (x86)\NSIS\makensis.exe')
     args = parser.parse_args()
-    flavor = '-flutter' if args.flutter else ''
     output = args.output or ROOT / (
-        f'dist/modbus-connector{flavor}-{args.version}-windows-x64-setup.exe'
+        f'dist/modbus-connector-flutter-{args.version}-windows-x64-setup.exe'
     )
-    build(args.bundle, args.version, output, args.makensis, flutter=args.flutter)
+    build(args.bundle, args.version, output, args.makensis)
 
 
 if __name__ == '__main__':

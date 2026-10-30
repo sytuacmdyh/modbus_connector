@@ -1,62 +1,13 @@
 @echo off
-rem Build a standalone application (PyInstaller).
-rem Output: dist\ModbusConnector\ModbusConnector.exe
+rem Build native Flutter and the separate CLI/MCP tools on Windows.
 setlocal
 cd /d "%~dp0"
-
 set PY=.venv\Scripts\python.exe
 if not exist "%PY%" (
-    echo error: .venv not found, create it first: python -m venv .venv 1>&2
+    echo error: create .venv first: python -m venv .venv 1>&2
     exit /b 1
 )
-
-"%PY%" -m pip install -q -e ".[build]"
+"%PY%" -m pip install -e ".[build]" -e ./mcp
 if errorlevel 1 exit /b 1
-
-"%PY%" -m PyInstaller ^
-    --noconfirm --clean ^
-    --windowed ^
-    --name ModbusConnector ^
-    --icon assets\icon.ico ^
-    --paths src ^
-    --add-data "src\modbus_connector\templates;modbus_connector/templates" ^
-    src\modbus_connector\__main__.py
+"%PY%" packaging\build.py
 if errorlevel 1 exit /b 1
-
-rem PyInstaller intermediate directory, not runnable by itself
-if exist build rmdir /s /q build
-
-rem CLI binary: onefile console, no Qt — lean pymodbus-only build
-"%PY%" -m PyInstaller ^
-    --noconfirm --clean ^
-    --console --onefile ^
-    --name modbus-connector-cli ^
-    --paths src ^
-    --distpath dist-cli ^
-    packaging\cli_entry.py
-if errorlevel 1 exit /b 1
-
-if exist build rmdir /s /q build
-move /y dist-cli\modbus-connector-cli.exe dist-cli\modbus-connector-cli-windows.exe
-
-rem MCP server binary: onefile console, no Qt — pymodbus + mcp SDK
-"%PY%" -m PyInstaller ^
-    --noconfirm --clean ^
-    --console --onefile ^
-    --name modbus-connector-mcp ^
-    --paths src ^
-    --paths mcp\src ^
-    --add-data "src\modbus_connector\templates;modbus_connector\templates" ^
-    --distpath dist-cli ^
-    packaging\mcp_entry.py
-if errorlevel 1 exit /b 1
-
-if exist build rmdir /s /q build
-move /y dist-cli\modbus-connector-mcp.exe dist-cli\modbus-connector-mcp-windows.exe
-
-echo.
-echo Build finished. Artifact:
-echo   dist\ModbusConnector\ModbusConnector.exe
-echo   dist-cli\modbus-connector-cli-windows.exe
-echo   dist-cli\modbus-connector-mcp-windows.exe
-echo Copy the whole dist\ModbusConnector folder to another machine.

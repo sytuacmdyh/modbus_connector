@@ -84,7 +84,7 @@ def test_cloud_cancellation_and_update_surface(tmp_path, monkeypatch):
         result = request(bridge, "update_check")["result"]
         assert result["newer"] and not result["install_supported"]
         assert result["release"]["notes"] == "Plain notes"
-        assert "Flutter-specific" in result["install_reason"]
+        assert "Automatic installation is not supported" in result["install_reason"]
         assert not request(bridge, "update_install")["ok"]
     finally:
         release.set()

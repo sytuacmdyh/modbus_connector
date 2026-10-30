@@ -11,10 +11,9 @@
 | `feature/*` | 从 `develop` 拉出，合并回 `develop` |
 | `release/*`、`hotfix/*` | 可选；也可用 `main` / `develop` 直接打标签发布 |
 
-Flutter 桌面客户端（目录 `flutter_app/`）随 `0.16.0` 功能线从 `develop` 合入
-`main`，与 Qt/PySide6 客户端并行提供。稳定标签同时发布 Flutter Windows ZIP；
-现有 Qt 安装包和更新渠道保持独立。完成 feature 后先合入 `develop`，再将验收后的
-集成版本合入 `main` 发布；发布提交同步回 `develop`。
+Flutter（`flutter_app/`）是唯一桌面客户端。发布 Windows/Linux Flutter 包与
+Windows Flutter 安装包，CLI/MCP 保持独立。完成 feature 后先合入 `develop`，
+再将验收后的集成版本合入 `main` 发布；发布提交同步回 `develop`。
 
 ## 发布标签
 
@@ -23,7 +22,7 @@ Flutter 桌面客户端（目录 `flutter_app/`）随 `0.16.0` 功能线从 `dev
 | 稳定版 | `main` | `X.Y.Z` / `vX.Y.Z` | `prerelease: false` |
 | 测试版 (beta) | `develop` | `X.Y.Z-beta.N` / `vX.Y.Z-beta.N` | `prerelease: true` |
 
-CI 会**软性**检查：稳定标签宜在 `main` 上，beta 标签宜在 `develop` 上（不满足时 Actions 打 `warning`，不阻断构建）。
+发布脚本检查分支：稳定版使用 `main`，beta 使用 `develop`。CI 校验标签与应用版本一致。
 
 ## 命令
 

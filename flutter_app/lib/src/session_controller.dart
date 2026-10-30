@@ -58,7 +58,7 @@ class SessionController extends ChangeNotifier {
       registerMap.stop();
       _cancelLogger();
       description = 'Disconnected';
-      _setError('Python bridge stopped. Reconnect to recover.');
+      _setError('Native backend stopped. Reconnect to recover.');
       notifyListeners();
     };
   }
@@ -392,7 +392,8 @@ class SessionController extends ChangeNotifier {
   }) async {
     if (logging) return;
     if (busy) {
-      error = 'Wait for the current operation to finish before starting logging.';
+      error =
+          'Wait for the current operation to finish before starting logging.';
       notifyListeners();
       return;
     }

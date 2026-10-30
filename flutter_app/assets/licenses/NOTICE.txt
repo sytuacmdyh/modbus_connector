@@ -1,0 +1,6 @@
+The desktop application dynamically links libserialport through flutter_libserialport.
+libserialport is distributed under LGPL-3.0-or-later; see libserialport-LGPL-3.0.txt.
+Source and build integration: https://github.com/jpnurmi/flutter_libserialport
+Upstream source: https://sigrok.org/wiki/Libserialport
+The dynamic library can be replaced independently of the application executable.
+See the native dependency's AUTHORS in the source distribution for contributors.
