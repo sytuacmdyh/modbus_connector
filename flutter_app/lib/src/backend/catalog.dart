@@ -129,7 +129,6 @@ Json flutterState(Json s) {
         'kind': 'holding_registers',
         'address': 0,
         'count': 1,
-        'format': 'u16',
         'scale': 1,
         'offset': 0,
         'unit': '',

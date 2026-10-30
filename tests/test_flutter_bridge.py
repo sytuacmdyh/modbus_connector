@@ -334,6 +334,12 @@ def test_register_tools_scaling_csv_and_nonfinite(bridge: Bridge, modbus_server:
     parsed = request(bridge, "csv_parse", text=exported)["result"]["rows"][0]
     assert parsed["name"] == "Temperature" and parsed["order"] == "CDAB"
     assert parsed["scale"] == 0.1
+    legacy_csv = request(
+        bridge, "csv_parse",
+        text="name,kind,address,format,poll_ms\nLegacy,holding_registers,0,dec,100\n",
+    )["result"]["rows"][0]
+    assert legacy_csv["format"] == "u16"
+    assert legacy_csv["poll_ms"] is None
     assert request(
         bridge,
         "csv_parse",
@@ -553,7 +559,7 @@ def test_grouped_reads_reuse_planner_and_fall_back_per_row(
         {"name": "Next", "address": 2},
         {"name": "Timed", "address": 3, "poll_ms": 1000},
     ]
-    assert request(bridge, "plan_reads", rows=rows)["result"]["groups"] == [[0, 1], [2]]
+    assert request(bridge, "plan_reads", rows=rows)["result"]["groups"] == [[0, 1, 2]]
     calls = []
     original = bridge.backend.read
 
@@ -563,11 +569,11 @@ def test_grouped_reads_reuse_planner_and_fall_back_per_row(
 
     monkeypatch.setattr(bridge.backend, "read", read)
     result = request(bridge, "read_rows", rows=rows, grouped=True)["result"]["rows"]
-    assert calls == [(0, 3), (3, 1)]
+    assert calls == [(0, 4)]
     assert result[0]["values"] == [100, 101] and result[1]["values"] == [102]
 
     def fail_group(unit, kind, address, count):
-        if count == 3:
+        if count == 4:
             raise ValueError("group rejected")
         return original(unit, kind, address, count)
 

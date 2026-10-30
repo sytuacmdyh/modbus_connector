@@ -19,7 +19,8 @@ void main() {
       'Coils': '线圈',
       'Discrete inputs': '离散输入',
       'Register': '寄存器',
-      'dec': '十进制 (dec)',
+      'u16': '无符号 16 位 (u16)',
+      'dec': '无符号 16 位 (旧 dec)',
       'Connecting…': '正在连接…',
       'Connected · tcp localhost:502 · unit 3':
           '已连接 · tcp localhost:502 · 站号 3',
@@ -87,11 +88,11 @@ void main() {
     await tester.pumpAndSettle();
     final name = find.widgetWithText(TextField, '名称');
     expect(tester.widget<TextField>(name).controller!.text, '寄存器');
-    expect(find.text('十进制 (dec)'), findsWidgets);
+    expect(find.text('无符号 16 位 (u16)'), findsWidgets);
     await tester.tap(find.text('应用'));
     await tester.pumpAndSettle();
     expect(session.registers.single['name'], '寄存器');
-    expect(session.registers.single['format'], 'dec');
+    expect(session.registers.single['format'], 'u16');
     expect(session.registers.single['kind'], 'holding_registers');
     await tester.tap(find.text('寄存器'));
     await tester.pumpAndSettle();

@@ -377,7 +377,7 @@ void main() {
       await tester.tap(tile);
       await tester.pumpAndSettle();
       await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Wide');
-      await tester.tap(find.text('dec').last);
+      await tester.tap(find.text('u16').last);
       await tester.pumpAndSettle();
       await tester.tap(find.text('u32').last);
       await tester.pumpAndSettle();

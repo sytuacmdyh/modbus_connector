@@ -99,6 +99,7 @@ void main() {
       expect(session.registerResults, isEmpty);
       bridge.heldRead = Completer<BridgeReply>();
       session.registerMap.start(100);
+      await tester.pump();
       session.registerMap.stop();
       bridge.heldRead!.completeError(
         const BridgeException('old error', connected: true),
@@ -117,6 +118,7 @@ void main() {
     await session.connect(config, 1);
     bridge.heldRead = Completer<BridgeReply>();
     final reading = session.registerMap.read();
+    await tester.pump();
     final disconnecting = session.disconnect();
     expect(session.connected, isFalse);
     expect(session.canRead, isFalse);
@@ -201,6 +203,7 @@ void main() {
     await session.connect(config, 1);
     final held = bridge.heldRead = Completer<BridgeReply>();
     session.registerMap.start(100);
+    await tester.pump();
     final writing = session.registerMap.quickValue(0, 'one');
     await tester.pump();
     expect(bridge.calls.where((c) => c['command'] == 'write'), isEmpty);
@@ -232,6 +235,7 @@ void main() {
       session.registers.add({...session.registers.single, 'address': 3});
       final held = bridge.heldRead = Completer<BridgeReply>();
       session.registerMap.start(100);
+      await tester.pump();
       final first = session.registerMap.writeRow(0, values: [21]);
       final second = session.registerMap.writeRow(1, values: [22]);
       await tester.pump();
@@ -248,11 +252,14 @@ void main() {
       );
       await tester.pump();
       await Future.wait([first, second]);
-      expect(bridge.calls.skip(1).take(3).map((c) => c['command']), [
-        'read_rows',
-        'write',
-        'write',
-      ]);
+      expect(
+        bridge.calls
+            .where((c) => c['command'] != 'plan_reads')
+            .skip(1)
+            .take(3)
+            .map((c) => c['command']),
+        ['read_rows', 'write', 'write'],
+      );
       expect(
         bridge.calls
             .where((c) => c['command'] == 'write')

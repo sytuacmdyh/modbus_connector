@@ -56,12 +56,7 @@ void main() {
       int count = 1,
       String format = 'u16',
       bool bitmask = true,
-    }) => {
-      'kind': kind,
-      'count': count,
-      'format': format,
-      'bitmask': bitmask,
-    };
+    }) => {'kind': kind, 'count': count, 'format': format, 'bitmask': bitmask};
     expect(canEditBits(row()), isTrue);
     expect(canEditBits(row(format: 'dec')), isTrue);
     expect(canEditBits(row(bitmask: false)), isFalse);
@@ -527,6 +522,8 @@ void main() {
     model.capture('old');
     bridge.held = Completer<BridgeReply>();
     final reading = model.read();
+    await Future<void>.delayed(Duration.zero);
+    expect(bridge.calls.last['command'], 'read_rows');
     model.stop();
     bridge.held!.completeError(const BridgeException('late error'));
     await reading;
@@ -541,7 +538,7 @@ void main() {
     session.dispose();
   });
   test(
-    'map scheduler skips disabled rows and honors per-row intervals',
+    'map scheduler skips disabled rows and ignores legacy per-row intervals',
     () async {
       var now = DateTime(2026);
       final bridge = MapBridge();
@@ -575,10 +572,10 @@ void main() {
       expect(bridge.calls.where((c) => c['command'] == 'read_rows').length, 2);
       now = now.add(const Duration(milliseconds: 200));
       await model.read(dueOnly: true);
-      expect(bridge.calls.where((c) => c['command'] == 'read_rows').length, 3);
+      expect(bridge.calls.where((c) => c['command'] == 'read_rows').length, 2);
       now = now.add(const Duration(milliseconds: 800));
       await model.read(dueOnly: true);
-      expect(bridge.calls.where((c) => c['command'] == 'read_rows').length, 5);
+      expect(bridge.calls.where((c) => c['command'] == 'read_rows').length, 4);
       expect(session.registerResults.last['values'], isNull);
       model.dispose();
       session.dispose();

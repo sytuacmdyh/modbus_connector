@@ -176,6 +176,7 @@ def csv_command(data: dict[str, Any]) -> dict[str, Any]:
         result = []
         for row, display in rows_from_csv(content, mapping):
             record = {**asdict(row), **asdict(display)}
+            record["poll_ms"] = None
             row_from_json(record)
             result.append(record)
         if len(result) > MAX_REGISTER_ROWS:
