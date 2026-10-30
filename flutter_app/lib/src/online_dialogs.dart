@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'session_controller.dart';
+import 'backend/update.dart';
 import 'tool_widgets.dart';
 import 'translations.dart';
 
@@ -311,31 +312,151 @@ class _CloudDialogState extends State<CloudDialog> {
 }
 
 class UpdateDialog extends StatefulWidget {
-  const UpdateDialog({super.key, required this.session});
+  const UpdateDialog({
+    super.key,
+    required this.session,
+    this.initialResult,
+    this.onInstall,
+    this.installerFactory,
+    this.onDownloadChanged,
+  });
   final SessionController session;
+  final Map<String, dynamic>? initialResult;
+  final Future<void> Function(UpdateHandoff)? onInstall;
+  final UpdateInstaller Function()? installerFactory;
+  final void Function(Future<void> Function()? cancel)? onDownloadChanged;
   @override
   State<UpdateDialog> createState() => _UpdateDialogState();
 }
 
 class _UpdateDialogState extends State<UpdateDialog> {
-  bool busy = false;
+  bool busy = false, downloading = false, closing = false, installing = false;
+  double progress = 0;
   Map<String, dynamic>? result;
   String? error;
-  Future<void> check() async {
-    setState(() => busy = true);
-    final reply = await widget.session.command({'command': 'update_check'});
-    if (mounted) {
-      setState(() {
-        busy = false;
-        result = reply;
-        error = reply == null ? widget.session.error : null;
+  UpdateInstaller? installer;
+  Future<void>? operation;
+  @override
+  void initState() {
+    super.initState();
+    result = widget.initialResult;
+    if (result == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(check());
       });
     }
   }
 
   @override
+  void dispose() {
+    installer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> check() async {
+    if (busy || downloading) return;
+    setState(() {
+      busy = true;
+      result = null;
+      error = null;
+    });
+    final reply = await widget.session.command({'command': 'update_check'});
+    if (mounted) {
+      setState(() {
+        busy = false;
+        result = reply;
+        error = reply == null
+            ? widget.session.error
+            : reply['error'] as String?;
+      });
+    }
+  }
+
+  Future<void> close() async {
+    if (closing || installing) return;
+    closing = true;
+    installer?.cancel();
+    await operation;
+    if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> install() async {
+    if (busy || downloading || widget.onInstall == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const LText('Install update'),
+        content: const LText(
+          'Save the workspace, close connections, install this update and restart? Close other Modbus Connector windows first.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const LText('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const LText('Save, install and restart'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      downloading = true;
+      error = null;
+      progress = 0;
+    });
+    operation = runInstall();
+    widget.onDownloadChanged?.call(() async {
+      closing = true;
+      installer?.cancel();
+      await operation;
+    });
+    await operation;
+  }
+
+  Future<void> runInstall() async {
+    final download = installer =
+        widget.installerFactory?.call() ?? UpdateInstaller();
+    UpdateHandoff? handoff;
+    try {
+      final asset = InstallerAsset.fromJson(
+        Map<String, dynamic>.from(result!['release']['installer'] as Map),
+      );
+      handoff = await download.prepare(asset, (value) {
+        if (mounted && !closing) setState(() => progress = value);
+      });
+      if (!mounted || closing) {
+        await handoff.abort();
+        return;
+      }
+      widget.onDownloadChanged?.call(null);
+      setState(() => installing = true);
+      await widget.onInstall!(handoff);
+    } on UpdateCancelled {
+      // Close waits until temporary files and an uncommitted helper are cleaned up.
+    } catch (e) {
+      await handoff?.abort();
+      if (mounted && !closing) setState(() => error = userError(e));
+    } finally {
+      installer = null;
+      widget.onDownloadChanged?.call(null);
+      if (mounted) {
+        setState(() {
+          downloading = false;
+          installing = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) => PopScope(
-    canPop: !busy,
+    canPop: !busy && !downloading,
+    onPopInvokedWithResult: (didPop, _) {
+      if (!didPop && downloading && !installing) unawaited(close());
+    },
     child: AlertDialog(
       title: const LText('Check for updates'),
       content: SizedBox(
@@ -345,6 +466,17 @@ class _UpdateDialogState extends State<UpdateDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (busy) const LinearProgressIndicator(),
+            if (downloading) ...[
+              LinearProgressIndicator(value: progress),
+              LText(
+                closing
+                    ? 'Cancelling download…'
+                    : installing
+                    ? 'Saving workspace and closing connections…'
+                    : 'Downloading and verifying update…',
+              ),
+              Text('${(progress * 100).floor()}%'),
+            ],
             if (error != null) LText(error!),
             if (result != null) ...[
               LText(
@@ -365,34 +497,39 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   ),
                 ),
               ),
-              LText(result!['install_reason'] as String),
+              LText(result!['install_reason'] as String? ?? ''),
               const SizedBox(height: 8),
               SelectableText(result!['url'] as String),
             ] else
               const Expanded(
-                child: Center(
-                  child: LText(
-                    'Manual check of public stable GitHub releases.',
-                  ),
-                ),
+                child: Center(child: LText('Checking for updates…')),
               ),
           ],
         ),
       ),
       actions: [
         TextButton(
-          onPressed: busy ? null : () => Navigator.pop(context),
-          child: const LText('Close'),
+          onPressed: busy || closing || installing ? null : close,
+          child: LText(downloading ? 'Cancel download' : 'Close'),
         ),
         OutlinedButton(
-          onPressed: busy
+          onPressed: busy || downloading
               ? null
               : () => widget.session.command({'command': 'update_open_page'}),
           child: const LText('Open releases page'),
         ),
-        const OutlinedButton(onPressed: null, child: LText('Install update')),
+        OutlinedButton(
+          onPressed:
+              !busy &&
+                  !downloading &&
+                  result?['install_supported'] == true &&
+                  widget.onInstall != null
+              ? install
+              : null,
+          child: const LText('Install update'),
+        ),
         FilledButton(
-          onPressed: busy ? null : check,
+          onPressed: busy || downloading ? null : check,
           child: const LText('Check now'),
         ),
       ],

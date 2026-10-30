@@ -5,9 +5,10 @@ import 'translations.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' show AppExitResponse;
+import 'dart:ui' show AppExitResponse, AppExitType;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'bridge_client.dart';
 import 'session_controller.dart';
@@ -17,6 +18,7 @@ import 'templates_dialog.dart';
 import 'help_dialog.dart';
 import 'online_dialogs.dart';
 import 'demo.dart';
+import 'backend/update.dart';
 
 class WorkspaceController extends ChangeNotifier {
   WorkspaceController({BridgeTransport Function()? bridgeFactory, this.store})
@@ -26,7 +28,11 @@ class WorkspaceController extends ChangeNotifier {
       loading = true;
       unawaited(load());
       _autosave = Timer.periodic(const Duration(seconds: 3), (_) {
-        if (!loading && _allowAutoSave && autoSave && !closing) {
+        if (!loading &&
+            _allowAutoSave &&
+            autoSave &&
+            !closing &&
+            !installingUpdate) {
           unawaited(save());
         }
       });
@@ -46,11 +52,14 @@ class WorkspaceController extends ChangeNotifier {
 
   bool _allowAutoSave = true;
   bool autoSave = true;
+  bool autoCheckUpdates = true;
+  bool installingUpdate = false;
   String? stateError;
   Future<void>? _shutdown;
   Map<String, dynamic> exportState() => {
     'schema': 1,
     'autosave': autoSave,
+    'auto_check_updates': autoCheckUpdates,
     'tabs': sessions.map((s) => s.state()).toList(),
     'active_tab': selected,
     'language': appLanguage.value,
@@ -96,6 +105,9 @@ class WorkspaceController extends ChangeNotifier {
             .clamp(0, sessions.length - 1);
       }
       if (data?['autosave'] is bool) autoSave = data!['autosave'] as bool;
+      if (data?['auto_check_updates'] is bool) {
+        autoCheckUpdates = data!['auto_check_updates'] as bool;
+      }
       if (data?['language'] == 'en' || data?['language'] == 'zh_CN') {
         appLanguage.value = data!['language'] as String;
       }
@@ -169,6 +181,37 @@ class WorkspaceController extends ChangeNotifier {
   }
 
   Future<void> shutdown() => _shutdown ??= _shutdownOwned();
+  Future<void> installUpdate(
+    UpdateHandoff handoff, {
+    Future<void> Function()? exitApplication,
+  }) async {
+    if (loading || closing || installingUpdate) {
+      throw StateError('Workspace is busy. Please try again.');
+    }
+    installingUpdate = true;
+    final previousAutoSave = _allowAutoSave;
+    try {
+      // The install confirmation explicitly requests Save, including autosave-off.
+      // A failed save or helper handshake must leave all sessions running.
+      await store?.save(exportState());
+      await handoff.commit();
+      _allowAutoSave = false;
+      await shutdown();
+      await (exitApplication ??
+          () async {
+            await ServicesBinding.instance.exitApplication(
+              AppExitType.required,
+            );
+          })();
+    } catch (_) {
+      await handoff.abort();
+      rethrow;
+    } finally {
+      installingUpdate = false;
+      _allowAutoSave = previousAutoSave;
+    }
+  }
+
   Future<void> _shutdownOwned() async {
     closing = true;
     _autosave?.cancel();
@@ -214,22 +257,76 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
   late final workspace =
       widget.controller ?? WorkspaceController(store: SettingsStore());
   late final AppLifecycleListener lifecycle;
+  bool updateDialogOpen = false;
+  Timer? startupUpdate;
+  Future<void> Function()? cancelUpdateDownload;
   @override
   void initState() {
     super.initState();
     lifecycle = AppLifecycleListener(
       onExitRequested: () async {
+        await cancelUpdateDownload?.call();
         await workspace.shutdown();
         return AppExitResponse.exit;
       },
     );
+    if (widget.controller == null) {
+      startupUpdate = Timer(const Duration(seconds: 3), () async {
+        while (mounted && workspace.loading) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        }
+        if (!mounted || workspace.closing || !workspace.autoCheckUpdates) {
+          return;
+        }
+        await updates(automatic: true);
+      });
+    }
   }
 
   @override
   void dispose() {
+    startupUpdate?.cancel();
     lifecycle.dispose();
     if (widget.controller == null) workspace.dispose();
     super.dispose();
+  }
+
+  Future<void> updates({bool automatic = false}) async {
+    if (updateDialogOpen || workspace.closing) return;
+    updateDialogOpen = true;
+    final tool = SessionController(workspace.bridgeFactory());
+    workspace.tools.add(tool);
+    try {
+      Map<String, dynamic>? result;
+      if (automatic) {
+        result = await tool.command({'command': 'update_check'});
+        if (!mounted ||
+            workspace.closing ||
+            !workspace.autoCheckUpdates ||
+            result?['newer'] != true ||
+            result?['error'] != null) {
+          return;
+        }
+        // Avoid covering another modal with a startup notification.
+        if (ModalRoute.of(context)?.isCurrent != true) return;
+      }
+      if (!mounted || workspace.closing) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => UpdateDialog(
+          session: tool,
+          initialResult: result,
+          onInstall: workspace.installUpdate,
+          onDownloadChanged: (cancel) => cancelUpdateDownload = cancel,
+        ),
+      );
+    } finally {
+      await tool.shutdown();
+      tool.dispose();
+      workspace.tools.remove(tool);
+      updateDialogOpen = false;
+    }
   }
 
   Future<void> workspaceFile(String action) async {
@@ -295,6 +392,15 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const LText('Check for updates on startup'),
+                  value: workspace.autoCheckUpdates,
+                  onChanged: (v) {
+                    workspace.autoCheckUpdates = v;
+                    workspace.notifyListeners();
+                  },
+                ),
                 DropdownButtonFormField<String>(
                   initialValue: appLanguage.value,
                   decoration: InputDecoration(labelText: tr('Language')),
@@ -419,12 +525,16 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                   tooltip: tr('Workspace'),
                   icon: const Icon(Icons.folder_open),
                   onSelected: (v) async {
+                    if (v == 'updates') {
+                      await updates();
+                      return;
+                    }
                     if (v == 'demo') {
                       await openDemo();
                       return;
                     }
                     final session = workspace.sessions[workspace.selected];
-                    if (['templates', 'cloud', 'updates'].contains(v)) {
+                    if (['templates', 'cloud'].contains(v)) {
                       final tool = SessionController(workspace.bridgeFactory());
                       workspace.tools.add(tool);
                       try {
@@ -438,9 +548,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                                     workspace.openState(state, templateId: id);
                                   },
                                 )
-                              : v == 'cloud'
-                              ? CloudDialog(session: tool)
-                              : UpdateDialog(session: tool),
+                              : CloudDialog(session: tool),
                         );
                       } finally {
                         await tool.shutdown();

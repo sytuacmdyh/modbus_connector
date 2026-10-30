@@ -6,6 +6,7 @@ import 'package:xml/xml.dart';
 
 import 'catalog.dart';
 import 'registers.dart';
+import 'update.dart';
 
 const releasesUrl = 'https://github.com/sytuacmdyh/modbus_connector/releases';
 const applicationVersion = String.fromEnvironment(
@@ -444,6 +445,7 @@ class NativeOnline {
       return {};
     }
     if (cmd == 'update_check') {
+      releasePage = releasesUrl;
       final client = HttpClient();
       try {
         final req = await client
@@ -464,6 +466,7 @@ class NativeOnline {
             'url': releasePage,
             'newer': false,
             'install_supported': false,
+            'install_reason': 'No public stable release is available.',
           };
         }
         if (r.statusCode != 200) {
@@ -476,41 +479,13 @@ class NativeOnline {
             throw const FormatException('Invalid GitHub release response.');
           }
         }
-        final release = map(jsonDecode(utf8.decode(bytes))),
-            tag = release['tag_name'];
-        if (release['draft'] != false ||
-            release['prerelease'] != false ||
-            tag is! String ||
-            !RegExp(r'^v\d+\.\d+\.\d+$').hasMatch(tag)) {
-          throw const FormatException('Invalid GitHub release response.');
-        }
-        releasePage = '$releasesUrl/tag/$tag';
-        final parts = tag.substring(1).split('.').map(int.parse).toList(),
-            current = applicationVersion
-                .split('-')[0]
-                .split('+')[0]
-                .split('.')
-                .map(int.parse)
-                .toList();
-        var newer = false;
-        for (var i = 0; i < 3; i++) {
-          if (parts[i] != current[i]) {
-            newer = parts[i] > current[i];
-            break;
-          }
-        }
-        return {
-          'current': applicationVersion,
-          'release': {
-            'tag': tag,
-            'notes': release['body'] ?? '',
-            'installer': null,
-          },
-          'url': releasePage,
-          'newer': newer,
-          'install_supported': false,
-          'install_reason': 'Automatic installation is not supported by this Flutter client. Use the releases page for manual installation.',
-        };
+        final result = releaseResult(
+          map(jsonDecode(utf8.decode(bytes))),
+          applicationVersion,
+          executable: await installedFlutterExecutable(),
+        );
+        releasePage = result['url'] as String;
+        return result;
       } catch (e) {
         return {
           'current': applicationVersion,
@@ -527,7 +502,7 @@ class NativeOnline {
     }
     if (cmd == 'update_install') {
       throw const FormatException(
-        'Automatic installation is not supported; use manual installation.',
+        'Use the desktop update dialog to download and install updates.',
       );
     }
     if (cmd == 'update_open_page') {

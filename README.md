@@ -59,8 +59,10 @@ These write the desktop to `dist/ModbusConnectorFlutter/` and headless tools to
 `dist-cli/`. Python CLI/MCP binaries are separate downloads; the GUI never starts
 them. Linux packages use `packaging/linux/make_appimage.sh` and `make_deb.sh`.
 [GitHub Releases](https://github.com/sytuacmdyh/modbus_connector/releases) provide
-Windows/Linux desktop packages and separate CLI/MCP tools. Updates use manual
-download. There is currently no macOS desktop runner.
+Windows/Linux desktop packages and separate CLI/MCP tools. Startup checks notify
+about new stable releases. Registered Windows installations can download, verify,
+install and restart; Linux/portable copies use manual downloads. There is currently
+no macOS desktop runner.
 
 ## Data and migration
 

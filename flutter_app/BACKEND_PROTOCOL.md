@@ -172,7 +172,7 @@ session fields survive; cloud settings/credentials and Qt custom-template IDs ar
 excluded. Conversion itself has no file or session side effects. The UI stages
 and validates every converted session before replacing any live tabs.
 
-Cloud/update commands (manual only):
+Cloud/update commands:
 
 - `cloud_settings_load` → `{settings}`; `cloud_settings_save`: `{settings}`.
   Settings are URL/username/password/templates_path/timeout/mode/remember_password.
@@ -189,14 +189,26 @@ Cloud/update commands (manual only):
 - Downloads validate the complete catalog before replacing
   `flutter/cloud_templates.json`; template-list/load overlays that cache. History
   download changes only local cache; activation appends a remote immutable version.
-- `update_check` reuses the stable GitHub release checker; returns current,
+- `update_check` queries the latest stable GitHub release; returns current,
   release (tag/notes/installer metadata) or null, URL, newer, install_supported and
   install_reason. Network/rate-limit/invalid responses remain explicit errors.
 - `update_open_page` opens only the known releases URL (or last verified tag URL)
   in the system browser, with child stdout/stderr detached from the protocol.
-- `update_install` returns a clear unsupported error: this client has no automatic
-  upgrade handoff. The dialog offers manual download of Flutter release packages
-  on Linux and Windows.
+- `update_install` is not a backend command for launching an installer. The desktop
+  update dialog owns `UpdateInstaller` and its cancellable async download; it accepts
+  only the exact Flutter x64 NSIS asset for the release, with GitHub size and SHA-256.
+  `install_supported` is true only for newer releases with a verified installer and
+  a matching HKCU `ModbusConnectorFlutter` InstallLocation/executable.
+- The workspace checks on startup when `auto_check_updates` is true (default).
+  Background failures and unchanged versions stay quiet. Manual checks always show
+  status. The setting follows workspace Save/autosave behavior.
+- Installation requires explicit confirmation to save the workspace, close sessions
+  and graph viewers, and restart. Failed saves abort the helper before shutdown.
+  The PowerShell helper requires a commit marker and parent-process exit, checks
+  for other instances and revalidates the SHA-256, runs NSIS `/S /D=<installDir>`,
+  then restarts `modbus_desktop.exe`. Cancel/close waits for download cleanup;
+  an uncommitted helper never installs. Linux and portable/source copies use manual
+  download. There is no Python runtime dependency.
 
 Workspace templates/cloud/update dialogs own a separate utility service so bus
 transactions and polling in session tabs continue independently.

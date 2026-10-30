@@ -62,7 +62,15 @@ to `dist/ModbusConnectorFlutter/`. The Windows NSIS wrapper is a development too
 It produces `modbus-connector-flutter-<version>-windows-x64-setup.exe`, preserves
 the existing Flutter install/uninstall/shortcut identity and rejects bundles
 containing a Python bridge/runtime. It does not uninstall a former Qt product.
-The GUI update checker opens release downloads for manual installation.
+The GUI checks for stable updates on startup by default (Settings can disable it).
+Workspace → Check for updates also checks immediately. A registered Windows
+Flutter installation can download, verify and install its matching x64 NSIS asset.
+The confirmation explicitly saves the workspace even when autosave is off, closes
+all sessions/graph windows, then exits. A separate PowerShell helper waits for
+process exit, installs into the registered directory and restarts the app. Download
+cancellation and failed verification leave the running app unchanged. Size, SHA-256
+and executable-header checks precede handoff; redirects are limited to GitHub asset
+hosts. Portable/source copies and Linux keep manual downloads. No Python is used.
 
 ## Verification and backend contract
 
@@ -148,7 +156,7 @@ workspace menu explicitly import a Qt JSON configuration into disconnected
 Flutter tabs, preserving the original file and separate Qt data.
 Translation of unrecognized external diagnostics remains incomplete.
 
-Update checking and manual download are wired. Updates open the release page for manual download; automatic installation is unavailable.
+Startup and manual stable-release checks are wired. Registered Windows Flutter installations support verified download, installation and restart; Linux/portable copies use manual downloads.
 The former Python-backed Windows UI was verified on 2026-10-24.
 The Dart migration has passed Windows release startup and both native profile integration files. Installation/upgrade and hardware acceptance remain separate. Physical COM, multi-monitor DPI and audio audibility
 still require hardware verification.

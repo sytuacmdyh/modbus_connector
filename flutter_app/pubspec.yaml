@@ -13,6 +13,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_libserialport: ^0.6.0
+  crypto: ^3.0.7
   csv: ^8.0.0
   xml: ^7.1.0
 

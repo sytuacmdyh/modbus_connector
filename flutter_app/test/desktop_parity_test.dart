@@ -386,7 +386,10 @@ void main() {
       await tester.tap(find.text('dark').last);
       await tester.pumpAndSettle();
       expect(appTheme.value, ThemeMode.dark);
-      await tester.tap(find.byType(SwitchListTile));
+      await tester.tap(find.text('Check for updates on startup'));
+      await tester.pump();
+      expect(workspace.exportState()['auto_check_updates'], isFalse);
+      await tester.tap(find.text('Automatically save workspace'));
       await tester.pump();
       expect(workspace.exportState()['autosave'], isFalse);
       await tester.tap(find.text('English'));
@@ -395,6 +398,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('设置'), findsOneWidget);
       expect(find.text('自动保存工作区'), findsOneWidget);
+      expect(find.text('启动时自动检查更新'), findsOneWidget);
       await tester.tap(find.text('关闭'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);

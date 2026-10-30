@@ -11,7 +11,12 @@ libserialport FFI adapter. `devices.dart` owns simulator, passive sniffer and
 transparent gateway resources; `registers.dart` and `expression.dart` handle
 formatting/encoding/grouping/alarms and safe expressions. `catalog.dart`,
 `files.dart`, `online.dart` own templates/history/import, CSV/logging and WebDAV/
-release checks. Preserve cancellation and late-result suppression in UI controllers.
+release checks. `backend/update.dart` validates installer metadata/downloads and
+owns the Windows PowerShell handoff; the update dialog owns cancellation, and the
+workspace saves explicitly and awaits all sessions/graphs before update exit.
+Startup checks are configurable; automatic installation requires the registered
+Flutter install and a matching SHA-256-bearing NSIS asset. Preserve cancellation
+and late-result suppression in UI controllers.
 All validation precedes external I/O; session close waits for owned resources.
 
 Flutter state/custom history/cache stay under `~/.modbus_connector/flutter`

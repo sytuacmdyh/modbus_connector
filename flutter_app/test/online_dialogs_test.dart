@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:modbus_desktop/src/bridge_client.dart';
 import 'package:modbus_desktop/src/online_dialogs.dart';
 import 'package:modbus_desktop/src/session_controller.dart';
+import 'package:modbus_desktop/src/backend/update.dart';
 
 import 'fake_bridge.dart';
 
@@ -55,7 +58,96 @@ class OnlineBridge extends FakeBridge {
   }
 }
 
+class TestHandoff extends UpdateHandoff {
+  bool aborted = false;
+  @override
+  Future<void> commit() async {}
+  @override
+  Future<void> abort() async {
+    aborted = true;
+  }
+}
+
+class TestInstaller extends UpdateInstaller {
+  final ready = Completer<UpdateHandoff>();
+  @override
+  Future<UpdateHandoff> prepare(
+    InstallerAsset asset,
+    void Function(double) progress,
+  ) {
+    progress(0.25);
+    return ready.future;
+  }
+}
+
 void main() {
+  for (final cancel in [false, true]) {
+    testWidgets('update installation confirmation and cancellation $cancel', (
+      tester,
+    ) async {
+      final session = SessionController(OnlineBridge());
+      final installer = TestInstaller();
+      final handoff = TestHandoff();
+      var installs = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showDialog<void>(
+                context: context,
+                barrierDismissible: false,
+                builder: (_) => UpdateDialog(
+                  session: session,
+                  installerFactory: () => installer,
+                  onInstall: (_) async {
+                    installs++;
+                  },
+                  initialResult: {
+                    'current': '1.0.0',
+                    'newer': true,
+                    'install_supported': true,
+                    'install_reason': 'Ready',
+                    'url': updateReleasesUrl,
+                    'release': {
+                      'tag': 'v2.0.0',
+                      'notes': 'Notes',
+                      'installer': {
+                        'url': 'https://github.com/setup.exe',
+                        'size': 100,
+                        'sha256': 'a' * 64,
+                      },
+                    },
+                  },
+                ),
+              ),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Install update'));
+      await tester.pumpAndSettle();
+      expect(installs, 0);
+      await tester.tap(find.text('Save, install and restart'));
+      await tester.pump();
+      expect(find.text('25%'), findsOneWidget);
+      if (cancel) {
+        await tester.tap(find.text('Cancel download'));
+        await tester.pump();
+        expect(installer.cancelled, true);
+      }
+      installer.ready.complete(handoff);
+      await tester.pumpAndSettle();
+      expect(installs, cancel ? 0 : 1);
+      expect(handoff.aborted, cancel);
+      if (cancel) expect(find.text('Install update'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+      session.dispose();
+      expect(tester.takeException(), isNull);
+    });
+  }
   testWidgets(
     'consumer hides publishing and cancelling waits for task boundary',
     (tester) async {

@@ -26,6 +26,7 @@ void main() {
         'widths': {'name': 222},
       };
       workspace.autoSave = false;
+      workspace.autoCheckUpdates = false;
       workspace.sessions.first.draft['host'] = 'plc.local';
       workspace.add();
       workspace.sessions.last.mode = 'simulator';
@@ -39,6 +40,7 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 1));
       }
       expect(restored.autoSave, isFalse);
+      expect(restored.autoCheckUpdates, isFalse);
       expect((restored.sessions.first.draft['map_table'] as Map)['widths'], {
         'name': 222,
       });

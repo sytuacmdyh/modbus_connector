@@ -1,3 +1,41 @@
+# Automatic update support (2026-10-30)
+
+Startup stable-release checks are enabled by default and can be disabled in
+Settings. Manual checks remain under Workspace. Registered Windows Flutter
+installations support cancellable download, size/SHA-256/MZ validation and a
+PowerShell install/restart handoff. Only the matching Flutter x64 NSIS release
+asset is accepted; Qt installers are excluded. The install confirmation explicitly
+saves workspace state, including with autosave off. Save/helper failure prevents
+shutdown. Session and graph cleanup precedes process exit; the helper installs only
+after both confirmation and exit. Linux and portable/source copies remain manual.
+
+The real Windows PowerShell helper has been exercised against temporary mock
+executables for confirmed install/restart and unconfirmed abort, including paths
+with Chinese, spaces, apostrophes and dollar signs. This helper smoke test uses
+mock executables; real installation acceptance is recorded below.
+
+Validation: `flutter analyze` is clean, all 100 Flutter unit/widget tests and
+379 backend tests pass, and `flutter build linux --release` succeeds. Coverage
+includes installer selection, invalid redirects and payloads, download cancellation,
+late handoff cancellation, explicit Save with autosave off, save/helper failures,
+settings persistence, resource cleanup before exit and both Windows helper paths.
+
+Local Windows update acceptance (2026-10-30): rebuilt the Windows release from
+this working tree, passed all 379 backend tests with Windows Dart, and produced
+`modbus-connector-flutter-0.16.3-windows-x64-setup.exe` (9,915,371 bytes, SHA-256
+`c16cf5b42151ec0f7227f4a2fdd8bdaa3e93fd9185dedd53bf2d7a4cc9aa4c3b`).
+The NSIS installer updated the existing `ModbusConnectorFlutter` installation;
+all 17 payload files match the build and all 42 existing user-data files were
+bytewise unchanged through installation and isolated startup verification. The
+installed window is responsive, with no Qt/Python runtime or backend child, and
+has been started again using the normal user profile. The local version remains
+0.16.3; this is not a new published release. Installation and user-data backups,
+source hashes and logs are retained under the local build staging directory;
+`dist/windows-update-20261030.json` records the paths and results. A future-release
+automatic download-to-install upgrade and physical serial acceptance were not run.
+
+The dated transition record below describes the earlier manual-only state.
+
 # Flutter-only transition (2026-10-29)
 
 The desktop now uses Flutter with an asynchronous Dart backend and a bundled
