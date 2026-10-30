@@ -205,7 +205,7 @@ class NativeLogger {
       written = 0;
       fields = selectedFields;
       if (fmt == 'csv' && await sink!.length() == 0) {
-        await sink!.writeString('\ufeff${csvCodec.encode([columns])}');
+        await sink!.writeString('\ufeff${csvCodec.encode([columns])}\n');
       }
     } else if (cmd == 'logger_stop') {
       await close();
@@ -230,10 +230,11 @@ class NativeLogger {
           for (final e in results!) e['display'],
         ];
         if (format == 'csv') {
+          // The encoder separates rows but does not terminate the final row.
           await write(
-            csvCodec.encode([
+            '${csvCodec.encode([
               [stamp, ...displays],
-            ]),
+            ])}\n',
           );
         } else {
           for (var i = 0; i < displays.length; i++) {
