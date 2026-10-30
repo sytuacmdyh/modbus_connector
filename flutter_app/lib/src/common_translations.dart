@@ -110,7 +110,6 @@ const commonChinese = <String, String>{
   "Address": "地址",
   "Count": "数量",
   "Unit ID": "从站地址",
-  "Poll, ms": "轮询间隔（毫秒）",
   "Format": "格式",
   "Value": "当前值",
   "New value": "新值",
@@ -157,8 +156,6 @@ const commonChinese = <String, String>{
   "Stop polling": "停止轮询",
   "Modbus unit 1..247, empty = unit from the connection panel":
       "Modbus 从站地址 1..247，留空则使用连接面板的从站地址",
-  "Per-row poll interval in ms, empty = global interval; a row with its own interval is polled by a dedicated timer":
-      "每行轮询间隔（毫秒），留空则使用全局间隔；单独设置间隔的行使用独立定时器",
   "Display format (registers only; coils/discrete show 0/1)":
       "显示格式（仅用于寄存器；线圈/离散输入显示为 0/1）",
   "Delete row": "删除行",

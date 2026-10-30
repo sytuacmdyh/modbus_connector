@@ -204,7 +204,7 @@ class RegisterMapController extends ChangeNotifier {
             (!dueOnly ||
                 !_lastRead.containsKey(rows[i]) ||
                 now.difference(_lastRead[rows[i]]!).inMilliseconds >=
-                    (rows[i]['poll_ms'] as int? ?? _interval)))
+                    _interval))
           i,
     ];
     if (indices.isEmpty) return;

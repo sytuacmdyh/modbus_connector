@@ -11,7 +11,7 @@ const kinds = [
   'input_registers',
 ];
 const formats = [
-  'dec',
+  'u16',
   'hex',
   's16',
   'u32',
@@ -23,6 +23,10 @@ const formats = [
   'ascii',
   'ascii1',
 ];
+String canonicalFormat(dynamic value) {
+  final text = value == null ? 'u16' : '$value'.toLowerCase();
+  return text == 'dec' ? 'u16' : text;
+}
 const orders = ['ABCD', 'BADC', 'CDAB', 'DCBA'];
 bool bitKind(dynamic kind) => kind == 'coils' || kind == 'discrete_inputs';
 int bounded(dynamic value, String name, int low, int high) {
@@ -51,13 +55,17 @@ Json row(dynamic data, [int unit = 1]) {
     'kind': 'holding_registers',
     'address': 0,
     'count': 1,
-    'format': 'dec',
+    'format': 'u16',
     'order': 'ABCD',
     'scale': 1,
     'offset': 0,
     'unit': '',
     ...Map<String, dynamic>.from(data),
   };
+  r['format'] = canonicalFormat(r['format']);
+  // Per-row polling intervals are no longer supported. Keep accepting the
+  // legacy field while ensuring all callers use the global map interval.
+  r['poll_ms'] = null;
   r['order'] ??= 'ABCD';
   if (!kinds.contains(r['kind']) ||
       !formats.contains(r['format']) ||
@@ -70,7 +78,6 @@ Json row(dynamic data, [int unit = 1]) {
     throw const FormatException('Invalid row range or display width');
   }
   r['unit_id'] = bounded(r['unit_id'] ?? unit, 'unit_id', 1, 247);
-  if (r['poll_ms'] != null) bounded(r['poll_ms'], 'poll_ms', 100, 86400000);
   finite(r['scale'], 'scale');
   finite(r['offset'], 'offset');
   return r;
@@ -86,7 +93,8 @@ List<int> permutation(String order, int n) => switch (order) {
 };
 List<num> decode(List<dynamic> raw, String fmt, [String order = 'ABCD']) {
   final values = raw.map((v) => v is bool ? (v ? 1 : 0) : v as int).toList();
-  if (fmt == 'dec') return values;
+  fmt = canonicalFormat(fmt);
+  if (fmt == 'u16') return values;
   if (fmt == 's16') {
     return values.map((v) => v >= 32768 ? v - 65536 : v).toList();
   }
@@ -120,7 +128,8 @@ List<num> decode(List<dynamic> raw, String fmt, [String order = 'ABCD']) {
 
 List<int> encodeNumber(num value, String fmt, [String order = 'ABCD']) {
   finite(value, 'value');
-  if (fmt == 'dec') return [bankersRound(value.clamp(0, 65535))];
+  fmt = canonicalFormat(fmt);
+  if (fmt == 'u16') return [bankersRound(value.clamp(0, 65535))];
   if (fmt == 's16') return [bankersRound(value.clamp(-32768, 32767)) & 65535];
   final n = width(fmt) * 2;
   final b = ByteData(n);
@@ -231,7 +240,10 @@ Json? alarm(num? value, dynamic alarms) {
 }
 
 Json render(Json r, List<dynamic> raw) {
-  final fmt = r['format'] as String;
+  // Render callers may pass a legacy workspace row directly rather than the
+  // normalized result of row(); canonicalize here as a final compatibility
+  // guard so old `dec` rows use the same u16 behavior and labels.
+  final fmt = canonicalFormat(r['format']);
   final bit = bitKind(r['kind']);
   final values = raw.map((v) => v is bool ? (v ? 1 : 0) : v as int).toList();
   num? primary;
@@ -260,7 +272,7 @@ Json render(Json r, List<dynamic> raw) {
     if (r['unit'] != '') display += ' ${r['unit']}';
   }
   final names = Map<String, dynamic>.from(r['value_names'] as Map? ?? {});
-  if (values.length == 1 && (bit || ['dec', 's16', 'hex'].contains(fmt))) {
+  if (values.length == 1 && (bit || ['u16', 's16', 'hex'].contains(fmt))) {
     if (!bit && r['bitmask'] == true) {
       final v = values[0];
       final binary = v.toRadixString(2).padLeft(16, '0');
@@ -338,13 +350,8 @@ List<dynamic> encodeValues(Json data) {
 
 List<List<int>> plan(List<Json> rows) {
   final byKey = <String, List<int>>{};
-  final separate = <List<int>>[];
   for (var i = 0; i < rows.length; i++) {
     final r = rows[i];
-    if (r['poll_ms'] != null) {
-      separate.add([i]);
-      continue;
-    }
     byKey.putIfAbsent('${r['unit_id']}/${r['kind']}', () => []).add(i);
   }
   final out = <List<int>>[];
@@ -373,7 +380,7 @@ List<List<int>> plan(List<Json> rows) {
     }
     if (group.isNotEmpty) out.add(group);
   }
-  return [...out, ...separate];
+  return out;
 }
 
 Json evaluateExpressions(Json d) {

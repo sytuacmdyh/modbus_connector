@@ -81,6 +81,16 @@ def test_all_public_template_rows_are_usable_after_flutter_conversion(cloud_temp
             row_from_json(row, converted["unit"])
 
 
+def test_flutter_catalog_normalizes_legacy_dec_rows() -> None:
+    from modbus_connector.flutter_catalog import flutter_state
+
+    converted = flutter_state({
+        "connection": {"type": "RTU", "unit": 1},
+        "registers": [{"name": "Status", "address": 4, "count": 1, "format": "dec"}],
+    })
+    assert converted["registers"][0]["format"] == "u16"
+
+
 def test_master_traffic_contains_real_bytes_on_success_and_exception(bridge):
     assert request(bridge, "connect", transport="demo", timeout=0.1)["ok"]
     read = request(bridge, "read", unit=1, kind="holding_registers", address=0, count=2)
@@ -309,6 +319,17 @@ def test_register_tools_scaling_csv_and_nonfinite(bridge: Bridge, modbus_server:
         bridge, "read_rows", rows=[{"address": 0, "bitmask": True, "value_names": {"2": "Alarm"}}]
     )
     assert bitmask["ok"] and "Alarm" in bitmask["result"]["rows"][0]["display"]
+    legacy_bitmask = request(
+        bridge,
+        "read_rows",
+        rows=[{
+            "address": 0,
+            "format": "dec",
+            "bitmask": True,
+            "value_names": {"2": "Alarm"},
+        }],
+    )
+    assert legacy_bitmask["ok"] and "Alarm" in legacy_bitmask["result"]["rows"][0]["display"]
     exported = request(bridge, "csv_export", rows=[row])["result"]["text"]
     parsed = request(bridge, "csv_parse", text=exported)["result"]["rows"][0]
     assert parsed["name"] == "Temperature" and parsed["order"] == "CDAB"

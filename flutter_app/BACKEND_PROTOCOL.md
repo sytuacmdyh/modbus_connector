@@ -77,7 +77,8 @@ Register map commands (additive v1):
 - `read_rows`: `{unit, rows:[row,...]}` (1..4096). Each row accepts `name`, `kind`,
   `address`, `count`, `unit_id` (null inherits unit), `format`, `order`, `scale`,
   `offset`, `unit`, `value_names` (string integer keys), `bitmask`, `alarms`.
-  Formats: dec/hex/s16/u32/s32/f32/u64/s64/f64/ascii/ascii1; byte orders
+  Formats: u16/hex/s16/u32/s32/f32/u64/s64/f64/ascii/ascii1 (`dec` is a legacy
+  alias); byte orders
   ABCD/CDAB/BADC/DCBA. All rows validate before I/O, including format width.
   Returns `{rows:[{values,display,numeric,alarm}],elapsed_ms}`. Nonfinite numeric
   values become null. Flutter reads one row per request for cancellation.
@@ -227,7 +228,7 @@ Advanced master commands:
   alarm,error}]}`; missing refs, nonfinite/math/parse errors produce a null numeric
   and per-expression error. Map polling reevaluates expressions and collects
   alarm/graph transitions. Persisted under session `expressions`.
-- `scan_address` additionally returns `formats` (dec/hex/s16/u32/s32/f32/ascii).
+- `scan_address` additionally returns `formats` (u16/hex/s16/u32/s32/f32/ascii).
   Checked scan hits can be inserted as independent register-map rows.
 
 Cancellation acceptance checks cover map reads, alarm/graph side effects and late
@@ -237,14 +238,17 @@ Grouped and scheduled map reads:
 
 - `plan_reads`: `{rows,unit}` → `{groups:[[row_index,...],...]}` uses the existing
   `plan_grouped_reads`, grouped by effective unit/area and adjacent/overlapping
-  addresses, capped at protocol limits. Rows with `poll_ms` stay individual.
+  addresses, capped at protocol limits. Legacy `poll_ms` values are ignored;
+  all rows participate in the global map polling schedule.
 - `read_rows` accepts `grouped:true`; executes shared plans, slices raw results
   back into the original row order and renders each row's settings independently.
   Failed merged requests retry the member rows individually.
 - Flutter submits one planned group at a time so cancellation is checked between
-  transactions. Per-row `poll_enabled` gates manual/map polling; optional `poll_ms`
-  100..86400000 overrides the map interval. Busy ticks are skipped. Group choice
-  and row scheduling preferences persist in Flutter state/custom snapshots.
+  transactions. Grouped reads are always enabled for map polling and Read all;
+  the legacy `map_grouped` state field is retained for compatibility but false
+  values are ignored. Per-row `poll_enabled` gates manual/map polling, while
+  the map interval is global for every row. Busy ticks are skipped. Legacy
+  per-row scheduling values are ignored when restoring state.
 
 Display and simulator parity additions:
 

@@ -406,7 +406,7 @@ class NativeService {
         'formats': {
           if (values.isNotEmpty && !bitKind(kind))
             for (final fmt in [
-              'dec',
+              'u16',
               'hex',
               's16',
               'u32',
@@ -419,7 +419,7 @@ class NativeService {
                   'kind': kind,
                   'address': address,
                   'count': values.length,
-                  'format': width(fmt) > values.length ? 'dec' : fmt,
+                  'format': width(fmt) > values.length ? 'u16' : fmt,
                 }),
                 values,
               )['display'],

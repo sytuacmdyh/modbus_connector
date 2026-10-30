@@ -154,7 +154,7 @@ def create_server(read_only: bool = False) -> tuple[FastMCP, JobRegistry]:
         kind: str,
         address: int,
         count: int,
-        format: DisplayFormat = "dec",
+        format: DisplayFormat = "u16",
         order: ByteOrder = "ABCD",
         scale: float = 1.0,
         offset: float = 0.0,

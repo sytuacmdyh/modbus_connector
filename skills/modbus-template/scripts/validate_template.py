@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 KINDS = {"coils", "discrete_inputs", "holding_registers", "input_registers"}
-WIDTHS = {"dec": 1, "hex": 1, "s16": 1, "u32": 2, "s32": 2, "f32": 2,
+WIDTHS = {"u16": 1, "hex": 1, "s16": 1, "u32": 2, "s32": 2, "f32": 2,
           "u64": 4, "s64": 4, "f64": 4, "ascii": 1, "ascii1": 1}
 ORDERS = {"", "ABCD", "CDAB", "BADC", "DCBA"}
 
@@ -21,6 +21,14 @@ def number(value: Any) -> bool:
         return type(value) in (int, float) and math.isfinite(value)
     except OverflowError:
         return False
+
+
+def canonical_format(value: Any) -> Any:
+    """Normalize the pre-u16 unsigned-16 spelling used by old templates."""
+    if not isinstance(value, str):
+        return value
+    value = value.lower()
+    return "u16" if value == "dec" else value
 
 
 def validate(data: Any) -> list[str]:
@@ -69,7 +77,9 @@ def validate(data: Any) -> list[str]:
             continue
         check(isinstance(row.get("name"), str) and bool(row["name"].strip()),
               f"{label}.name is required")
-        kind, fmt = row.get("kind", "holding_registers"), row.get("format", "dec")
+        kind, fmt = row.get("kind", "holding_registers"), canonical_format(
+            row.get("format", "u16")
+        )
         if not isinstance(kind, str) or kind not in KINDS:
             errors.append(f"{label}.kind is invalid")
             continue
@@ -83,7 +93,7 @@ def validate(data: Any) -> list[str]:
         if valid_span:
             check(address + count <= 65536, f"{label}: span exceeds address 65535")
             check(count % WIDTHS[fmt] == 0, f"{label}: count is not a multiple of format width")
-        check(not bits or fmt == "dec", f"{label}: use dec for bit areas")
+        check(not bits or fmt == "u16", f"{label}: use u16 for bit areas")
         order = row.get("order", "")
         check(isinstance(order, str) and order in ORDERS, f"{label}.order is invalid")
         unit = row.get("unit_id")
@@ -119,8 +129,8 @@ def validate(data: Any) -> list[str]:
                 if row.get("bitmask") is True:
                     check(0 <= parsed <= 15, f"{label}: bit index must be 0..15")
         if names or row.get("bitmask") is True:
-            check(count == 1 and fmt in ("dec", "s16", "hex"),
-                  f"{label}: annotations require a single dec/s16/hex value")
+            check(count == 1 and fmt in ("u16", "s16", "hex"),
+                  f"{label}: annotations require a single u16/s16/hex value")
     return errors
 
 

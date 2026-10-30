@@ -12,8 +12,14 @@ from typing import Literal, get_args
 RegisterKind = Literal["coils", "discrete_inputs", "holding_registers", "input_registers"]
 
 DisplayFormat = Literal[
-    "dec", "hex", "s16", "u32", "s32", "f32", "u64", "s64", "f64", "ascii", "ascii1"
+    "u16", "hex", "s16", "u32", "s32", "f32", "u64", "s64", "f64", "ascii", "ascii1"
 ]
+
+
+def canonical_format(fmt: object, default: str = "u16") -> str:
+    """Normalize the legacy unsigned-16 format name to the canonical ``u16``."""
+    value = str(fmt or default).lower()
+    return "u16" if value == "dec" else value
 
 ByteOrder = Literal["ABCD", "CDAB", "BADC", "DCBA"]
 
@@ -68,7 +74,7 @@ class RegisterRow:
     kind: RegisterKind
     address: int
     count: int = 1
-    format: DisplayFormat = "dec"
+    format: DisplayFormat = "u16"
     order: ByteOrder | None = None  # None = inherit the panel's global order
     scale: float = 1.0
     offset: float = 0.0
@@ -310,7 +316,11 @@ def rows_from_csv(
                     ),
                     address=address,
                     count=_csv_int(data.get("count", ""), 1),
-                    format=fmt if fmt in get_args(DisplayFormat) else "dec",
+                    format=(
+                        canonical_format(fmt)
+                        if canonical_format(fmt) in get_args(DisplayFormat)
+                        else "u16"
+                    ),
                     unit_id=_csv_opt_int(data.get("unit_id", ""), 1, 247),
                     poll_ms=_csv_opt_int(data.get("poll_ms", ""), 100, 600_000),
                 ),
@@ -515,7 +525,8 @@ def decode_register_values(
     Only numeric formats are supported — hex/ascii are string formats handled
     directly by format_register_values.
     """
-    if fmt == "dec":
+    fmt = canonical_format(fmt)
+    if fmt == "u16":
         return [int(value) for value in values]
     if fmt == "s16":
         return [_to_s16(value) for value in values]
@@ -542,14 +553,15 @@ def encode_register_values(
 ) -> list[int]:
     """Encode a number into raw registers (inverse of decode_register_values).
 
-    dec/s16 — один регистр (round + clamp в диапазон формата), 32/64-битные
+    u16 (legacy ``dec``)/s16 — один регистр (round + clamp в диапазон формата), 32/64-битные
     форматы — группа из 2/4 регистров с учётом порядка байт; для f32/f64
     clamp нет — непредставимое значение даёт OverflowError из struct.pack.
     hex/ascii — строковые форматы отображения, кодированию не подлежат
     (ValueError). Используется симулятором, чтобы писать вычисленные
     правилами числа обратно в карту регистров.
     """
-    if fmt == "dec":
+    fmt = canonical_format(fmt)
+    if fmt == "u16":
         return [round(_clamp(value, 0, 0xFFFF))]
     if fmt == "s16":
         return [round(_clamp(value, -0x8000, 0x7FFF)) & 0xFFFF]
@@ -577,7 +589,7 @@ def parse_formatted_values(text: str, fmt: DisplayFormat, count: int) -> list[in
 
     Каждое число кодируется encode_register_values в свою группу регистров
     (ширина группы — register_width(fmt)); результат дополняется нулями/
-    обрезается до count регистров. Для dec/hex ввода — parse_values, для
+    обрезается до count регистров. Для u16 (legacy ``dec``)/hex ввода — parse_values, для
     ascii — encode_ascii_values. ValueError на пустом вводе и нечисловых
     токенах, OverflowError на непредставимом float."""
     parts = [p for p in re.split(r"[,\s]+", text.strip()) if p]

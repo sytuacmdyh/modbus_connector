@@ -10,6 +10,7 @@ from typing import Any, cast, get_args
 
 from .models import (
     ByteOrder,
+    canonical_format,
     DisplayFormat,
     RegisterKind,
     RegisterRow,
@@ -52,7 +53,7 @@ def row_from_json(data: object, unit: int = 1) -> RegisterRow:
     if not isinstance(data, dict):
         raise ValueError("row must be an object")
     kind = data.get("kind", "holding_registers")
-    fmt = data.get("format", "dec")
+    fmt = canonical_format(data.get("format", "u16"))
     order = data.get("order") or "ABCD"
     if kind not in get_args(RegisterKind) or fmt not in get_args(DisplayFormat):
         raise ValueError("Unknown register area or display format")
@@ -64,9 +65,6 @@ def row_from_json(data: object, unit: int = 1) -> RegisterRow:
     if address + count > 65536 or (not bit and count < register_width(fmt)):
         raise ValueError("Invalid row range or count smaller than display width")
     unit_id = bounded(unit if data.get("unit_id") is None else data["unit_id"], "unit_id", 1, 247)
-    poll_ms = data.get("poll_ms")
-    if poll_ms is not None:
-        bounded(poll_ms, "poll_ms", 100, 86400000)
     return RegisterRow(
         name=str(data.get("name", "")),
         kind=cast(RegisterKind, kind),
@@ -78,21 +76,17 @@ def row_from_json(data: object, unit: int = 1) -> RegisterRow:
         offset=finite(data.get("offset", 0), "offset"),
         unit=str(data.get("unit", "")),
         unit_id=unit_id,
-        poll_ms=poll_ms,
+        # ``poll_ms`` was a legacy per-row scheduling override.  Accept old
+        # workspace data for migration, but always use the global map interval.
+        poll_ms=None,
     )
 
 
 def planned_groups(rows: list[RegisterRow]) -> list[list[int]]:
     from .models import ReadSpec, plan_grouped_reads
 
-    specs = [
-        ReadSpec(i, r.unit_id, r.kind, r.address, r.count)
-        for i, r in enumerate(rows)
-        if r.poll_ms is None
-    ]
-    return [[member.token for member in plan.members] for plan in plan_grouped_reads(specs)] + [
-        [i] for i, row in enumerate(rows) if row.poll_ms is not None
-    ]
+    specs = [ReadSpec(i, r.unit_id, r.kind, r.address, r.count) for i, r in enumerate(rows)]
+    return [[member.token for member in plan.members] for plan in plan_grouped_reads(specs)]
 
 
 def render(row: RegisterRow, raw: list[int | bool], options: dict[str, Any]) -> dict[str, Any]:
@@ -107,7 +101,7 @@ def render(row: RegisterRow, raw: list[int | bool], options: dict[str, Any]) -> 
         display = format_scaled_values(numeric, row.scale, row.offset, row.unit)
     primary = numeric[0] * row.scale + row.offset if numeric else None
     names = value_names_from_json(options.get("value_names"))
-    named = row.kind in ("coils", "discrete_inputs") or row.format in ("dec", "s16", "hex")
+    named = row.kind in ("coils", "discrete_inputs") or row.format in ("u16", "s16", "hex")
     if (
         len(raw) == 1
         and options.get("bitmask")

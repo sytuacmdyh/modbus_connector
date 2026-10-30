@@ -12,6 +12,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'register_map.dart';
+import 'backend/registers.dart';
 import 'graph_dialog.dart';
 import 'session_controller.dart';
 import 'tool_widgets.dart';
@@ -301,7 +302,7 @@ class _DevicePanelState extends State<DevicePanel> {
               'kind': e['kind'],
               'address': address,
               'count': old?['count'] ?? 1,
-              'format': old?['format'] ?? 'dec',
+              'format': canonicalFormat(old?['format']),
               'name': old?['name'] ?? '',
               'value': values[i],
             };
@@ -369,7 +370,7 @@ class _DevicePanelState extends State<DevicePanel> {
   Future<void> editSniffer(Map<String, dynamic> row) async {
     final editingUnit = selectedUnit;
     final editingKey = "${row['kind']}/${row['address']}";
-    var format = row['format'] as String? ?? 'dec';
+    var format = canonicalFormat(row['format']);
     var order = row['order'] as String? ?? 'ABCD';
     final name = TextEditingController(text: row['name'] as String? ?? '');
     final accepted = await showDialog<bool>(
@@ -609,7 +610,7 @@ class _DevicePanelState extends State<DevicePanel> {
             'kind': area.key,
             'address': address,
             'count': map[key]?['count'] ?? 1,
-            'format': map[key]?['format'] ?? 'dec',
+            'format': canonicalFormat(map[key]?['format']),
             'name': map[key]?['name'] ?? '',
             'value': cell.value,
           };

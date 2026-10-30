@@ -28,14 +28,15 @@
 ## 寄存器行
 
 生成的每行明确填写 `name`、`kind`、`address`、`count`、`format`。
-现有模板可省略 kind/format，加载器及校验器分别按 holding_registers/dec 处理。
+现有模板可省略 kind/format，加载器及校验器分别按 holding_registers/u16 处理；旧模板
+中的 `dec` 拼写仍兼容并会规范化为 `u16`。
 
 | 字段 | 规则 |
 | --- | --- |
 | `kind` | FC01=`coils`，FC02=`discrete_inputs`，FC03=`holding_registers`，FC04=`input_registers` |
 | `address` | 整数 PDU 起始地址，0–65535；不能直接照搬 4xxxx 编号 |
 | `count` | 位区为位数，寄存器区为 16 位字数；每行最多 2000 位或 125 字，结束地址不超过 65535 |
-| `format` | `dec`（u16）、`hex`、`s16`、`u32`、`s32`、`f32`、`u64`、`s64`、`f64`、`ascii`、`ascii1` |
+| `format` | `u16`（旧别名 `dec`）、`hex`、`s16`、`u32`、`s32`、`f32`、`u64`、`s64`、`f64`、`ascii`、`ascii1` |
 | `order` | `ABCD`、`CDAB`、`BADC`、`DCBA`；省略/空字符串继承全局设置 |
 | `scale` / `offset` | 显示值 = 解码后的数值 × scale + offset；默认 1 / 0 |
 | `unit` | 显示单位字符串，例如 `℃`、`Hz`；不是设备站号 |
@@ -47,8 +48,8 @@
 
 32 位数至少占 2 字，64 位数至少占 4 字。数值数组的 count 应为格式宽度的整数倍。
 `ascii` 每字两字符；`ascii1` 每字低字节一个字符，必须核对固件序列化。
-位区使用 `dec`；枚举或位掩码的跨客户端可交互显示建议限定于 count=1 的
-`dec/s16/hex` 行。多字位域拆成有依据的单字行并分别映射位号，不把位 16 写入单字位表。
+位区使用 `u16`（旧别名 `dec`）；枚举或位掩码的跨客户端可交互显示建议限定于 count=1 的
+`u16/s16/hex` 行。多字位域拆成有依据的单字行并分别映射位号，不把位 16 写入单字位表。
 枚举键按解码值填写，不应用 scale；不要把运行时值或写入默认值放进模板。
 
 `holding_registers` 可以包含固件拒绝写入的只读字段。不要因为字段只读就改成
@@ -75,7 +76,7 @@
     {"name": "温度", "kind": "holding_registers", "address": 100,
      "count": 1, "format": "s16", "scale": 0.1, "unit": "℃", "trend_enabled": false},
     {"name": "状态", "kind": "holding_registers", "address": 101,
-     "count": 1, "format": "dec", "value_names": {"0": "停止", "1": "运行"},
+     "count": 1, "format": "u16", "value_names": {"0": "停止", "1": "运行"},
      "trend_enabled": false},
     {"name": "故障", "kind": "holding_registers", "address": 102,
      "count": 1, "format": "hex", "bitmask": true,

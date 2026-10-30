@@ -13,7 +13,6 @@ const csvColumns = [
   'address',
   'count',
   'unit_id',
-  'poll_ms',
   'format',
   'scale',
   'offset',
@@ -32,8 +31,6 @@ const aliases = {
   'slave': 'unit_id',
   'slave_id': 'unit_id',
   'unitid': 'unit_id',
-  'interval': 'poll_ms',
-  'poll': 'poll_ms',
 };
 Json csvCommand(Json d) {
   if (d['command'] == 'csv_parse') {
@@ -65,12 +62,13 @@ Json csvCommand(Json d) {
       if (a == null) continue;
       r['address'] = a;
       r['count'] = int.tryParse(r['count'] ?? '') ?? 1;
-      r['format'] = formats.contains(r['format']) ? r['format'] : 'dec';
+      r['format'] = canonicalFormat(r['format']);
+      if (!formats.contains(r['format'])) r['format'] = 'u16';
       r['kind'] = kinds.contains(r['kind']) ? r['kind'] : 'holding_registers';
       r['order'] = orders.contains(r['order']) ? r['order'] : null;
       r['scale'] = num.tryParse(r['scale'] ?? '') ?? 1;
       r['offset'] = num.tryParse(r['offset'] ?? '') ?? 0;
-      for (final k in ['unit_id', 'poll_ms']) {
+      for (final k in ['unit_id']) {
         final value = int.tryParse(r[k] ?? '');
         final low = k == 'unit_id' ? 1 : 100,
             high = k == 'unit_id' ? 247 : 600000;

@@ -6,6 +6,54 @@ import 'package:flutter/material.dart';
 import 'session_controller.dart';
 import 'tool_widgets.dart';
 
+/// The wire format keeps short condition identifiers so that alarms can be
+/// shared with the native backend.  Do not expose those identifiers directly
+/// in the editor: operators are much easier to scan when they look like the
+/// condition they express.
+const alarmConditionChoices = [
+  'gt',
+  'ge',
+  'lt',
+  'le',
+  'eq',
+  'ne',
+  'in_range',
+  'outside_range',
+];
+
+String alarmConditionLabel(String condition) => switch (condition) {
+  'gt' => '>',
+  'ge' => '>=',
+  'lt' => '<',
+  'le' => '<=',
+  'eq' => '=',
+  'ne' => '!=',
+  'in_range' => 'in range',
+  'outside_range' => 'outside range',
+  _ => condition,
+};
+
+String _alarmValue(dynamic value) => value is num ? '$value' : '${value ?? ''}';
+
+String alarmRuleSummary(Map<String, dynamic> rule) {
+  final condition = rule['condition'] as String? ?? '';
+  final value = _alarmValue(rule['value']);
+  final upper = _alarmValue(rule['value2']);
+  final expression = switch (condition) {
+    'gt' => 'x > $value',
+    'ge' => 'x >= $value',
+    'lt' => 'x < $value',
+    'le' => 'x <= $value',
+    'eq' => 'x = $value',
+    'ne' => 'x != $value',
+    'in_range' => '$value <= x <= $upper',
+    'outside_range' => 'x < $value or x > $upper',
+    _ => '${alarmConditionLabel(condition)} $value',
+  };
+  final color = tr('${rule['color'] ?? 'red'}');
+  return '$expression · $color';
+}
+
 class LoggingDialog extends StatefulWidget {
   const LoggingDialog({super.key, required this.session});
   final SessionController session;
@@ -278,6 +326,26 @@ class _AlarmRulesDialogState extends State<AlarmRulesDialog> {
     super.dispose();
   }
 
+  Widget _conditionChoice() => SizedBox(
+    width: 180,
+    child: DropdownButtonFormField<String>(
+      initialValue: condition,
+      isExpanded: true,
+      decoration: InputDecoration(labelText: tr('Condition')),
+      items: alarmConditionChoices
+          .map(
+            (value) => DropdownMenuItem(
+              value: value,
+              child: LText(alarmConditionLabel(value)),
+            ),
+          )
+          .toList(),
+      onChanged: (value) {
+        if (value != null) setState(() => condition = value);
+      },
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: const LText('Alarm rules · first match wins'),
@@ -290,16 +358,7 @@ class _AlarmRulesDialogState extends State<AlarmRulesDialog> {
             spacing: 10,
             runSpacing: 10,
             children: [
-              toolChoice('Condition', condition, [
-                'gt',
-                'ge',
-                'lt',
-                'le',
-                'eq',
-                'ne',
-                'in_range',
-                'outside_range',
-              ], (v) => setState(() => condition = v)),
+              _conditionChoice(),
               toolField('Threshold / lower', value),
               if (condition.endsWith('range')) toolField('Upper', value2),
               toolChoice(
@@ -355,9 +414,7 @@ class _AlarmRulesDialogState extends State<AlarmRulesDialog> {
                 for (var i = 0; i < rules.length; i++)
                   ListTile(
                     dense: true,
-                    title: LText(
-                      '${i + 1}. ${rules[i]['condition']} ${rules[i]['value']} ${rules[i]['value2'] ?? ''} · ${rules[i]['color']}',
-                    ),
+                    title: Text('${i + 1}. ${alarmRuleSummary(rules[i])}'),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

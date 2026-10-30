@@ -431,7 +431,7 @@ class _ScannerDialogState extends State<ScannerDialog> {
                     'kind': kind,
                     'address': hit['address'],
                     'count': 1,
-                    'format': 'dec',
+                    'format': 'u16',
                     'unit_id': int.tryParse(unit.text) ?? 1,
                   };
                   if (!widget.session.registers.any(

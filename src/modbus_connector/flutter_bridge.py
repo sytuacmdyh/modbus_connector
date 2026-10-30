@@ -326,9 +326,9 @@ class Bridge:
 
                 formats = {
                     fmt: format_register_values(
-                        values[:1] if fmt in ("dec", "hex", "s16") else values, fmt
+                        values[:1] if fmt in ("u16", "dec", "hex", "s16") else values, fmt
                     )
-                    for fmt in ("dec", "hex", "s16", "u32", "s32", "f32", "ascii")
+                    for fmt in ("u16", "hex", "s16", "u32", "s32", "f32", "ascii")
                 }
             return {"address": address, "values": values, "formats": formats}
         if command not in ("read", "write"):

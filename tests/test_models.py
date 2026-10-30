@@ -5,6 +5,7 @@ import pytest
 from modbus_connector.models import (
     AlarmRule,
     ByteOrder,
+    canonical_format,
     DisplayFormat,
     ReadMember,
     ReadPlan,
@@ -207,6 +208,13 @@ class TestFormatValues:
 
 
 class TestFormatRegisterValues:
+    def test_u16_is_canonical_and_dec_remains_compatible(self) -> None:
+        assert canonical_format("u16") == "u16"
+        assert canonical_format("DEC") == "u16"
+        assert format_register_values([1, 2, 65535], "u16") == "1, 2, 65535"
+        assert decode_register_values([1, 2], "dec") == decode_register_values([1, 2], "u16")
+        assert encode_register_values(42, "dec") == encode_register_values(42, "u16")
+
     def test_dec(self) -> None:
         assert format_register_values([1, 2, 65535], "dec") == "1, 2, 65535"
 

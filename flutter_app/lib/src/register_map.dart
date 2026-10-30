@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'session_controller.dart';
+import 'backend/registers.dart';
 export 'register_map_controller.dart';
 import 'tool_widgets.dart';
 import 'logging_dialog.dart';
@@ -16,7 +17,7 @@ import 'graph_dialog.dart';
 import 'expression_dialog.dart';
 
 const displayFormats = [
-  'dec',
+  'u16',
   'hex',
   's16',
   'u32',
@@ -34,7 +35,6 @@ const csvColumns = [
   'address',
   'count',
   'unit_id',
-  'poll_ms',
   'format',
   'scale',
   'offset',
@@ -895,17 +895,6 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                     crossAxisAlignment:
                                         WrapCrossAlignment.center,
                                     children: [
-                                      FilterChip(
-                                        label: const LText('Group reads'),
-                                        selected: widget.session.mapGrouped,
-                                        onSelected: model.editingLocked
-                                            ? null
-                                            : (v) => setState(
-                                                () =>
-                                                    widget.session.mapGrouped =
-                                                        v,
-                                              ),
-                                      ),
                                       IconButton(
                                         tooltip: tr('Graph map'),
                                         icon: const Icon(Icons.multiline_chart),
@@ -1138,8 +1127,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (row['kind'] == 'holding_registers' &&
-                                      row['count'] == 1)
+                                  if (canEditBits(row))
                                     IconButton(
                                       tooltip: tr('Edit bits'),
                                       onPressed: !model.canWrite
@@ -1335,7 +1323,7 @@ class RegisterRowDialog extends StatefulWidget {
 class _RegisterRowDialogState extends State<RegisterRowDialog> {
   final fields = <String, TextEditingController>{};
   late String kind = widget.row?['kind'] as String? ?? 'holding_registers';
-  late String format = widget.row?['format'] as String? ?? 'dec';
+  late String format = canonicalFormat(widget.row?['format']);
   late String order = widget.row?['order'] as String? ?? 'ABCD';
   late bool bitmask = widget.row?['bitmask'] == true;
   String? error;
@@ -1349,7 +1337,6 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
       'address': 0,
       'count': 1,
       'unit_id': '',
-      'poll_ms': '',
       'scale': 1,
       'offset': 0,
       'unit': '',
@@ -1378,9 +1365,6 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
     final unit = fields['unit_id']!.text.isEmpty
         ? null
         : int.tryParse(fields['unit_id']!.text);
-    final pollMs = fields['poll_ms']!.text.trim().isEmpty
-        ? null
-        : int.tryParse(fields['poll_ms']!.text);
     final scale = double.tryParse(fields['scale']!.text);
     final offset = double.tryParse(fields['offset']!.text);
     final width = ['u64', 's64', 'f64'].contains(format)
@@ -1397,8 +1381,6 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
         address + count > 65536 ||
         (fields['unit_id']!.text.isNotEmpty &&
             (unit == null || unit < 1 || unit > 247)) ||
-        (fields['poll_ms']!.text.isNotEmpty &&
-            (pollMs == null || pollMs < 100 || pollMs > 86400000)) ||
         scale == null ||
         !scale.isFinite ||
         offset == null ||
@@ -1422,7 +1404,6 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
       'address': address,
       'count': count,
       'unit_id': unit,
-      'poll_ms': pollMs,
       'format': format,
       'order': order,
       'scale': scale,
@@ -1454,7 +1435,7 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
                   (v) => setState(() => kind = v),
                   width: 260,
                 ),
-                for (final key in ['address', 'count', 'unit_id', 'poll_ms'])
+                for (final key in ['address', 'count', 'unit_id'])
                   toolField(key, fields[key]!, width: 160),
                 toolChoice(
                   'Format',
@@ -1617,8 +1598,16 @@ class _CsvMappingDialogState extends State<CsvMappingDialog> {
 bool hasRawEditor(Map<String, dynamic> row) =>
     row['count'] == 1 &&
     (['coils', 'discrete_inputs'].contains(row['kind']) ||
-        ['dec', 's16', 'hex'].contains(row['format'])) &&
+        ['u16', 's16', 'hex'].contains(canonicalFormat(row['format']))) &&
     (row['bitmask'] == true || (row['value_names'] as Map? ?? {}).isNotEmpty);
+
+/// The bitmask editor is only valid for a single unsigned holding register.
+/// Accept `dec` while old workspaces migrate to the canonical `u16` token.
+bool canEditBits(Map<String, dynamic> row) =>
+    row['kind'] == 'holding_registers' &&
+    row['count'] == 1 &&
+    row['bitmask'] == true &&
+    canonicalFormat(row['format']) == 'u16';
 
 Future<List<dynamic>?> rawValuePrompt(
   BuildContext context,

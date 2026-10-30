@@ -15,7 +15,7 @@ List<Map<String, dynamic>> demoRegisters() => [
       'kind': kind,
       'address': address,
       'count': 1,
-      'format': 'dec',
+      'format': 'u16',
       'order': 'ABCD',
       'scale': scale,
       'offset': 0,

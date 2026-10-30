@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .custom_templates import CustomTemplateStore
+from .models import canonical_format
 from .templates import TemplateInfo, list_templates, load_template
 
 
@@ -115,9 +116,13 @@ def flutter_state(state: dict[str, Any]) -> dict[str, Any]:
             # Qt templates omit defaults; Flutter validates and renders explicit fields.
             item = {
                 "name": "", "kind": "holding_registers", "address": 0, "count": 1,
-                "format": "dec", "scale": 1, "offset": 0, "unit": "",
+                "format": "u16", "scale": 1, "offset": 0, "unit": "",
                 **row, "order": row.get("order") or options.get("order") or "ABCD",
             }
+            # Normalize legacy templates before handing state to Flutter.  The
+            # app still accepts `dec` on direct restore, but converted catalog
+            # data should use the canonical unsigned-16 token consistently.
+            item["format"] = canonical_format(item.get("format"))
             for key in ("unit_id", "poll_ms"):
                 value = item.get(key)
                 item[key] = None if value is None or value == "" else int(value)
@@ -144,9 +149,9 @@ def flutter_state(state: dict[str, Any]) -> dict[str, Any]:
         "expressions": expressions,
         "registers": normalize_rows(state.get("registers", [])),
         "sniffed": extra.get("sniffed", state.get("sniffed", sniffed)),
-        "map_grouped": extra.get(
-            "map_grouped", state.get("map_grouped", options.get("group_reads", False))
-        ),
+        # Grouped reads are always enabled.  Retain the field for old
+        # workspace/template consumers, but intentionally ignore legacy false.
+        "map_grouped": True,
         "device_config": device,
         "unit": extra.get("unit", state.get("connection", {}).get("unit", 1)),
         "sim_rows": normalize_rows(extra.get("sim_rows", state.get("sim", {}).get("rows", []))),

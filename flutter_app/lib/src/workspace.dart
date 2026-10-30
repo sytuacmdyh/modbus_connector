@@ -446,10 +446,6 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                       onPressed: () => workspaceFile('import'),
                       child: const LText('Import workspace'),
                     ),
-                    TextButton(
-                      onPressed: () => workspaceFile('import_qt'),
-                      child: const LText('Import Qt configuration'),
-                    ),
                   ],
                 ),
                 if (workspace.stateError != null) LText(workspace.stateError!),
@@ -581,10 +577,6 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                     PopupMenuItem(
                       value: 'import',
                       child: LText('Import workspace'),
-                    ),
-                    PopupMenuItem(
-                      value: 'import_qt',
-                      child: LText('Import Qt configuration'),
                     ),
                   ],
                 ),

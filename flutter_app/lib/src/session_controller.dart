@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 
 import 'bridge_client.dart';
 import 'demo.dart';
+import 'backend/registers.dart';
 
 const areas = <String, String>{
   'holding_registers': 'Holding registers · 03',
@@ -84,7 +85,11 @@ class SessionController extends ChangeNotifier {
   bool disconnecting = false;
   bool toolActive = false;
   bool logging = false;
-  bool mapGrouped = false;
+  /// Group adjacent/overlapping map reads.  This is always enabled; the
+  /// persisted `map_grouped` field and setter remain only for compatibility
+  /// with older workspace/template data.
+  bool get mapGrouped => true;
+  set mapGrouped(bool _) {}
   int loggedSamples = 0;
   Timer? _loggerTimer;
   int _loggerGeneration = 0;
@@ -182,7 +187,8 @@ class SessionController extends ChangeNotifier {
             (r['count'] as int) > 0 &&
             (r['address'] as int) + (r['count'] as int) <= 65536 &&
             [
-              'dec',
+              'u16',
+              'dec', // legacy alias, canonicalized below
               'hex',
               's16',
               'u32',
@@ -193,14 +199,17 @@ class SessionController extends ChangeNotifier {
               'f64',
               'ascii',
               'ascii1',
-            ].contains(r['format'] ?? 'dec') &&
+            ].contains(r['format'] ?? 'u16') &&
             ['ABCD', 'CDAB', 'BADC', 'DCBA'].contains(r['order'] ?? 'ABCD')) {
-          target.add(Map.of(r));
+          final normalized = Map<String, dynamic>.of(r);
+          normalized['format'] = canonicalFormat(normalized['format']);
+          target.add(normalized);
         }
       }
     }
 
-    mapGrouped = data['map_grouped'] == true;
+    // Grouped reads are now the only map-read behavior.  Keep accepting the
+    // legacy field, but intentionally ignore an old explicit `false`.
     if (data['expressions'] is List) {
       expressions.addAll(
         (data['expressions'] as List)

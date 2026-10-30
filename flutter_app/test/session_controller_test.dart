@@ -30,6 +30,16 @@ const config = {
 };
 
 void main() {
+  test('grouped map reads stay enabled for new and legacy state', () {
+    final controller = SessionController(FakeBridge());
+    addTearDown(controller.dispose);
+    expect(controller.mapGrouped, isTrue);
+    controller.restore({'map_grouped': false});
+    expect(controller.mapGrouped, isTrue);
+    controller.mapGrouped = false;
+    expect(controller.mapGrouped, isTrue);
+  });
+
   late FakeBridge bridge;
   late SessionController session;
   late DateTime now;

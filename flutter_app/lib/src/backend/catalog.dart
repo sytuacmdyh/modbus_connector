@@ -129,11 +129,14 @@ Json flutterState(Json s) {
         'kind': 'holding_registers',
         'address': 0,
         'count': 1,
-        'format': 'dec',
+        'format': 'u16',
         'scale': 1,
         'offset': 0,
         'unit': '',
         ...map(raw),
+        // Convert legacy `dec` rows at the catalog boundary.  Session restore
+        // remains tolerant of the alias for hand-authored/old state files.
+        'format': canonicalFormat(raw['format']),
         'order': raw['order'] ?? options['order'] ?? 'ABCD',
         for (final k in ['unit_id', 'poll_ms'])
           k: raw[k] == null || raw[k] == '' ? null : int.parse('${raw[k]}'),
@@ -171,11 +174,10 @@ Json flutterState(Json s) {
       for (final e in s['expressions'] as List? ?? [])
         if (e is Map) {...map(e), 'text': e['text'] ?? e['expr'] ?? ''},
     ],
-    'map_grouped':
-        extra['map_grouped'] ??
-        s['map_grouped'] ??
-        options['group_reads'] ??
-        false,
+    // Grouped reads are always enabled.  Keep the field in converted state so
+    // older workspace/template consumers continue to recognize it; legacy
+    // `false` values are intentionally ignored.
+    'map_grouped': true,
     'sniffed': extra['sniffed'] ?? s['sniffed'] ?? sniffed,
     'draft': {
       'transport': c['transport'],

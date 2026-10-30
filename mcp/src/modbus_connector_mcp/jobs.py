@@ -22,6 +22,7 @@ from modbus_connector.gateway_backend import (
 )
 from modbus_connector.models import (
     ByteOrder,
+    canonical_format,
     ConnectionParams,
     DisplayFormat,
     RegisterKind,
@@ -66,7 +67,7 @@ def parse_kind(text: str) -> RegisterKind:
 
 
 def parse_format(text: str) -> DisplayFormat:
-    fmt = str(text).lower()
+    fmt = canonical_format(text)
     if fmt not in get_args(DisplayFormat):
         raise ValueError(f"unknown format {text!r} ({'/'.join(get_args(DisplayFormat))})")
     return fmt  # type: ignore[return-value]
@@ -195,7 +196,7 @@ class PollRunner:
         self._address = _int_param(params, "address", minimum=0)
         self._count = _int_param(params, "count", minimum=1)
         self._interval_ms = _int_param(params, "interval_ms", default=1000, minimum=1)
-        self._format = parse_format(str(params.get("format", "dec")))
+        self._format = parse_format(str(params.get("format", "u16")))
         self._order = parse_order(str(params.get("order", "ABCD")))
         self._emit = emit
         self._backend = ModbusBackend()

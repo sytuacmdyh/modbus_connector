@@ -50,6 +50,26 @@ class ExpressionMapBridge extends MapBridge {
 }
 
 void main() {
+  test('Edit bits requires a single bitmask u16 holding row', () {
+    Map<String, dynamic> row({
+      String kind = 'holding_registers',
+      int count = 1,
+      String format = 'u16',
+      bool bitmask = true,
+    }) => {
+      'kind': kind,
+      'count': count,
+      'format': format,
+      'bitmask': bitmask,
+    };
+    expect(canEditBits(row()), isTrue);
+    expect(canEditBits(row(format: 'dec')), isTrue);
+    expect(canEditBits(row(bitmask: false)), isFalse);
+    expect(canEditBits(row(format: 's16')), isFalse);
+    expect(canEditBits(row(count: 2)), isFalse);
+    expect(canEditBits(row(kind: 'input_registers')), isFalse);
+  });
+
   testWidgets('read progress does not shift the table under the pointer', (
     tester,
   ) async {
@@ -159,12 +179,6 @@ void main() {
               .onPressed !=
           null,
       tester.widget<DesktopTable>(find.byType(DesktopTable)).onRowTap != null,
-      tester
-              .widget<FilterChip>(
-                find.widgetWithText(FilterChip, 'Group reads'),
-              )
-              .onSelected !=
-          null,
       tester
           .widget<PopupMenuButton<String>>(
             find.ancestor(

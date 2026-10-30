@@ -44,6 +44,11 @@ def test_accepts_boundary_and_signed_enum():
     assert not validator.validate(template(address=65534, count=2, format="f32", order="CDAB"))
 
 
+def test_accepts_canonical_u16_and_legacy_dec():
+    assert not validator.validate(template(format="u16"))
+    assert not validator.validate(template(format="dec"))
+
+
 def test_duplicate_keys_fail_in_standalone_cli(tmp_path):
     path = tmp_path / "duplicate.json"
     path.write_text('{"name":"first","name":"second"}', encoding="utf-8")

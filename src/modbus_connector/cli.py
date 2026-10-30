@@ -32,6 +32,7 @@ from .gateway_backend import GatewayBackend, describe_gateway
 from .models import (
     DEFAULT_SCAN_PROBES,
     ByteOrder,
+    canonical_format,
     ConnectionParams,
     DisplayFormat,
     RegisterKind,
@@ -269,7 +270,7 @@ def _map_entry(data: object) -> _MapRow | None:
         return None
     if count < 1:
         return None
-    fmt = str(data.get("format", "dec")).lower()
+    fmt = canonical_format(data.get("format", "u16"))
     order = str(data.get("order", "")).upper()
     values_data = data.get("values")
     values: list[int | bool] | None = None
@@ -293,7 +294,7 @@ def _map_entry(data: object) -> _MapRow | None:
         kind=kind,
         address=address,
         count=count,
-        format=fmt if fmt in get_args(DisplayFormat) else "dec",  # type: ignore[arg-type]
+        format=fmt if fmt in get_args(DisplayFormat) else "u16",  # type: ignore[arg-type]
         scale=_float("scale", 1.0),
         offset=_float("offset", 0.0),
         order=order if order in get_args(ByteOrder) else None,  # type: ignore[arg-type]
@@ -696,8 +697,8 @@ def _build_parser() -> argparse.ArgumentParser:
                         "holding_registers, input_registers)")
     p_read.add_argument("address", type=_nonneg_int, metavar="ADDRESS")
     p_read.add_argument("count", type=_positive_int, metavar="COUNT")
-    p_read.add_argument("--format", choices=get_args(DisplayFormat), default="dec",
-                        help="value decoding for register areas (default dec)")
+    p_read.add_argument("--format", choices=(*get_args(DisplayFormat), "dec"), default="u16",
+                        help="value decoding for register areas (default u16; dec is legacy)")
     p_read.add_argument("--order", choices=get_args(ByteOrder), default="ABCD",
                         help="byte order for 32/64-bit formats (default ABCD)")
     p_read.add_argument("--scale", type=float, default=1.0)
@@ -741,7 +742,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_poll.add_argument("--map", metavar="FILE",
                         help="poll all rows of a register map (template/session JSON "
                         "or CSV); KIND/ADDRESS/COUNT are not needed then")
-    p_poll.add_argument("--format", choices=get_args(DisplayFormat), default="dec")
+    p_poll.add_argument("--format", choices=(*get_args(DisplayFormat), "dec"), default="u16")
     p_poll.add_argument("--order", choices=get_args(ByteOrder), default="ABCD")
     p_poll.add_argument("--scale", type=float, default=1.0)
     p_poll.add_argument("--offset", type=float, default=0.0)
