@@ -84,7 +84,7 @@ def completed_release_tags(repository: str) -> set[str]:
     with urlopen(request, timeout=30) as response:
         releases = json.load(response)
     required = {
-        "modbus-flutter-windows.zip", "modbus-flutter-linux.zip",
+        "modbus-flutter-windows.zip",
         "ModbusConnector.AppImage",
     } | {f"modbus-connector-{tool}-{platform}" for tool in ("cli", "mcp")
          for platform in ("macos", "linux", "windows.exe")}
@@ -94,6 +94,7 @@ def completed_release_tags(repository: str) -> set[str]:
                   if asset.get("state") == "uploaded" and asset.get("size", 0) > 0}
         if (not release.get("draft") and (release.get("body") or "").strip()
                 and required <= assets
+                and {"modbus-flutter-linux.zip", "modbus-connector-linux.zip"} & assets
                 and any(name.endswith("-windows-x64-setup.exe") for name in assets)
                 and any(name.endswith("_amd64.deb") for name in assets)):
             completed.add(release["tag_name"])

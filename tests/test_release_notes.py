@@ -85,6 +85,8 @@ def test_historical_notes_do_not_complete_partial_release(monkeypatch):
     monkeypatch.setattr(notes, "urlopen", lambda *a, **kw: io.BytesIO(
         json.dumps([complete, partial]).encode()))
     assert notes.completed_release_tags("owner/repo") == {"v0.1.0"}
+    complete["assets"][1]["name"] = "modbus-connector-linux.zip"
+    assert notes.completed_release_tags("owner/repo") == {"v0.1.0"}
 
 
 def test_version_noise_removed_without_hiding_release_work():
