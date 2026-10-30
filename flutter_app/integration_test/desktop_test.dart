@@ -32,7 +32,7 @@ void main() {
           ),
         );
         await tester.tap(find.byTooltip('Workspace'));
-        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Local demo'));
         for (
           var i = 0;

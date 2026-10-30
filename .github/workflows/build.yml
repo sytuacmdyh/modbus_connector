@@ -72,8 +72,8 @@ jobs:
         working-directory: flutter_app
         run: |
           flutter pub get
-          flutter analyze
-          flutter test
+          python ../packaging/ci_run.py flutter analyze
+          python ../packaging/ci_run.py flutter test
           python ../packaging/ci_run.py dart test test_backend
       - name: Build (Linux/macOS)
         if: runner.os != 'Windows'
