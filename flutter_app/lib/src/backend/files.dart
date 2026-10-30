@@ -166,7 +166,8 @@ class NativeLogger {
         'timestamp',
         ...descriptors.map(
           (r) =>
-              '${r['name'] == '' ? r['kind'] : r['name']}@${r['address']}/u${r['unit_id']}',
+              '${r['name'] == '' ? r['kind'] : r['name']}@${r['unit_id']}_${r['address']}'
+              '${r['unit'] == '' ? '' : ' (${r['unit']})'}',
         ),
         ...expr.map((e) => 'fx ${e['name']}'),
       ];
@@ -226,7 +227,10 @@ class NativeLogger {
         final stamp = DateTime.now().toUtc().toIso8601String();
         final displays = [
           for (var i = 0; i < rows.length; i++)
-            render(rows[i], raw[i])['display'],
+            render(
+              format == 'csv' ? {...rows[i], 'unit': ''} : rows[i],
+              raw[i],
+            )['display'],
           for (final e in results!) e['display'],
         ];
         if (format == 'csv') {

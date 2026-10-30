@@ -100,8 +100,10 @@ Logger commands:
 
 - `logger_start`: `{path,format:"csv"|"jsonl",interval_ms,append,fields,rows}`.
   Path is local to the owned service; append defaults true. Validates rows/settings
-  before opening. CSV columns are timestamp + fixed row labels; incompatible
-  existing CSV headers fail. JSONL fields: timestamp/name/address/kind, plus value.
+  before opening. CSV columns are timestamp + fixed `name@unit_id_address` labels with engineering
+  units in parentheses; CSV values omit the unit suffix but retain scaling and
+  value/bit labels. Incompatible existing CSV headers fail. JSONL fields:
+  timestamp/name/address/kind, plus value.
 - `logger_sample`: `{values:[[raw,...],...]}` in the frozen row order. Validates
   shape/ranges, renders engineering values, throttles by monotonic interval,
   flushes the existing DataLogger. CSV writes one wide row; JSONL one per register
