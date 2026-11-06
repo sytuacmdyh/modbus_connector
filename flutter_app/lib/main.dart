@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'src/diagnostics.dart';
+import 'src/workbench_theme.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -53,29 +54,6 @@ class _ModbusAppState extends State<ModbusApp> {
     setState(() {});
   }
 
-  ThemeData _theme(Brightness brightness) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xff326d76),
-      brightness: brightness,
-    );
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.surfaceContainerLowest,
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(),
-        isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      ),
-      cardTheme: CardThemeData(
-        elevation: 0,
-        color: scheme.surfaceContainerLow,
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-    );
-  }
-
   @override
   void dispose() {
     appLanguage.removeListener(_languageChanged);
@@ -92,8 +70,8 @@ class _ModbusAppState extends State<ModbusApp> {
     supportedLocales: const [Locale('en'), Locale('zh', 'CN')],
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
     debugShowCheckedModeBanner: false,
-    theme: _theme(Brightness.light),
-    darkTheme: _theme(Brightness.dark),
+    theme: workbenchTheme(Brightness.light),
+    darkTheme: workbenchTheme(Brightness.dark),
     themeMode: _themeMode,
     home: widget.graphWindow
         ? const GraphWindow()
