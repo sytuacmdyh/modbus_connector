@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
 import 'translations.dart';
 
@@ -390,76 +391,94 @@ class _DesktopTableState extends State<DesktopTable> {
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final keys = visible;
-      final total = keys.fold<double>(0, (sum, key) => sum + width(key));
-      final rowHeight =
-          (compact ? 48.0 : 56.0) *
-          MediaQuery.textScalerOf(context).scale(1).clamp(1, 2);
-      _rowHeight = rowHeight;
-      final body = Scrollbar(
-        key: bodyKey,
+  Widget build(BuildContext context) {
+    final keys = visible;
+    final total = keys.fold<double>(0, (sum, key) => sum + width(key));
+    final rowHeight =
+        (compact ? 48.0 : 56.0) *
+        MediaQuery.textScalerOf(context).scale(1).clamp(1, 2);
+    _rowHeight = rowHeight;
+    final body = Scrollbar(
+      key: bodyKey,
+      controller: vertical,
+      thumbVisibility: true,
+      child: ListView.builder(
         controller: vertical,
-        thumbVisibility: true,
-        child: ListView.builder(
-          controller: vertical,
-          primary: false,
-          padding: EdgeInsets.only(bottom: widget.bottomPadding),
-          itemCount: widget.rowCount,
-          itemExtent: rowHeight,
-          itemBuilder: (context, i) => GestureDetector(
-            onSecondaryTapDown: (d) =>
-                widget.onRowMenu?.call(i, d.globalPosition),
-            child: Material(
-              color: widget.selected?.call(i) == true
-                  ? Theme.of(context).colorScheme.primaryContainer
-                  : i.isEven
-                  ? Theme.of(context).colorScheme.surface
-                  : Theme.of(context).colorScheme.surfaceContainerLow
-                        .withValues(alpha: .4),
-              child: InkWell(
-                onTap: widget.onRowTap == null
-                    ? null
-                    : () => widget.onRowTap!(i),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (final key in keys)
-                      Container(
-                        width: width(key),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .outlineVariant
-                                  .withValues(alpha: .5),
-                            ),
-                            right: BorderSide(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .outlineVariant
-                                  .withValues(alpha: .3),
-                            ),
+        primary: false,
+        padding: EdgeInsets.only(bottom: widget.bottomPadding),
+        itemCount: widget.rowCount,
+        itemExtent: rowHeight,
+        // Keep a small scroll buffer without rebuilding many offscreen controls
+        // at every acquisition cycle.
+        scrollCacheExtent: ScrollCacheExtent.pixels(rowHeight),
+        itemBuilder: (context, i) => GestureDetector(
+          onSecondaryTapDown: (d) =>
+              widget.onRowMenu?.call(i, d.globalPosition),
+          child: Material(
+            color: widget.selected?.call(i) == true
+                ? Theme.of(context).colorScheme.primaryContainer
+                : i.isEven
+                ? Theme.of(context).colorScheme.surface
+                : Theme.of(context).colorScheme.surfaceContainerLow
+                      .withValues(alpha: .4),
+            child: InkWell(
+              onTap: widget.onRowTap == null ? null : () => widget.onRowTap!(i),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final key in keys)
+                    Container(
+                      width: width(key),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: Theme.of(context).colorScheme.outlineVariant
+                                .withValues(alpha: .5),
                           ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: widget.cellBuilder(context, i, key),
+                          right: BorderSide(
+                            color: Theme.of(context).colorScheme.outlineVariant
+                                .withValues(alpha: .3),
                           ),
                         ),
                       ),
-                  ],
-                ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: widget.cellBuilder(context, i, key),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
         ),
-      );
-      return Scrollbar(
+      ),
+    );
+    final content = Column(
+      mainAxisSize: widget.shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Material(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          child: headers(keys),
+        ),
+        if (widget.shrinkWrap)
+          SizedBox(
+            height: (widget.rowCount * rowHeight + 14)
+                .clamp(14, 320)
+                .toDouble(),
+            child: widget.onToggleRows == null ? body : _selectionBody(body),
+          )
+        else
+          Expanded(
+            child: widget.onToggleRows == null ? body : _selectionBody(body),
+          ),
+      ],
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) => Scrollbar(
         controller: horizontal,
         thumbVisibility: true,
         child: SingleChildScrollView(
@@ -468,36 +487,10 @@ class _DesktopTableState extends State<DesktopTable> {
           child: SizedBox(
             width: total < constraints.maxWidth ? constraints.maxWidth : total,
             height: widget.shrinkWrap ? null : constraints.maxHeight,
-            child: Column(
-              mainAxisSize: widget.shrinkWrap
-                  ? MainAxisSize.min
-                  : MainAxisSize.max,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Material(
-                  color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  child: headers(keys),
-                ),
-                if (widget.shrinkWrap)
-                  SizedBox(
-                    height: (widget.rowCount * rowHeight + 14)
-                        .clamp(14, 320)
-                        .toDouble(),
-                    child: widget.onToggleRows == null
-                        ? body
-                        : _selectionBody(body),
-                  )
-                else
-                  Expanded(
-                    child: widget.onToggleRows == null
-                        ? body
-                        : _selectionBody(body),
-                  ),
-              ],
-            ),
+            child: content,
           ),
         ),
-      );
-    },
-  );
+      ),
+    );
+  }
 }

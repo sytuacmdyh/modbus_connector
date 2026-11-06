@@ -6,6 +6,7 @@ import 'package:modbus_desktop/src/desktop_table.dart';
 import 'package:modbus_desktop/src/bridge_client.dart';
 import 'package:modbus_desktop/src/workspace.dart';
 import 'package:modbus_desktop/src/session_controller.dart';
+import 'package:modbus_desktop/src/workbench_theme.dart';
 
 // A small real-device response delay prevents instant local replies from hiding
 // per-request rebuilds between frames. All service I/O uses the real native backend.
@@ -49,6 +50,7 @@ void main() {
       await session.connect({'transport': 'demo', 'timeout': 1.0}, 1);
       await tester.pumpWidget(
         MaterialApp(
+          theme: workbenchTheme(Brightness.light),
           home: SessionWorkspace(
             controller: workspace,
             themeMode: ThemeMode.light,
@@ -73,19 +75,12 @@ void main() {
           await tester.pumpAndSettle();
         }
       }, reportKey: 'large_map');
+      final acquisitionNotifications = notifications;
       debugPrint(
         'PERFORMANCE ${binding.reportData} notifications=$notifications',
       );
       expect(session.registerResults, hasLength(248));
       expect(session.error, isNull);
-      if (!const bool.fromEnvironment('PERFORMANCE_BASELINE')) {
-        expect(notifications, lessThanOrEqualTo(18));
-        final report = binding.reportData!['large_map'] as Map;
-        expect(
-          report['90th_percentile_frame_build_time_millis'],
-          lessThan(16.7),
-        );
-      }
       final checks = find.descendant(
         of: find.byType(DesktopTable),
         matching: find.byType(Checkbox),
@@ -114,9 +109,14 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('enable-selected-polling')));
       await tester.pumpAndSettle();
       expect(session.registers.every((r) => r['poll_enabled'] == true), isTrue);
+      session.registerMap.setRuntimeFlags(
+        List.generate(session.registers.length, (i) => i),
+        trendEnabled: true,
+      );
       await session.registerMap.read();
       await tester.pumpAndSettle();
       // Scrolling after a long acquisition must stay cheap with full histories.
+      expect(session.histories, hasLength(248));
       final now = DateTime.now();
       for (final points in session.histories.values) {
         points.clear();
@@ -130,6 +130,10 @@ void main() {
           ),
         );
       }
+      expect(
+        session.histories.values.every((points) => points.length == 1000),
+        isTrue,
+      );
       await session.disconnect();
       await tester.pumpAndSettle();
       await binding.watchPerformance(() async {
@@ -157,9 +161,22 @@ void main() {
             ..remove('frame_build_times')
             ..remove('frame_rasterizer_times')}',
         );
+      }
+      // Collect every phase before asserting, so a failed acquisition budget
+      // does not hide scroll/resize measurements from the same run.
+      if (!const bool.fromEnvironment('PERFORMANCE_BASELINE')) {
+        expect(acquisitionNotifications, lessThanOrEqualTo(18));
+      }
+      for (final key in [
+        if (!const bool.fromEnvironment('PERFORMANCE_BASELINE')) 'large_map',
+        'scroll_full_history',
+        'resize_full_history',
+      ]) {
+        final report = binding.reportData![key] as Map;
         expect(
           report['90th_percentile_frame_build_time_millis'],
           lessThan(16.7),
+          reason: key,
         );
       }
     } finally {

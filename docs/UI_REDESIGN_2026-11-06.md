@@ -78,6 +78,57 @@ and 25.5, with raw readback verified while polling continues. Native assertions
 also check console collapse and unchanged table bounds during selection. The
 three final PNGs were inspected for grid lines, contrast and control fit.
 
+## Resize performance and final acceptance
+
+The first final performance run exposed repeated construction of visible table
+cells during viewport changes: resize p90 build time was 31.041 ms against the
+existing 16.7 ms limit. No threshold was changed. Workbench now retains its
+session-bound register panel, which owns its own data listeners. RegisterMapPanel
+builds toolbar/table widgets outside the viewport constraint callback, and
+DesktopTable likewise keeps its header and lazy body outside that callback.
+The connection summary, map card and activity console are also built outside
+the constraint callback, and the table preloads one row beyond the viewport
+instead of a large buffer of interactive cells.
+Resizing lays out these widgets while model, theme, language and selection
+updates still rebuild their contents. Column resizing and visibility changes
+remain managed by DesktopTable state.
+
+After this change, `flutter analyze` reports no issues and all 122 Flutter tests
+pass. The desktop, parity and isolated template native runs passed before this
+performance-only refactor; the template fixture contains 6 and 150 rows and does
+not represent an online manufacturer catalog.
+
+The performance harness now uses the production theme, records all phases
+before checking the unchanged 16.7 ms build-time budgets, and snapshots the
+acquisition notification count before later interactions. Its history phase
+explicitly enables trends and asserts 248 series with 1000 samples each; the old
+fixture omitted `trend_enabled`, leaving those series empty. Intermediate runs
+and their failures are retained in the local evidence directory.
+
+The final standalone Profile stress run uses the same prebuilt native app with
+248 rows and the asserted history population. It does **not** meet the existing
+16.7 ms p90 frame-build budget: acquisition 38.813 ms, history scrolling
+19.983 ms, and resizing 54.882 ms. A preceding run without populated histories
+measured scrolling 6.794 ms and resizing 11.479 ms, but that is not evidence for
+the full-history workload. Functional correctness and a guaranteed 60 Hz stress
+budget are distinct; no performance pass is claimed. The older acceptance
+report already recorded a resize budget failure, and this corrected fixture
+adds a materially heavier history workload.
+
+Final functional recheck after the resize/buffer changes: analyzer clean;
+18 workbench/table cases pass, followed by all 9 table cases after the final
+one-row buffer adjustment. The native appearance test passes again, including
+live value readback in all three themes/window scenes and console/selection
+viewport assertions. There are no suppressed performance assertions.
+
+## Cross-platform CI navigation
+
+Windows native CI exposed a test assumption: its host window can remain narrow
+even after `setSurfaceSize(1280, 800)`, so session navigation lives in the drawer.
+The native test now opens the Sessions drawer when the sidebar item is absent,
+then selects it and verifies acquisition continues. It retains the same wide
+sidebar assertions on hosts where the sidebar is visible.
+
 ## Remaining acceptance
 
 Run the full Flutter checks and native integration files separately, inspect

@@ -40,6 +40,12 @@ class Workbench extends StatefulWidget {
 
 class _WorkbenchState extends State<Workbench> {
   SessionController get session => widget.controller;
+  // The panel owns its model/session listeners. Reuse its immutable widget
+  // when only the outer connection/console layout changes during resize.
+  late Widget _registerPanel = RegisterMapPanel(
+    key: ObjectKey(session),
+    session: session,
+  );
   bool? _showActivity;
   bool get _activityExpanded =>
       _showActivity ?? MediaQuery.sizeOf(context).height >= 720;
@@ -63,6 +69,17 @@ class _WorkbenchState extends State<Workbench> {
   int _bits = 8;
   int _stop = 1;
   AppLifecycleListener? _lifecycle;
+
+  @override
+  void didUpdateWidget(covariant Workbench oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.controller, widget.controller)) {
+      _registerPanel = RegisterMapPanel(
+        key: ObjectKey(session),
+        session: session,
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -879,15 +896,39 @@ class _WorkbenchState extends State<Workbench> {
         return DevicePanel(key: ValueKey(session.mode), session: session);
       }
       final colors = Theme.of(context).colorScheme;
+      final connection = Padding(
+        padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
+        child: _connectionBar(),
+      );
+      final registerArea = Expanded(
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LText(
+                    'Register map',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Expanded(child: _registerPanel),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      final activity = _logs();
       return Scaffold(
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) => Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
-                  child: _connectionBar(),
-                ),
+                connection,
                 if (session.error != null)
                   Material(
                     color: colors.errorContainer,
@@ -915,28 +956,7 @@ class _WorkbenchState extends State<Workbench> {
                       ],
                     ),
                   ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: Card(
-                      margin: EdgeInsets.zero,
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            LText(
-                              'Register map',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 6),
-                            Expanded(child: RegisterMapPanel(session: session)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                registerArea,
                 SizedBox(
                   key: const ValueKey('activity-console'),
                   height: _activityExpanded
@@ -945,7 +965,7 @@ class _WorkbenchState extends State<Workbench> {
                           240.0,
                         )
                       : 48,
-                  child: _logs(),
+                  child: activity,
                 ),
                 ListenableBuilder(
                   listenable: session.registerMap,
