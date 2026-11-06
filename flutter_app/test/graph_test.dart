@@ -11,14 +11,14 @@ import 'fake_bridge.dart';
 
 void main() {
   testWidgets(
-    'graph restores curve selection, scale and time window when reopened',
+    'graph restores selection and scale while capping legacy time windows',
     (tester) async {
       final session = SessionController(FakeBridge());
       session.recordPoint('v', 'Voltage', 230);
       session.recordPoint('i', 'Current', 5);
       session.draft['graph:master'] = {
         'selected': ['i'],
-        'seconds': 300,
+        'seconds': 3600,
         'normalized': true,
       };
       await tester.pumpWidget(MaterialApp(home: GraphDialog(session: session)));

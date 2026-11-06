@@ -54,7 +54,7 @@ class _GraphDialogState extends State<GraphDialog> {
   final selected = <String>{};
   bool normalized = false;
   bool paused = false;
-  int seconds = 60;
+  int seconds = 300;
   Map<String, List<Sample>>? frozen;
   double? hover;
   bool pinned = false;
@@ -124,7 +124,7 @@ class _GraphDialogState extends State<GraphDialog> {
         selectionReady = true;
       }
       if ([10, 30, 60, 300, 3600].contains(saved['seconds'])) {
-        seconds = saved['seconds'] as int;
+        seconds = (saved['seconds'] as int).clamp(10, 300);
       }
       normalized = saved['normalized'] == true;
     }
@@ -224,7 +224,7 @@ class _GraphDialogState extends State<GraphDialog> {
                   toolChoice(
                     'Time window, s',
                     '$seconds',
-                    ['10', '30', '60', '300', '3600'],
+                    ['10', '30', '60', '300'],
                     (v) => setState(() => seconds = int.parse(v)),
                     width: 155,
                   ),

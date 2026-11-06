@@ -30,6 +30,26 @@ const config = {
 };
 
 void main() {
+  test('trend history rolls over five minutes at every sampling rate', () {
+    var now = DateTime(2026);
+    final session = SessionController(FakeBridge(), clock: () => now);
+    addTearDown(session.dispose);
+    final start = now;
+    for (var i = 0; i <= 3600; i++) {
+      now = start.add(Duration(milliseconds: i * 100));
+      session.recordPoint('fast', 'Fast', i.toDouble());
+      if (i % 100 == 0) session.recordPoint('slow', 'Slow', i.toDouble());
+    }
+    final fast = session.histories['fast']!;
+    expect(fast.length, 3001);
+    expect(fast.first.time, now.subtract(trendRetention));
+    expect(fast.last.time, now);
+    expect(session.histories['slow']!.length, 31);
+    now = now.add(const Duration(minutes: 6));
+    session.recordPoint('fast', 'Fast', 42);
+    expect(fast.single.value, 42);
+  });
+
   test('grouped map reads stay enabled for new and legacy state', () {
     final controller = SessionController(FakeBridge());
     addTearDown(controller.dispose);

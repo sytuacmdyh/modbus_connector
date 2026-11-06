@@ -21,6 +21,7 @@ const areas = <String, String>{
 };
 
 const maxRegisterRows = 4096;
+const trendRetention = Duration(minutes: 5);
 
 class Sample {
   const Sample(this.time, this.value);
@@ -36,7 +37,8 @@ class LogEntry {
 }
 
 class SessionController extends ChangeNotifier {
-  SessionController(this.bridge, {DateTime Function()? clock}) {
+  SessionController(this.bridge, {DateTime Function()? clock})
+    : _clock = clock ?? DateTime.now {
     registerMap = RegisterMapController(this, clock: clock);
     registerMap.addListener(() {
       if (!_disposed) notifyListeners();
@@ -64,6 +66,7 @@ class SessionController extends ChangeNotifier {
       notifyListeners();
     };
   }
+  final DateTime Function() _clock;
   final BridgeTransport bridge;
   final Queue<Map<String, dynamic>> traffic = Queue();
   Map<String, dynamic> busStatistics = {};
@@ -111,14 +114,19 @@ class SessionController extends ChangeNotifier {
       histories.remove(histories.keys.first);
     }
     final points = histories.putIfAbsent(key, Queue<Sample>.new);
-    final now = DateTime.now();
+    final now = _clock();
+    final cutoff = now.subtract(trendRetention);
+    while (points.isNotEmpty && points.first.time.isBefore(cutoff)) {
+      points.removeFirst();
+    }
     if (points.isNotEmpty &&
         now.difference(points.last.time).inMilliseconds < 100) {
       return;
     }
     points.add(Sample(now, value));
     historyLabels[key] = label;
-    while (points.length > 1000) {
+    // At most ten samples per second, including both window endpoints.
+    while (points.length > 3001) {
       points.removeFirst();
     }
   }
