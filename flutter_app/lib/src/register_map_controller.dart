@@ -308,6 +308,7 @@ class RegisterMapController extends ChangeNotifier {
     polling = false;
     _timer?.cancel();
     ++_generation;
+    if (reading) session.bridge.cancelPendingRead();
     if (!_disposed) notifyListeners();
   }
 

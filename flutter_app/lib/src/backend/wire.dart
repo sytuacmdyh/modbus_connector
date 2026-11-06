@@ -81,6 +81,28 @@ String describe(Json p) => p['transport'] == 'rtu'
     ? 'rtu ${p['port']} @ ${p['baudrate']}'
     : '${p['transport']} ${p['host']}:${p['port']}';
 
+class ReadCancelled implements Exception {
+  @override
+  String toString() => 'Read cancelled';
+}
+
+class ReadCancellation {
+  final _signal = Completer<void>();
+  bool get cancelled => _signal.isCompleted;
+  void cancel() {
+    if (!cancelled) _signal.complete();
+  }
+
+  void check() {
+    if (cancelled) throw ReadCancelled();
+  }
+
+  Future<T> wait<T>(Future<T> future) => Future.any([
+    future,
+    _signal.future.then<T>((_) => throw ReadCancelled()),
+  ]);
+}
+
 class SerialChannel {
   SerialChannel(
     Json p, {
@@ -136,10 +158,11 @@ class SerialChannel {
   final incoming = StreamController<Uint8List>();
   bool closed = false;
   Stream<Uint8List> get stream => incoming.stream;
-  Future<void> write(List<int> b) async {
+  Future<void> write(List<int> b, {ReadCancellation? cancellation}) async {
     var i = 0;
     final watch = Stopwatch()..start();
     while (i < b.length) {
+      cancellation?.check();
       if (watch.elapsedMilliseconds > 5000) {
         throw TimeoutException('Serial write timed out');
       }
@@ -355,12 +378,21 @@ class ModbusClient {
     serial = null;
   }
 
-  Future<List<int>> request(int unit, List<int> pdu) => serialized(() async {
+  Future<List<int>> request(
+    int unit,
+    List<int> pdu, {
+    ReadCancellation? cancellation,
+  }) => serialized(() async {
+    cancellation?.check();
     final p = params;
     if (p == null) throw const SocketException('Not connected; connect again');
     if (drainUntil != null) {
       final delay = drainUntil!.difference(DateTime.now());
-      if (!delay.isNegative) await Future<void>.delayed(delay);
+      if (!delay.isNegative) {
+        final waiting = Future<void>.delayed(delay);
+        await (cancellation?.wait(waiting) ?? waiting);
+      }
+      cancellation?.check();
       drainUntil = null;
       activeParser?.buffer.clear();
       if (!connected) throw const SocketException('Disconnected');
@@ -369,6 +401,9 @@ class ModbusClient {
     expectedId = transaction = (transaction + 1) & 65535;
     final tcp = p['transport'] == 'tcp';
     final packet = tcp ? tcpFrame(transaction, unit, pdu) : rtuFrame(unit, pdu);
+    final responseDeadline = DateTime.now().add(
+      Duration(milliseconds: ((p['timeout'] as num) * 1000).round()),
+    );
     final c = Completer<List<int>>();
     pending = c;
     // Attach the response listener before writing so disconnect errors are observed.
@@ -382,6 +417,7 @@ class ModbusClient {
     final reply = exchange();
     unawaited(reply.then<void>((_) {}, onError: (Object _, StackTrace _) {}));
     try {
+      cancellation?.check();
       traffic?.call('tx', packet);
       if (socket != null) {
         socket!.add(packet);
@@ -389,12 +425,12 @@ class ModbusClient {
         udp!.send(packet, udpHost!, p['port']);
       } else {
         await serial!
-            .write(packet)
+            .write(packet, cancellation: cancellation)
             .timeout(
               Duration(milliseconds: ((p['timeout'] as num) * 1000).round()),
             );
       }
-      final response = await reply;
+      final response = await (cancellation?.wait(reply) ?? reply);
       if (response.isEmpty) {
         throw const FormatException('Empty Modbus response');
       }
@@ -408,6 +444,13 @@ class ModbusClient {
         throw const FormatException('Unexpected function code');
       }
       return response;
+    } on ReadCancelled {
+      if (!c.isCompleted) c.completeError(ReadCancelled());
+      activeParser?.buffer.clear();
+      // RTU has no transaction ID. Keep the abandoned reply out of the next
+      // exchange, but release the caller immediately (also during draining).
+      if (!tcp) drainUntil = responseDeadline;
+      rethrow;
     } on TimeoutException {
       activeParser?.buffer.clear();
       // TCP IDs reject late replies. RTU has no IDs: drain a full timeout
@@ -426,8 +469,9 @@ class ModbusClient {
     int unit,
     String kind,
     int address,
-    int count,
-  ) async {
+    int count, {
+    ReadCancellation? cancellation,
+  }) async {
     bounded(unit, 'unit', 1, 247);
     bounded(address, 'address', 0, 65535);
     bounded(count, 'count', 1, bitKind(kind) ? 2000 : 125);
@@ -435,7 +479,11 @@ class ModbusClient {
       throw const FormatException('Invalid read range');
     }
     final fc = kinds.indexOf(kind) + 1;
-    final r = await request(unit, [fc, ...word(address), ...word(count)]);
+    final r = await request(unit, [
+      fc,
+      ...word(address),
+      ...word(count),
+    ], cancellation: cancellation);
     final n = bitKind(kind) ? (count + 7) ~/ 8 : count * 2;
     if (r.length != n + 2 || r[1] != n) {
       throw const FormatException('Invalid read response length');

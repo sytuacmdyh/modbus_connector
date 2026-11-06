@@ -19,16 +19,27 @@ void nativeWorker(List<dynamic> arguments) {
   );
   final input = ReceivePort();
   var tail = Future<void>.value();
+  int? activeId;
   output.send(input.sendPort);
   input.listen((dynamic message) {
+    final command = Map<String, dynamic>.from(message as Map);
+    // Cancellation bypasses the serialized command queue and has no reply.
+    if (command['command'] == '_cancel_read') {
+      if (activeId == command['request_id']) service.cancelRead();
+      return;
+    }
     tail = tail.then((_) async {
-      final command = Map<String, dynamic>.from(message as Map);
+      activeId = command['_request_id'] as int?;
       if (command['command'] == '_close_worker') {
         input.close();
         await service.close();
         Isolate.exit(output, {'closed': true});
       }
-      output.send(await service.respond(command));
+      try {
+        output.send(await service.respond(command));
+      } finally {
+        activeId = null;
+      }
     });
   });
 }

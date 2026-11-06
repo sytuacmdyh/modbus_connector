@@ -285,3 +285,14 @@ Expression logger extension (canonical register-map CSV is unchanged):
   kind = `expression`, address = zero-based index among selected expressions,
   value = formatted result. This kind identifies calculated values, not a Modbus
   address. The shared writer and register-map CSV parser/exporter are unchanged.
+
+### Internal read cancellation
+
+`NativeBridge` assigns `_request_id` to worker commands. A private `_cancel_read`
+message with `request_id` bypasses the worker command queue, only cancels the
+matching active `read_rows`, and has no separate response. The original request
+returns a `ReadCancelled` error with the connection retained; the UI discards it
+using its polling generation. Cancellation unwinds grouped-read fallback and
+serial write retries, and is excluded from communication-error statistics.
+RTU restarts drain through the cancelled request's original response deadline;
+this drain is itself cancellable. Ordinary commands and writes remain serialized.

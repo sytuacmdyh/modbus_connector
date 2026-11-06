@@ -504,3 +504,29 @@ Validation:
 - Installed Release launched successfully and created UI/worker startup logs.
   Window capture confirmed both Chinese diagnostic buttons and the restored
   102-row workspace. The application was left running and disconnected.
+
+## Immediate polling stop (2026-11-06, 0.16.9)
+
+The old Stop action only invalidated UI results and cancelled the poll timer;
+the backend still waited for the active response timeout and could issue grouped
+fallback reads. A real worker-isolate regression with a silent TCP peer and a
+five-second timeout failed to become idle within 500 ms before the fix.
+
+Stop now sends a request-scoped out-of-band cancellation to the worker, interrupts
+response/drain/serial-write waits and unwinds fallback reads without closing the
+transport. Late RTU replies are drained until the original response deadline;
+restart waits may therefore remain even though Stop itself returns promptly.
+Cancellation does not increment communication-error statistics or cancel writes.
+
+Host validation: analyzer clean, 108 Flutter tests and 393 backend tests passed.
+The real-isolate TCP and RTU-over-TCP stop regressions released the busy state in
+1–3 ms on this host. Backend tests also cover UDP late replies, cancelling during
+drain, cancelling before worker startup and stopping serial write retries before
+port disposal. These measurements are host results, not physical USB acceptance.
+
+Windows validation: all five cancellation backend regressions and all four
+real-isolate/local-service stop scenarios passed (0–2 ms measured busy-state
+release). The 0.16.9 Release and NSIS installer built successfully; local update
+preserved all six pre-existing state/log files, and all 17 shipped payload hashes
+matched the build. The previous application closed normally before backup/install.
+Installed 0.16.9 launched successfully and was left disconnected for device testing.

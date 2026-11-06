@@ -194,3 +194,13 @@ previously exported ZIPs and Windows system events. New activity creates new log
 Version 0.16.8 fixes serial disconnect heap corruption by leaving assigned
 `SerialPortConfig` disposal to `SerialPort`, as required by the pinned
 `libserialport 0.3.0+1` implementation (including setter failure).
+
+### Stopping acquisition
+
+Stop cancels the active register-map read through an out-of-band worker message,
+releases the busy state, and prevents grouped-read fallback and later polling
+requests. The port stays connected. Frames already sent cannot be recalled.
+For RTU transports, restarting waits out the abandoned request's remaining
+response deadline before sending another request, so a late reply cannot be
+mistaken for the next response. Stop also interrupts this wait. Cancellation
+does not count as a communication error and never targets an active value write.

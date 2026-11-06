@@ -99,7 +99,13 @@ class NativeService {
         Diagnostics.current?.write('backend', "${d['command']} complete");
       }
     } catch (e, stack) {
-      Diagnostics.current?.write('backend-error', "${d['command']}: $e", stack);
+      if (e is! ReadCancelled) {
+        Diagnostics.current?.write(
+          'backend-error',
+          "${d['command']}: $e",
+          stack,
+        );
+      }
       response = {
         'ok': false,
         'error': {
@@ -111,7 +117,10 @@ class NativeService {
     }
     if (traffic.isNotEmpty) {
       operations++;
-      if (response['ok'] != true) errors++;
+      if (response['ok'] != true &&
+          response['error']['type'] != 'ReadCancelled') {
+        errors++;
+      }
       totalMs += clock.elapsedMicroseconds / 1000;
     }
     return {
@@ -128,7 +137,20 @@ class NativeService {
     };
   }
 
+  ReadCancellation? _readCancellation;
+  void cancelRead() => _readCancellation?.cancel();
+
   Future<Json> dispatch(Json d) async {
+    if (d['command'] != 'read_rows') return _dispatch(d);
+    final cancellation = _readCancellation = ReadCancellation();
+    try {
+      return await _dispatch(d);
+    } finally {
+      if (identical(_readCancellation, cancellation)) _readCancellation = null;
+    }
+  }
+
+  Future<Json> _dispatch(Json d) async {
     final command = d['command'];
     if (command == 'hello') return {'protocol': 1};
     if (command == 'ports') {
@@ -230,7 +252,9 @@ class NativeService {
       final groups = d['grouped'] == true
           ? plan(rows)
           : List.generate(rows.length, (i) => [i]);
+      final cancellation = _readCancellation;
       for (final group in groups) {
+        cancellation?.check();
         final first = rows[group[0]];
         final start = group
                 .map((i) => rows[i]['address'] as int)
@@ -247,6 +271,7 @@ class NativeService {
             first['kind'],
             start,
             end - start,
+            cancellation: cancellation,
           );
           for (final i in group) {
             final offset = (rows[i]['address'] as int) - start;
@@ -256,6 +281,7 @@ class NativeService {
             );
           }
         } catch (_) {
+          cancellation?.check();
           if (group.length == 1) rethrow;
           for (final i in group) {
             final r = rows[i];
@@ -264,6 +290,7 @@ class NativeService {
               r['kind'],
               r['address'],
               r['count'],
+              cancellation: cancellation,
             );
           }
         }

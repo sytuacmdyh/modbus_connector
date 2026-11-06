@@ -27,6 +27,7 @@ abstract class BridgeTransport {
     Map<String, dynamic> command, {
     Duration? timeout,
   });
+  void cancelPendingRead() {}
   Future<void> close();
 }
 
@@ -46,6 +47,20 @@ class NativeBridge extends BridgeTransport {
   Completer<Map<String, dynamic>>? _response;
   Completer<void>? _closed;
   Future<void>? _closeTask;
+  int _nextRequestId = 0;
+  int? _activeReadId, _cancelledReadId;
+
+  @override
+  void cancelPendingRead() {
+    final id = _activeReadId;
+    if (id == null) return;
+    _cancelledReadId = id;
+    if (_local != null) {
+      _local.cancelRead();
+    } else {
+      _commands?.send({'command': '_cancel_read', 'request_id': id});
+    }
+  }
 
   Future<SendPort> _start() => _starting ??= _spawn();
   Future<SendPort> _spawn() async {
@@ -106,10 +121,13 @@ class NativeBridge extends BridgeTransport {
     if (_pending != null) {
       throw const BridgeException('Backend operation already in progress');
     }
-    final result = _request(command, timeout);
+    final id = ++_nextRequestId;
+    if (command['command'] == 'read_rows') _activeReadId = id;
+    final result = _request({...command, '_request_id': id}, timeout);
     _pending = result;
     return result.whenComplete(() {
       if (identical(_pending, result)) _pending = null;
+      if (_activeReadId == id) _activeReadId = null;
     });
   }
 
@@ -127,6 +145,9 @@ class NativeBridge extends BridgeTransport {
         _dead = false;
       }
       final port = await _start();
+      if (_cancelledReadId == command['_request_id']) {
+        throw const BridgeException('Read cancelled');
+      }
       final waiting = _response = Completer<Map<String, dynamic>>();
       port.send(command);
       try {
