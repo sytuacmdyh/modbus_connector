@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'session_controller.dart';
+import 'backend/registers.dart';
 
 class RegisterMapController extends ChangeNotifier {
   RegisterMapController(this.session, {DateTime Function()? clock})
@@ -113,7 +114,7 @@ class RegisterMapController extends ChangeNotifier {
   }) async {
     if (!canWrite || index < 0 || index >= rows.length) return;
     final row = rows[index];
-    if (!['coils', 'holding_registers'].contains(row['kind'])) return;
+    if (!rowWritable(row)) return;
     final generation = _generation;
     final previous = _writeTail;
     final done = Completer<void>();
@@ -124,7 +125,8 @@ class RegisterMapController extends ChangeNotifier {
         generation == _generation &&
         session.connected &&
         !session.disconnecting &&
-        rows.contains(row);
+        rows.contains(row) &&
+        rowWritable(row);
     bool written = false;
     try {
       if (previous != null) await previous;
@@ -165,10 +167,9 @@ class RegisterMapController extends ChangeNotifier {
       }
       if (values == null) return;
       final reply = await session.command({
-        'command': 'write',
-        'unit': row['unit_id'] ?? session.unit,
-        'kind': row['kind'],
-        'address': row['address'],
+        'command': 'write_row',
+        'unit': session.unit,
+        'row': Map<String, dynamic>.of(row),
         'values': values,
       }, accept: accept);
       written = reply != null;

@@ -40,6 +40,12 @@ void main() {
             reason: '${entry['resource']} must not silently discard rows',
           );
           expect(restored.registers, isNotEmpty);
+          for (var i = 0; i < restored.registers.length; i++) {
+            expect(
+              restored.registers[i]['writable'],
+              state['registers'][i]['writable'],
+            );
+          }
         } finally {
           await restored.shutdown();
           restored.dispose();
@@ -115,6 +121,12 @@ void main() {
           expect(workspace.sessions.last.draft[key], draft[key], reason: key);
         }
         expect(workspace.sessions.last.connected, isFalse);
+        for (var i = 0; i < workspace.sessions.last.registers.length; i++) {
+          expect(
+            workspace.sessions.last.registers[i]['writable'],
+            expected['registers'][i]['writable'],
+          );
+        }
         expect(find.text('Open latest in new tab'), findsNothing);
         expect(tester.takeException(), isNull);
       }

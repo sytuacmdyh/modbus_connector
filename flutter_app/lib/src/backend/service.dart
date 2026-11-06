@@ -233,6 +233,20 @@ class NativeService {
     }
     if (command.startsWith('csv_')) return csvCommand(d);
     if (command == 'encode_values') return {'values': encodeValues(d)};
+    if (command == 'write_row') {
+      final r = row(d['row'], bounded(d['unit'] ?? 1, 'unit', 1, 247));
+      if (!rowWritable(r)) {
+        throw const FormatException('Register row is read-only');
+      }
+      final values = d['values'];
+      if (values is! List || values.isEmpty || values.length > r['count']) {
+        throw const FormatException(
+          'Write values exceed the register row range',
+        );
+      }
+      await client.write(r['unit_id'], r['kind'], r['address'], values);
+      return {};
+    }
     if (['render_rows', 'read_rows', 'plan_reads'].contains(command)) {
       final raw = d['rows'];
       if (raw is! List || raw.isEmpty || raw.length > 4096) {

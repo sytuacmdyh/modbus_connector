@@ -196,7 +196,9 @@ void main() {
       bridge.calls.clear();
       await selectedAction(tester, 'Write 1');
       expect(
-        bridge.calls.singleWhere((c) => c['command'] == 'write')['address'],
+        bridge.calls.singleWhere(
+          (c) => c['command'] == 'write_row',
+        )['row']['address'],
         12,
       );
       await selectedAction(tester, 'Move up');

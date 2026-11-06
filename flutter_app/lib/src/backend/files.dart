@@ -18,6 +18,7 @@ const csvColumns = [
   'offset',
   'unit',
   'order',
+  'writable',
 ];
 const aliases = {
   'type': 'kind',
@@ -61,6 +62,17 @@ Json csvCommand(Json d) {
       final a = int.tryParse(r['address'] ?? '');
       if (a == null) continue;
       r['address'] = a;
+      final writable = r['writable'];
+      if (writable == null || writable == '') {
+        r.remove('writable');
+      } else if (writable.toLowerCase() == 'true' ||
+          writable.toLowerCase() == 'false') {
+        r['writable'] = writable.toLowerCase() == 'true';
+      } else {
+        throw const FormatException(
+          'CSV writable must be true, false or empty',
+        );
+      }
       r['count'] = int.tryParse(r['count'] ?? '') ?? 1;
       r['format'] = canonicalFormat(r['format']);
       if (!formats.contains(r['format'])) r['format'] = 'u16';

@@ -137,6 +137,19 @@ Enable polling / Disable polling buttons to change polling for the selected rows
 disabled rows show a pause marker beside their names. Existing polling flags are
 preserved when opening an older workspace; its removed polling column is ignored.
 
+Template/register rows can set `writable: false` for device fields that are read
+through FC03 but cannot be written. Their area remains `holding_registers`.
+The row editor's **Allow writes** checkbox is editable while disconnected;
+input/discrete areas are always read-only. A lock marks read-only rows, and all
+numeric, enum, bit and quick write actions are disabled. The backend checks access
+and row bounds again before sending a row write. Reads, polling, trends and logging
+continue normally. Omitted `writable` retains the old area-based behavior; explicit
+values must be booleans, and `true` on input/discrete areas is invalid. Permissions
+survive template versions, workspace saves and CSV export/import (`true`/`false`,
+blank means omitted). Split rows if access differs within a contiguous range.
+Older clients may ignore this field; raw CLI/MCP address operations are independent
+of the desktop map's permissions.
+
 Map polling stops
 with the session connection. Device-mode serial forms include port discovery and
 manual entry. Sniffer views support filters, hiding/restoring and per-unit graphs;

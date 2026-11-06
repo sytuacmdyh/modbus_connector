@@ -40,6 +40,7 @@ const csvColumns = [
   'offset',
   'unit',
   'order',
+  'writable',
 ];
 
 class RegisterMapDialog extends StatelessWidget {
@@ -244,6 +245,11 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
     model.changed();
   }
 
+  bool get canWriteSelection =>
+      model.canWrite &&
+      visibleSelection.length == 1 &&
+      rowWritable(model.rows[visibleSelection.single]);
+
   List<PopupMenuEntry<String>> rowActions() => [
     PopupMenuItem(
       enabled: !model.editingLocked,
@@ -251,11 +257,31 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
       child: LText('Read selected rows'),
     ),
     PopupMenuItem(value: 'copy', child: LText('Copy value')),
-    PopupMenuItem(value: 'zero', child: LText('Write 0')),
-    PopupMenuItem(value: 'one', child: LText('Write 1')),
-    PopupMenuItem(value: 'increment', child: LText('Increment')),
-    PopupMenuItem(value: 'decrement', child: LText('Decrement')),
-    PopupMenuItem(value: 'toggle', child: LText('Toggle')),
+    PopupMenuItem(
+      enabled: canWriteSelection,
+      value: 'zero',
+      child: LText('Write 0'),
+    ),
+    PopupMenuItem(
+      enabled: canWriteSelection,
+      value: 'one',
+      child: LText('Write 1'),
+    ),
+    PopupMenuItem(
+      enabled: canWriteSelection,
+      value: 'increment',
+      child: LText('Increment'),
+    ),
+    PopupMenuItem(
+      enabled: canWriteSelection,
+      value: 'decrement',
+      child: LText('Decrement'),
+    ),
+    PopupMenuItem(
+      enabled: canWriteSelection,
+      value: 'toggle',
+      child: LText('Toggle'),
+    ),
     PopupMenuDivider(),
     PopupMenuItem(
       enabled: !model.editingLocked,
@@ -324,8 +350,10 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
     model.stop();
     final row = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (_) =>
-          RegisterRowDialog(row: index == null ? null : model.rows[index]),
+      builder: (_) => RegisterRowDialog(
+        row: index == null ? null : model.rows[index],
+        accessEditingEnabled: !widget.session.connected,
+      ),
     );
     if (row != null && mounted) {
       setState(() {
@@ -452,6 +480,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
   Future<void> write(int i, {bool bits = false}) async {
     if (!model.canWrite) return;
     final row = model.rows[i];
+    if (!rowWritable(row)) return;
     final raw = i < model.results.length
         ? model.results[i]['values'] as List? ?? []
         : [];
@@ -1079,9 +1108,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                           final result = i < model.results.length
                               ? model.results[i]
                               : null;
-                          final writable =
-                              row['kind'] == 'holding_registers' ||
-                              row['kind'] == 'coils';
+                          final writable = rowWritable(row);
                           if (key == 'trend') {
                             final historyKey =
                                 '${row['unit_id'] ?? widget.session.unit}/${row['kind']}/${row['address']}/${row['name']}';
@@ -1130,7 +1157,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                   if (canEditBits(row))
                                     IconButton(
                                       tooltip: tr('Edit bits'),
-                                      onPressed: !model.canWrite
+                                      onPressed: !writable || !model.canWrite
                                           ? null
                                           : () => write(i, bits: true),
                                       icon: const Icon(
@@ -1148,7 +1175,12 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                     )
                                   else
                                     IconButton(
-                                      tooltip: tr('Write row'),
+                                      key: ValueKey('map-write-$i'),
+                                      tooltip: tr(
+                                        writable
+                                            ? 'Write row'
+                                            : 'Register row is read-only',
+                                      ),
                                       onPressed: !writable || !model.canWrite
                                           ? null
                                           : () => write(i),
@@ -1210,6 +1242,18 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                           : null,
                                     ),
                                   ),
+                                  if (!writable)
+                                    Tooltip(
+                                      message: tr(
+                                        row['writable'] == false
+                                            ? 'Marked read-only in this register map'
+                                            : 'This register area is read-only',
+                                      ),
+                                      child: const Icon(
+                                        Icons.lock_outline,
+                                        size: 14,
+                                      ),
+                                    ),
                                 ],
                               ),
                             );
@@ -1314,8 +1358,13 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
 }
 
 class RegisterRowDialog extends StatefulWidget {
-  const RegisterRowDialog({super.key, this.row});
+  const RegisterRowDialog({
+    super.key,
+    this.row,
+    this.accessEditingEnabled = true,
+  });
   final Map<String, dynamic>? row;
+  final bool accessEditingEnabled;
   @override
   State<RegisterRowDialog> createState() => _RegisterRowDialogState();
 }
@@ -1326,6 +1375,7 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
   late String format = canonicalFormat(widget.row?['format']);
   late String order = widget.row?['order'] as String? ?? 'ABCD';
   late bool bitmask = widget.row?['bitmask'] == true;
+  late bool writable = rowWritable(widget.row ?? {'kind': kind});
   String? error;
   late List<Map<String, dynamic>> alarms =
       (widget.row?['alarms'] as List? ?? []).cast<Map<String, dynamic>>();
@@ -1411,6 +1461,7 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
       'unit': fields['unit']!.text,
       'value_names': names,
       'bitmask': bitmask,
+      'writable': writableKind(kind) && writable,
       'alarms': alarms,
     });
   }
@@ -1470,6 +1521,18 @@ class _RegisterRowDialogState extends State<RegisterRowDialog> {
                 if (edited != null && mounted) setState(() => alarms = edited);
               },
               child: LText('Alarm rules (${alarms.length})'),
+            ),
+            CheckboxListTile(
+              title: const LText('Allow writes'),
+              subtitle: !writableKind(kind)
+                  ? const LText('This register area is read-only')
+                  : !widget.accessEditingEnabled
+                  ? const LText('Disconnect to change write access')
+                  : null,
+              value: writableKind(kind) && writable,
+              onChanged: writableKind(kind) && widget.accessEditingEnabled
+                  ? (v) => setState(() => writable = v!)
+                  : null,
             ),
             CheckboxListTile(
               title: const LText('Names label bits 0–15'),

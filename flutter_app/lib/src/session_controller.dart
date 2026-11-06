@@ -181,6 +181,7 @@ class SessionController extends ChangeNotifier {
         throw const BridgeException('Register maps support at most 4096 rows.');
       }
       for (final r in raw) {
+        if (r is Map<String, dynamic>) validateRowAccess(r);
         if (r is Map<String, dynamic> &&
             areas.containsKey(r['kind']) &&
             r['address'] is int &&

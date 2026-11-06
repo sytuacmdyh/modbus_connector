@@ -1,3 +1,29 @@
+# Register write permissions (2026-11-06)
+
+Template/map rows now accept optional boolean `writable`. False keeps FC03/FC01
+reads but disables numeric, enum, bit, menu and keyboard writes. Missing preserves
+legacy area-based behavior; true on input/discrete areas and malformed values are
+rejected. The row editor exposes Allow writes while disconnected; read-only rows
+show a lock without adding a column. Map writes carry the row to `write_row`, which
+checks permission and row bounds before bus I/O. Queued writes recheck access after
+the current read. CSV, workspace state and template history preserve the field.
+Raw address commands and independent CLI/MCP operations do not use map permissions.
+
+Validation: `flutter analyze` is clean; 112 Flutter unit/widget tests and 397 Dart
+backend tests pass. Linux profile desktop and template integration files passed
+separately under Xvfb with software rendering. The desktop test exercises an actual
+native isolate and loopback simulator, blocked read-only writes and successful
+engineering writes. The template test uses an isolated synthetic public catalog
+with false/true/omitted permissions and checks public/custom tabs. No Windows
+installation or physical serial-device acceptance was performed.
+
+Python `pytest tests mcp/tests -q` completed twice with 644 passed and one simulator
+fixture startup connection-refused error each time, on different existing backend
+tests (`TestRead::test_discrete_inputs` and
+`TestReadWriteRegisters::test_out_of_range_write_address`). These are not recorded
+as clean full-suite runs. Both failed cases passed when rerun together with the
+24 template-validator tests (26 passed). No Python runtime was added to the desktop.
+
 # Automatic update support (2026-10-30)
 
 Startup stable-release checks are enabled by default and can be disabled in

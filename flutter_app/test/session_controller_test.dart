@@ -12,7 +12,7 @@ class FailingWriteBridge extends FakeBridge {
     Map<String, dynamic> command, {
     Duration? timeout,
   }) {
-    if (command['command'] == 'write') {
+    if (command['command'] == 'write_row') {
       calls.add(command);
       return Future.error(
         const BridgeException('illegal data value', connected: true),
@@ -67,12 +67,14 @@ void main() {
       await session.registerMap.quickValue(0, 'increment');
       expect(session.registerResults.single['values'], [101]);
       expect(
-        bridge.calls.where((c) => c['command'] == 'write').single['address'],
+        bridge.calls
+            .where((c) => c['command'] == 'write_row')
+            .single['row']['address'],
         2,
       );
       session.registers.single['kind'] = 'input_registers';
       await session.registerMap.quickValue(0, 'one');
-      expect(bridge.calls.where((c) => c['command'] == 'write').length, 1);
+      expect(bridge.calls.where((c) => c['command'] == 'write_row').length, 1);
     },
   );
 
@@ -206,7 +208,7 @@ void main() {
     await tester.pump();
     final writing = session.registerMap.quickValue(0, 'one');
     await tester.pump();
-    expect(bridge.calls.where((c) => c['command'] == 'write'), isEmpty);
+    expect(bridge.calls.where((c) => c['command'] == 'write_row'), isEmpty);
     bridge.heldRead = null;
     held.complete(
       const BridgeReply({
@@ -220,7 +222,10 @@ void main() {
     );
     await tester.pump();
     await writing;
-    expect(bridge.calls.where((c) => c['command'] == 'write'), hasLength(1));
+    expect(
+      bridge.calls.where((c) => c['command'] == 'write_row'),
+      hasLength(1),
+    );
     expect(session.registerMap.polling, isTrue);
     await tester.pump(const Duration(milliseconds: 200));
     expect(session.registerResults.single['values'], [1]);
@@ -258,11 +263,11 @@ void main() {
             .skip(1)
             .take(3)
             .map((c) => c['command']),
-        ['read_rows', 'write', 'write'],
+        ['read_rows', 'write_row', 'write_row'],
       );
       expect(
         bridge.calls
-            .where((c) => c['command'] == 'write')
+            .where((c) => c['command'] == 'write_row')
             .map((c) => c['values']),
         [
           [21],
@@ -285,7 +290,7 @@ void main() {
     held.complete(const BridgeReply({'rows': []}, true));
     await tester.pump();
     await Future.wait([writing, disconnecting]);
-    expect(bridge.calls.where((c) => c['command'] == 'write'), isEmpty);
+    expect(bridge.calls.where((c) => c['command'] == 'write_row'), isEmpty);
     expect(session.registerMap.polling, isFalse);
   });
 

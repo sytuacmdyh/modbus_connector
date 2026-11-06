@@ -84,8 +84,20 @@ void main() {
         }
         expect(demo.busy, isFalse, reason: demo.error);
         expect(demo.registerMap.reading, isFalse);
+        demo.registers[3]['writable'] = false;
+        demo.registerMap.stop();
         await tester.pump(const Duration(milliseconds: 100));
-        await tester.tap(find.byTooltip('Write row').at(2));
+        expect(
+          tester
+              .widget<IconButton>(find.byKey(const ValueKey('map-write-3')))
+              .onPressed,
+          isNull,
+        );
+        final txBefore = demo.busStatistics['tx_bytes'];
+        await demo.registerMap.writeRow(3, values: [999]);
+        expect(demo.busStatistics['tx_bytes'], txBefore);
+        expect(demo.registerResults[3]['values'], [101]);
+        await tester.tap(find.byKey(const ValueKey('map-write-2')));
         await tester.pump(const Duration(milliseconds: 100));
         await tester.pump(const Duration(milliseconds: 300));
         await tester.enterText(

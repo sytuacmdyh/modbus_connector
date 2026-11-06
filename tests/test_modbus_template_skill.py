@@ -34,6 +34,11 @@ def template(**row_overrides):
     {"scale": float("nan")},
     {"order": "little"},
     {"kind": []},
+    {"writable": "false"},
+    {"writable": None},
+    {"writable": 0},
+    {"kind": "input_registers", "writable": True},
+    {"kind": "discrete_inputs", "format": "u16", "writable": True},
 ])
 def test_rejects_invalid_rows(patch):
     assert validator.validate(template(**patch))
@@ -42,6 +47,13 @@ def test_rejects_invalid_rows(patch):
 def test_accepts_boundary_and_signed_enum():
     assert not validator.validate(template(address=65535, value_names={"-1": "Missing"}))
     assert not validator.validate(template(address=65534, count=2, format="f32", order="CDAB"))
+
+
+@pytest.mark.parametrize("kind", ["holding_registers", "coils", "input_registers", "discrete_inputs"])
+def test_read_only_access(kind):
+    assert not validator.validate(template(kind=kind, format="u16", writable=False))
+    if kind in ("holding_registers", "coils"):
+        assert not validator.validate(template(kind=kind, format="u16", writable=True))
 
 
 def test_accepts_canonical_u16_and_legacy_dec():

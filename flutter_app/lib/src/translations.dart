@@ -73,6 +73,16 @@ String trf(String key, Map<String, Object?> values) {
 }
 
 const flutterChinese = <String, String>{
+  'Allow writes': '允许写入',
+  'writable': '允许写入',
+  'Marked read-only in this register map': '此寄存器在模板或映射中设为只读',
+  'Register row is read-only': '此寄存器为只读，不能写入',
+  'This register area is read-only': '此寄存器区域仅支持读取',
+  'Disconnect to change write access': '断开连接后可修改写入权限',
+  'writable must be a boolean': 'writable 必须是布尔值',
+  'Write values exceed the register row range': '写入值不能为空，且不能超出寄存器行的地址范围',
+  'CSV writable must be true, false or empty':
+      'CSV 的 writable 必须为 true、false 或留空',
   'Export crash logs': '导出崩溃日志',
   'Clear logs': '清空日志',
   'Clear saved logs?': '清空已保存的日志？',

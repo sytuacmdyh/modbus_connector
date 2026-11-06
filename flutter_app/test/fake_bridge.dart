@@ -62,6 +62,7 @@ class FakeBridge extends BridgeTransport {
           ],
         }, connected);
       case 'write':
+      case 'write_row':
         final raw = (command['values'] as List).first;
         value = raw is bool ? (raw ? 1 : 0) : raw as int;
         return BridgeReply({}, connected);

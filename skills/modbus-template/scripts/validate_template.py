@@ -112,9 +112,12 @@ def validate(data: Any) -> list[str]:
                 check(number(row[field]), f"{label}.{field} must be finite")
         if "unit" in row:
             check(isinstance(row["unit"], str), f"{label}.unit must be a display string")
-        for field in ("bitmask", "poll_enabled", "trend_enabled"):
+        for field in ("bitmask", "poll_enabled", "trend_enabled", "writable"):
             if field in row:
                 check(type(row[field]) is bool, f"{label}.{field} must be boolean")
+        if row.get("writable") is True:
+            check(kind in ("holding_registers", "coils"),
+                  f"{label}: writable=true requires holding_registers or coils")
         names = row.get("value_names", {})
         check(isinstance(names, dict), f"{label}.value_names must be an object")
         if isinstance(names, dict):

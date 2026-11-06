@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:modbus_desktop/src/bridge_client.dart';
@@ -50,6 +51,205 @@ class ExpressionMapBridge extends MapBridge {
 }
 
 void main() {
+  test(
+    'read-only rows block every write path and survive workspace restore',
+    () async {
+      final bridge = MapBridge();
+      final session = SessionController(bridge);
+      addTearDown(session.dispose);
+      session.restore({
+        'registers': [
+          {
+            'name': 'temperature',
+            'kind': 'holding_registers',
+            'address': 0,
+            'count': 1,
+            'writable': false,
+          },
+        ],
+      });
+      expect(session.state()['registers'][0]['writable'], false);
+      await session.connect({'timeout': 0.1}, 1);
+      await session.registerMap.read();
+      expect(session.registerResults.single['values'], [100]);
+      bridge.calls.clear();
+      await session.registerMap.writeRow(0, values: [42]);
+      await session.registerMap.writeRow(0, text: '42');
+      for (final action in [
+        'zero',
+        'one',
+        'increment',
+        'decrement',
+        'toggle',
+      ]) {
+        await session.registerMap.quickValue(0, action);
+      }
+      expect(bridge.calls, isEmpty);
+      await session.disconnect();
+      expect(
+        () => session.restore({
+          'registers': [
+            {
+              'kind': 'holding_registers',
+              'address': 1,
+              'count': 1,
+              'writable': 'false',
+            },
+          ],
+        }),
+        throwsFormatException,
+      );
+    },
+  );
+
+  test('a queued write rechecks permission after the active read', () async {
+    final bridge = MapBridge();
+    final session = SessionController(bridge);
+    addTearDown(session.dispose);
+    session.registers.add({
+      'kind': 'holding_registers',
+      'address': 0,
+      'count': 1,
+      'writable': true,
+    });
+    await session.connect({'timeout': 0.1}, 1);
+    bridge.held = Completer<BridgeReply>();
+    session.registerMap.start(5000);
+    await Future<void>.delayed(Duration.zero);
+    final write = session.registerMap.writeRow(0, values: [42]);
+    session.registers.single['writable'] = false;
+    bridge.held!.complete(
+      const BridgeReply({
+        'rows': [
+          {
+            'values': [100],
+            'display': '100',
+            'numeric': 100,
+          },
+        ],
+      }, true),
+    );
+    await write;
+    session.registerMap.stop();
+    expect(bridge.calls.where((c) => c['command'] == 'write_row'), isEmpty);
+  });
+
+  testWidgets('read-only map disables numeric, enum, bit and menu writes', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1500, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final bridge = MapBridge();
+    final session = SessionController(bridge);
+    addTearDown(session.dispose);
+    session.registers.addAll([
+      for (var i = 0; i < 3; i++)
+        {
+          'name': 'readonly $i',
+          'kind': 'holding_registers',
+          'address': i,
+          'count': 1,
+          'format': 'u16',
+          'writable': false,
+          if (i == 1) 'value_names': {'0': 'Off', '1': 'On'},
+          if (i == 2) 'bitmask': true,
+        },
+    ]);
+    await session.connect({'timeout': 0.1}, 1);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: RegisterMapPanel(session: session)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.lock_outline), findsNWidgets(3));
+    for (final button in tester.widgetList<IconButton>(
+      find.byType(IconButton),
+    )) {
+      if (['Register row is read-only', 'Edit bits'].contains(button.tooltip)) {
+        expect(button.onPressed, isNull);
+      }
+    }
+    expect(
+      tester
+          .widget<DropdownButton<int>>(find.byType(DropdownButton<int>))
+          .onChanged,
+      isNull,
+    );
+    await tester.tap(find.text('readonly 0'), buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    for (final label in [
+      'Write 0',
+      'Write 1',
+      'Increment',
+      'Decrement',
+      'Toggle',
+    ]) {
+      final item = tester.widget<PopupMenuItem<String>>(
+        find.ancestor(
+          of: find.text(label),
+          matching: find.byType(PopupMenuItem<String>),
+        ),
+      );
+      expect(item.enabled, false);
+    }
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit0);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(bridge.calls.where((c) => c['command'] == 'write_row'), isEmpty);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets(
+    'row editor saves permission and fixes input areas to read-only',
+    (tester) async {
+      Map<String, dynamic>? saved;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () async {
+                  saved = await showDialog<Map<String, dynamic>>(
+                    context: context,
+                    builder: (_) => const RegisterRowDialog(),
+                  );
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Allow writes'));
+      await tester.tap(find.text('Allow writes'));
+      await tester.tap(find.text('Apply'));
+      await tester.pumpAndSettle();
+      expect(saved!['writable'], false);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: RegisterRowDialog(
+            row: {'kind': 'input_registers', 'address': 0, 'count': 1},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final permission = tester.widget<CheckboxListTile>(
+        find.widgetWithText(CheckboxListTile, 'Allow writes'),
+      );
+      expect(permission.value, false);
+      expect(permission.onChanged, isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
   test('Edit bits requires a single bitmask u16 holding row', () {
     Map<String, dynamic> row({
       String kind = 'holding_registers',
@@ -305,16 +505,17 @@ void main() {
       'unit_id': 9,
     });
     await session.registerMap.quickValue(0, 'increment');
-    expect(bridge.calls.where((c) => c['command'] == 'write'), isEmpty);
+    expect(bridge.calls.where((c) => c['command'] == 'write_row'), isEmpty);
     session.registerResults.add({
       'values': [65535, 123],
       'display': '655350',
     });
     await session.registerMap.quickValue(0, 'increment');
-    final write = bridge.calls.firstWhere((c) => c['command'] == 'write');
+    final write = bridge.calls.firstWhere((c) => c['command'] == 'write_row');
     expect(write['values'], [65535]);
-    expect(write['unit'], 9);
-    expect(write['address'], 20);
+    expect(write['unit'], 7);
+    expect(write['row']['unit_id'], 9);
+    expect(write['row']['address'], 20);
     bridge.calls.clear();
     session.registers[0]['kind'] = 'input_registers';
     await session.registerMap.quickValue(0, 'zero');
@@ -324,9 +525,10 @@ void main() {
     };
     session.registers[0]['kind'] = 'holding_registers';
     await session.registerMap.quickValue(0, 'toggle');
-    expect(bridge.calls.firstWhere((c) => c['command'] == 'write')['values'], [
-      0,
-    ]);
+    expect(
+      bridge.calls.firstWhere((c) => c['command'] == 'write_row')['values'],
+      [0],
+    );
     await session.disconnect();
     bridge.calls.clear();
     await session.registerMap.quickValue(0, 'one');
@@ -381,7 +583,7 @@ void main() {
       await tester.tap(find.text('1 = On').last);
       await tester.pumpAndSettle();
       expect(
-        bridge.calls.firstWhere((c) => c['command'] == 'write')['values'],
+        bridge.calls.firstWhere((c) => c['command'] == 'write_row')['values'],
         [1],
       );
       expect(tester.takeException(), isNull);

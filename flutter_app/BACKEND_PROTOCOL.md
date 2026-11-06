@@ -74,6 +74,19 @@ or selected contiguous address range. Other tabs remain usable.
 
 Register map commands (additive v1):
 
+- Rows accept optional boolean `writable`. Missing retains area-based behavior;
+  false disallows map writes; true is valid only for holding registers/coils.
+  Strings, null and true on input/discrete areas fail validation. The flag covers
+  the entire row; split mixed-access ranges. It survives templates, history,
+  workspace state and CSV (`true`/`false`, blank means omitted). Reads/grouping,
+  display, trends and logging are unchanged.
+- `write_row`: `{unit,row,values}` is the register map's write path. The backend
+  validates the row and its access before I/O, derives unit/kind/address from it,
+  and rejects empty values or values exceeding the row's count. A shorter write
+  starts at the row's address (including quick actions on the first word).
+  Ordinary Modbus value/count limits still apply. Raw `write`, `mask_write` and
+  `read_write` remain address-based operations without template permissions;
+  this metadata is not device-side access control or a global address ACL.
 - `read_rows`: `{unit, rows:[row,...]}` (1..4096). Each row accepts `name`, `kind`,
   `address`, `count`, `unit_id` (null inherits unit), `format`, `order`, `scale`,
   `offset`, `unit`, `value_names` (string integer keys), `bitmask`, `alarms`.

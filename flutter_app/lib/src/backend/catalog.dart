@@ -34,6 +34,9 @@ void validateTemplate(dynamic v) {
       v['registers'] is! List) {
     throw const FormatException('Invalid template');
   }
+  for (final raw in v['registers']) {
+    validateRowAccess(map(raw));
+  }
 }
 
 void validateCatalog(dynamic catalog) {
@@ -63,6 +66,9 @@ String relativePath(String value) {
 }
 
 Json flutterState(Json s) {
+  for (final raw in s['registers'] as List? ?? []) {
+    validateRowAccess(map(raw));
+  }
   var c = map(s['connection']);
   final options = map(s['registers_options']),
       extra = map(map(s['registers_options'])['flutter']);

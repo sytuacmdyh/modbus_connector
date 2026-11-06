@@ -27,8 +27,29 @@ String canonicalFormat(dynamic value) {
   final text = value == null ? 'u16' : '$value'.toLowerCase();
   return text == 'dec' ? 'u16' : text;
 }
+
 const orders = ['ABCD', 'BADC', 'CDAB', 'DCBA'];
 bool bitKind(dynamic kind) => kind == 'coils' || kind == 'discrete_inputs';
+bool writableKind(dynamic kind) =>
+    kind == 'coils' || kind == 'holding_registers';
+
+/// Missing permissions retain legacy area-based behavior. Malformed values
+/// never enable a write, even before the row has passed validation.
+bool rowWritable(Json r) =>
+    writableKind(r['kind'] ?? 'holding_registers') &&
+    (!r.containsKey('writable') || r['writable'] == true);
+
+void validateRowAccess(Json r) {
+  if (!r.containsKey('writable')) return;
+  if (r['writable'] is! bool) {
+    throw const FormatException('writable must be a boolean');
+  }
+  if (r['writable'] == true &&
+      !writableKind(r['kind'] ?? 'holding_registers')) {
+    throw const FormatException('This register area is read-only');
+  }
+}
+
 int bounded(dynamic value, String name, int low, int high) {
   if (value is! int || value < low || value > high) {
     throw FormatException('$name must be an integer in $low..$high');
@@ -63,6 +84,7 @@ Json row(dynamic data, [int unit = 1]) {
     ...Map<String, dynamic>.from(data),
   };
   r['format'] = canonicalFormat(r['format']);
+  validateRowAccess(r);
   // Per-row polling intervals are no longer supported. Keep accepting the
   // legacy field while ensuring all callers use the global map interval.
   r['poll_ms'] = null;

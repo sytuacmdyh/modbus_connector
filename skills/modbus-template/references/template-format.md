@@ -1,7 +1,7 @@
 # Modbus Connector 模板格式
 
-此参考来自本仓库 `src/modbus_connector/templates/__init__.py`、`models.py`、
-`connection_panel.py`、`registers_panel.py` 和 `flutter_catalog.py`。
+此参考来自本仓库 `flutter_app/lib/src/backend/registers.dart`、`catalog.dart`、
+`files.dart`、`register_map.dart` 和 `src/modbus_connector/templates/__init__.py`。
 若用户指定其他版本且源码可用，以其加载实现为准；不要猜测新字段。
 
 ## 文件和连接
@@ -45,6 +45,7 @@
 | `bitmask` | true 时 value_names 的键是 0–15 位号，而非掩码值；默认 false |
 | `poll_enabled` | 布尔值；默认 true；需要条件才能读的已确认字段可设 false 并说明条件 |
 | `trend_enabled` | 布尔值；生成模板默认显式 false，用户需要趋势时再开启 |
+| `writable` | 可选布尔值；false 禁止通过该行写入；true 仅允许用于 holding/coil；省略按区域沿用旧行为 |
 
 32 位数至少占 2 字，64 位数至少占 4 字。数值数组的 count 应为格式宽度的整数倍。
 `ascii` 每字两字符；`ascii1` 每字低字节一个字符，必须核对固件序列化。
@@ -52,9 +53,12 @@
 `u16/s16/hex` 行。多字位域拆成有依据的单字行并分别映射位号，不把位 16 写入单字位表。
 枚举键按解码值填写，不应用 scale；不要把运行时值或写入默认值放进模板。
 
-`holding_registers` 可以包含固件拒绝写入的只读字段。不要因为字段只读就改成
-`input_registers`，也不要杜撰 `read_only`/`writable` 字段来声称 GUI 会禁止写入。
-权限、有效范围、哨兵值和依赖条件记入来源说明。
+`holding_registers` 可以包含固件拒绝写入的只读字段：保持原来的 `kind`，并设
+`writable: false`；不要因此改成 `input_registers`。已确认可写的 holding/coil 可设
+true，权限不明时省略并在来源说明中注明。字段必须为 JSON 布尔值，不能写成字符串或 null。
+该权限覆盖整行，连续地址中混有只读/可写字段时拆行；不支持位级权限或条件写权限。
+新 Flutter 客户端在寄存器表及其后端行写入中执行限制，旧客户端可能忽略此字段。
+它不是设备端权限，也不限制独立 CLI/MCP 原始地址操作。有效范围、哨兵值和依赖条件仍记入来源说明。
 
 ## 地址与编码核对
 
@@ -74,7 +78,8 @@
   "connection": {"type": "RTU", "unit": 1, "rtu_baud": "9600"},
   "registers": [
     {"name": "温度", "kind": "holding_registers", "address": 100,
-     "count": 1, "format": "s16", "scale": 0.1, "unit": "℃", "trend_enabled": false},
+     "count": 1, "format": "s16", "scale": 0.1, "unit": "℃", "trend_enabled": false,
+     "writable": false},
     {"name": "状态", "kind": "holding_registers", "address": 101,
      "count": 1, "format": "u16", "value_names": {"0": "停止", "1": "运行"},
      "trend_enabled": false},
