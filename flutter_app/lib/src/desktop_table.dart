@@ -346,11 +346,32 @@ class _DesktopTableState extends State<DesktopTable> {
                 ),
               ),
             ),
-            MouseRegion(
+            const SizedBox(width: 10, height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget headers(List<String> keys) {
+    var edge = 0.0;
+    // Handles sit above both adjacent headers so the boundary cannot start a
+    // column reorder. Keep them inside the shared horizontal scroll viewport.
+    return Stack(
+      children: [
+        Row(children: keys.map(header).toList()),
+        for (final key in keys)
+          Positioned(
+            left: (edge += width(key)) - 8,
+            top: 0,
+            bottom: 0,
+            width: 16,
+            child: MouseRegion(
               cursor: SystemMouseCursors.resizeColumn,
               child: GestureDetector(
                 key: ValueKey('resize-$key'),
                 behavior: HitTestBehavior.opaque,
+                dragStartBehavior: DragStartBehavior.down,
                 onHorizontalDragUpdate: (d) => setState(() {
                   final widths = Map<String, dynamic>.from(
                     widget.layout['widths'] is Map
@@ -360,16 +381,11 @@ class _DesktopTableState extends State<DesktopTable> {
                   widths[key] = (width(key) + d.delta.dx).clamp(64, 600);
                   widget.layout['widths'] = widths;
                 }),
-                child: const SizedBox(
-                  width: 10,
-                  height: 40,
-                  child: VerticalDivider(),
-                ),
+                child: const VerticalDivider(width: 16),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+      ],
     );
   }
 
@@ -437,7 +453,7 @@ class _DesktopTableState extends State<DesktopTable> {
               children: [
                 Material(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: Row(children: keys.map(header).toList()),
+                  child: headers(keys),
                 ),
                 if (widget.shrinkWrap)
                   SizedBox(

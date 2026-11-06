@@ -133,8 +133,6 @@ const flutterChinese = <String, String>{
   'Coils': '线圈',
   'Discrete inputs': '离散输入',
   'Register': '寄存器',
-  'u16': '无符号 16 位 (u16)',
-  'dec': '无符号 16 位 (旧 dec)',
   'Connecting…': '正在连接…',
   'Connected · {description} · unit {unit}': '已连接 · {description} · 站号 {unit}',
   '{kind} @{address} × {count}': '{kind} @{address} × {count}',

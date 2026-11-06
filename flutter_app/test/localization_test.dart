@@ -13,14 +13,13 @@ void main() {
   tearDown(() => appLanguage.value = 'en');
 
   test('area, activity and composite probe/curve labels follow language', () {
-    const labels = {
+    final labels = {
       'Holding registers': '保持寄存器',
       'Input registers': '输入寄存器',
       'Coils': '线圈',
       'Discrete inputs': '离散输入',
       'Register': '寄存器',
-      'u16': '无符号 16 位 (u16)',
-      'dec': '无符号 16 位 (旧 dec)',
+      for (final format in [...displayFormats, 'dec']) format: format,
       'Connecting…': '正在连接…',
       'Connected · tcp localhost:502 · unit 3':
           '已连接 · tcp localhost:502 · 站号 3',
@@ -88,12 +87,13 @@ void main() {
     await tester.pumpAndSettle();
     final name = find.widgetWithText(TextField, '名称');
     expect(tester.widget<TextField>(name).controller!.text, '寄存器');
-    expect(find.text('无符号 16 位 (u16)'), findsWidgets);
+    expect(find.text('u16'), findsWidgets);
     await tester.tap(find.text('应用'));
     await tester.pumpAndSettle();
     expect(session.registers.single['name'], '寄存器');
     expect(session.registers.single['format'], 'u16');
     expect(session.registers.single['kind'], 'holding_registers');
+    expect(find.text('u16'), findsOneWidget);
     await tester.tap(find.text('寄存器'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, '名称'), 'Voltage');
