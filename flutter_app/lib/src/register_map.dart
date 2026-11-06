@@ -198,7 +198,20 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
       });
       return;
     }
-    if (model.editingLocked || indices.isEmpty) return;
+    if (indices.isEmpty) return;
+    if (['trend_on', 'trend_off', 'enable', 'disable'].contains(action)) {
+      model.setRuntimeFlags(
+        indices,
+        pollingEnabled: action == 'enable' || action == 'disable'
+            ? action == 'enable'
+            : null,
+        trendEnabled: action == 'trend_on' || action == 'trend_off'
+            ? action == 'trend_on'
+            : null,
+      );
+      return;
+    }
+    if (model.editingLocked) return;
     if (action == 'read') {
       model.read(onlyIndices: indices.toSet());
       return;
@@ -231,14 +244,6 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
           selectedRows
             ..remove(i)
             ..add(next);
-        }
-      } else if (action == 'trend_on' || action == 'trend_off') {
-        for (final i in indices) {
-          model.rows[i]['trend_enabled'] = action == 'trend_on';
-        }
-      } else {
-        for (final i in indices) {
-          model.rows[i]['poll_enabled'] = action == 'enable';
         }
       }
     });
@@ -283,26 +288,10 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
       child: LText('Toggle'),
     ),
     PopupMenuDivider(),
-    PopupMenuItem(
-      enabled: !model.editingLocked,
-      value: 'trend_on',
-      child: LText('Enable trend'),
-    ),
-    PopupMenuItem(
-      enabled: !model.editingLocked,
-      value: 'trend_off',
-      child: LText('Disable trend'),
-    ),
-    PopupMenuItem(
-      enabled: !model.editingLocked,
-      value: 'enable',
-      child: LText('Enable selected polling'),
-    ),
-    PopupMenuItem(
-      enabled: !model.editingLocked,
-      value: 'disable',
-      child: LText('Disable selected polling'),
-    ),
+    PopupMenuItem(value: 'trend_on', child: LText('Enable trend')),
+    PopupMenuItem(value: 'trend_off', child: LText('Disable trend')),
+    PopupMenuItem(value: 'enable', child: LText('Enable selected polling')),
+    PopupMenuItem(value: 'disable', child: LText('Disable selected polling')),
     PopupMenuItem(
       enabled: !model.editingLocked,
       value: 'duplicate',
@@ -326,7 +315,6 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
   ];
 
   Future<void> rowMenu(int i, Offset position) async {
-    if (model.editingLocked && !model.polling) return;
     setState(() {
       if (!selectedRows.contains(i)) {
         selectedRows
@@ -1341,7 +1329,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                               ),
                               OutlinedButton.icon(
                                 key: const ValueKey('enable-selected-polling'),
-                                onPressed: model.editingLocked || !hasSelection
+                                onPressed: !hasSelection
                                     ? null
                                     : () => batch('enable'),
                                 icon: const Icon(Icons.play_arrow, size: 18),
@@ -1349,7 +1337,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                               ),
                               OutlinedButton.icon(
                                 key: const ValueKey('disable-selected-polling'),
-                                onPressed: model.editingLocked || !hasSelection
+                                onPressed: !hasSelection
                                     ? null
                                     : () => batch('disable'),
                                 icon: const Icon(Icons.pause, size: 18),

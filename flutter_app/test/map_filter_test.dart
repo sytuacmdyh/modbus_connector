@@ -61,6 +61,29 @@ List<int> readAddresses(FakeBridge bridge) => bridge.calls
     .toList();
 
 void main() {
+  testWidgets('polling allows batch trend and polling toggles', (tester) async {
+    final session = SessionController(FakeBridge());
+    session.registers.add(row('Runtime', 0));
+    await session.connect({'timeout': 0.1}, 1);
+    await mountMap(tester, session);
+    session.registerMap.start(5000);
+    await tester.pump();
+    await tester.tap(find.byType(Checkbox).first);
+    await tester.pump();
+    await selectedAction(tester, 'Enable trend');
+    expect(session.registers.single['trend_enabled'], true);
+    await selectedAction(tester, 'Disable trend');
+    expect(session.registers.single['trend_enabled'], false);
+    await tester.tap(find.byKey(const ValueKey('disable-selected-polling')));
+    await tester.pump();
+    expect(session.registers.single['poll_enabled'], false);
+    await tester.tap(find.byKey(const ValueKey('enable-selected-polling')));
+    await tester.pump();
+    expect(session.registers.single['poll_enabled'], true);
+    expect(session.registerMap.polling, true);
+    session.registerMap.stop();
+  });
+
   testWidgets(
     'combined filters match address spans without restricting polling',
     (tester) async {

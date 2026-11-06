@@ -51,6 +51,64 @@ class ExpressionMapBridge extends MapBridge {
 }
 
 void main() {
+  testWidgets(
+    'runtime flags preserve active reads and update subsequent polls',
+    (tester) async {
+      final bridge = MapBridge();
+      final session = SessionController(bridge);
+      await session.connect({'timeout': 0.1}, 1);
+      session.registers.add({
+        'name': 'x',
+        'kind': 'holding_registers',
+        'address': 0,
+        'count': 1,
+      });
+      await session.registerMap.read();
+      final held = bridge.held = Completer<BridgeReply>();
+      session.registerMap.start(5000);
+      await tester.pump();
+      session.registerMap.setRuntimeFlags(
+        [0],
+        pollingEnabled: false,
+        trendEnabled: true,
+      );
+      expect(session.registerMap.polling, isTrue);
+      expect(session.registerMap.reading, isTrue);
+      expect(session.registerResults.single['values'], [100]);
+      expect(session.registers.single['trend_enabled'], true);
+      held.complete(
+        const BridgeReply({
+          'rows': [
+            {
+              'values': [123],
+              'display': '123',
+              'numeric': 123,
+            },
+          ],
+        }, true),
+      );
+      await tester.pump();
+      expect(session.registerResults.single['values'], [123]);
+      bridge.held = null;
+      bridge.calls.clear();
+      await tester.pump(const Duration(seconds: 6));
+      expect(bridge.calls.where((c) => c['command'] == 'read_rows'), isEmpty);
+      session.registerMap.setRuntimeFlags(
+        [0],
+        pollingEnabled: true,
+        trendEnabled: false,
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        bridge.calls.where((c) => c['command'] == 'read_rows'),
+        isNotEmpty,
+      );
+      expect(session.registerMap.polling, isTrue);
+      expect(session.registers.single['trend_enabled'], false);
+      session.dispose();
+    },
+  );
+
   test(
     'read-only rows block every write path and survive workspace restore',
     () async {

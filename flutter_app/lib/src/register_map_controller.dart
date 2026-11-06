@@ -313,6 +313,29 @@ class RegisterMapController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
+  /// Runtime flags preserve the active cycle, cached values and graph history.
+  /// read() captures its row indices before I/O, so polling changes affect the
+  /// next cycle without invalidating an in-flight response.
+  void setRuntimeFlags(
+    Iterable<int> indices, {
+    bool? pollingEnabled,
+    bool? trendEnabled,
+  }) {
+    if (_disposed) return;
+    for (final index in indices) {
+      if (index < 0 || index >= rows.length) continue;
+      final row = rows[index];
+      if (pollingEnabled != null) {
+        if (pollingEnabled && row['poll_enabled'] == false) {
+          _lastRead.remove(row);
+        }
+        row['poll_enabled'] = pollingEnabled;
+      }
+      if (trendEnabled != null) row['trend_enabled'] = trendEnabled;
+    }
+    notifyListeners();
+  }
+
   void changed() {
     stop();
     _clearValueChanges();
