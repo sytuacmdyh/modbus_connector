@@ -1,6 +1,6 @@
 # Modbus Connector — Flutter desktop
 
-Windows/Linux workbench with independent Master, Simulator, passive RTU Sniffer
+Windows/Linux workbench with a macOS host under native acceptance, and independent Master, Simulator, passive RTU Sniffer
 and Gateway tabs. Each tab owns an asynchronous Dart isolate in the application;
 there is no Python interpreter or backend subprocess. Serial ports use a bundled
 native libserialport plugin. Separate native graph windows receive graph data
@@ -39,6 +39,35 @@ TCP simulator and six polling rows. Writes affect the simulator; reconnect reset
 it. Closing its tab releases the simulator. No hardware is needed.
 
 ## Packaging
+
+### macOS local build (under acceptance)
+
+The macOS host targets macOS 12 or newer. Install full Xcode (Command Line
+Tools alone are insufficient), CocoaPods and GNU autoconf/automake/libtool
+(`glibtoolize` on PATH) for the serial plugin. Run
+`bash tool/build_macos.sh` from this directory. Set `FLUTTER_BIN` to a Flutter
+executable path if it is not on PATH. The script builds Release and rejects
+any Mach-O executable/library missing either arm64 or x86_64, then checks the
+bundle's code signature. It does not publish or install the result.
+
+The output is `build/macos/Build/Products/Release/Modbus Connector.app`.
+This local build is not notarized. It intentionally runs outside App Sandbox
+to retain the established data directory, direct serial access, file operations,
+and graph subprocesses. Physical serial and both CPU architectures still require
+native acceptance.
+
+`bash tool/package_macos.sh` also creates a local
+`modbus-connector-flutter-<version>-macos-universal.dmg` and checksum file under
+`build/macos/`, without publishing. The source package version is passed to Dart
+and the native bundle. macOS updates recognize that exact asset name and require
+a SHA-256-bearing asset in GitHub Releases. Automatic installation is available
+only for `Modbus Connector.app` in a writable `/Applications` or `~/Applications`.
+Downloads are verified before read-only mounting; the bundle identity, version,
+signature and both CPU architectures are checked before staging. Replacement
+waits for explicit confirmation and application exit. A launch failure rolls back;
+the previous bundle remains in the adjacent `.modbus-update-*` directory for
+manual recovery. Automatic update mechanism tests use temporary signed fixtures;
+the installed Flutter application still needs end-to-end acceptance.
 
 ```bash
 flutter build linux --release  # Windows: flutter build windows --release
@@ -81,6 +110,7 @@ dart test test_backend
 # Each integration file starts a native desktop window; run separately:
 flutter drive --driver=test_driver/native_driver.dart --target=integration_test/desktop_test.dart -d linux --profile
 flutter drive --driver=test_driver/native_driver.dart --target=integration_test/parity_test.dart -d linux --profile
+# macOS: replace -d linux with -d macos; run each file separately.
 # Headless Linux: prefix each command with xvfb-run -a
 ```
 

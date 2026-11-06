@@ -592,41 +592,53 @@ void main() {
     },
   );
 
-  testWidgets('map shortcuts select duplicate move and delete rows', (
-    tester,
-  ) async {
-    final session = SessionController(MapBridge());
-    session.registers.addAll([
-      for (var i = 0; i < 2; i++)
-        {
-          'name': 'row$i',
-          'kind': 'holding_registers',
-          'address': i,
-          'count': 1,
-          'format': 'dec',
-        },
-    ]);
-    await tester.pumpWidget(
-      MaterialApp(home: RegisterMapDialog(session: session)),
+  for (final platform in [TargetPlatform.linux, TargetPlatform.macOS]) {
+    testWidgets(
+      'map shortcuts select duplicate move and delete rows on $platform',
+      (tester) async {
+        final session = SessionController(MapBridge());
+        session.registers.addAll([
+          for (var i = 0; i < 2; i++)
+            {
+              'name': 'row$i',
+              'kind': 'holding_registers',
+              'address': i,
+              'count': 1,
+              'format': 'dec',
+            },
+        ]);
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(platform: platform),
+            home: RegisterMapDialog(session: session),
+          ),
+        );
+        await tester.pump();
+        final modifier = platform == TargetPlatform.macOS
+            ? LogicalKeyboardKey.metaLeft
+            : LogicalKeyboardKey.controlLeft;
+        await tester.sendKeyDownEvent(modifier);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+        await tester.sendKeyUpEvent(modifier);
+        await tester.pump();
+        await tester.tap(find.byTooltip('Selected rows'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Duplicate selected rows'));
+        await tester.pumpAndSettle();
+        expect(session.registers.length, 4);
+        expect(session.registers.last['name'], 'row1 copy');
+        await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+        await tester.pump();
+        expect(session.registers.map((r) => r['name']), [
+          'row0 copy',
+          'row1 copy',
+        ]);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        session.dispose();
+      },
     );
-    await tester.pump();
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-    await tester.pump();
-    await tester.tap(find.byTooltip('Selected rows'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Duplicate selected rows'));
-    await tester.pumpAndSettle();
-    expect(session.registers.length, 4);
-    expect(session.registers.last['name'], 'row1 copy');
-    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
-    await tester.pump();
-    expect(session.registers.map((r) => r['name']), ['row0 copy', 'row1 copy']);
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
-    session.dispose();
-  });
+  }
 
   testWidgets(
     'session map keeps polling after dialog closes, stops on disconnect',

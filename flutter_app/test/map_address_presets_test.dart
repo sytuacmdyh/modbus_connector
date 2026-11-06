@@ -74,7 +74,8 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       final bridge = FakeBridge();
-      final session = SessionController(bridge);
+      var acquisitionTime = DateTime(2026);
+      final session = SessionController(bridge, clock: () => acquisitionTime);
       session.registers.addAll([
         row('keep A', 103, count: 2),
         row('skip B', 120),
@@ -128,6 +129,18 @@ void main() {
       expect(session.registerMap.polling, isTrue);
       expect(session.registers, hasLength(3));
       expect(bridge.calls, hasLength(callsBefore));
+      // UI animations may span a polling interval. Advance acquisition time
+      // separately to prove the next cycle still reads the entire source map.
+      acquisitionTime = acquisitionTime.add(const Duration(seconds: 5));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump();
+      final reads = bridge.calls
+          .skip(callsBefore)
+          .where((call) => call['command'] == 'read_rows');
+      expect(
+        reads.expand((call) => call['rows'] as List).map((row) => row['name']),
+        ['keep A', 'skip B', 'keep C'],
+      );
       expect(tester.takeException(), isNull);
       session.registerMap.stop();
       await tester.pumpWidget(const SizedBox());

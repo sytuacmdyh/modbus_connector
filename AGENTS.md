@@ -12,10 +12,14 @@ transparent gateway resources; `registers.dart` and `expression.dart` handle
 formatting/encoding/grouping/alarms and safe expressions. `catalog.dart`,
 `files.dart`, `online.dart` own templates/history/import, CSV/logging and WebDAV/
 release checks. `backend/update.dart` validates installer metadata/downloads and
-owns the Windows PowerShell handoff; the update dialog owns cancellation, and the
+owns the Windows PowerShell handoff; `backend/mac_update.dart` validates universal
+macOS DMG bundles and handles staging and replacement. The update dialog owns cancellation, and the
 workspace saves explicitly and awaits all sessions/graphs before update exit.
-Startup checks are configurable; automatic installation requires the registered
-Flutter install and a matching SHA-256-bearing NSIS asset. Preserve cancellation
+Startup checks are configurable; Windows automatic installation requires the registered
+Flutter install and a matching SHA-256-bearing NSIS asset. macOS requires the named
+application in a writable Applications directory and a matching SHA-256-bearing
+universal DMG; validate identity, version, signatures and both CPU architectures.
+Keep backups for recovery and wait for confirmation and application exit. Preserve cancellation
 and late-result suppression in UI controllers.
 All validation precedes external I/O; session close waits for owned resources.
 
@@ -25,6 +29,9 @@ catalog publication requires publisher mode; local consumer checks precede HTTP.
 Qt JSON import only reads original files and creates disconnected Flutter tabs.
 
 Desktop build: `cd flutter_app && flutter build linux --release` (or windows).
+macOS local build: `cd flutter_app && bash tool/build_macos.sh`; packaging uses
+`bash tool/package_macos.sh` without publication. Full Xcode, CocoaPods and GNU
+autoconf/automake/libtool (`glibtoolize`) are required.
 No Python bridge, interpreter or `MODBUS_PYTHON` is used. Repository packaging
 scripts also build independent Python CLI/MCP tools; do not put them in the GUI
 bundle. Retain `ModbusConnectorFlutter` installer identity and data locations.

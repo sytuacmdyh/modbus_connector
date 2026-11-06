@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 
+import 'mac_update.dart';
+
 const updateRepository = 'sytuacmdyh/modbus_connector';
 const updateReleasesUrl = 'https://github.com/$updateRepository/releases';
 
@@ -11,6 +13,7 @@ Map<String, dynamic> releaseResult(
   Map<String, dynamic> release,
   String current, {
   String? executable,
+  String platform = 'windows',
 }) {
   final tag = release['tag_name'];
   if (release['draft'] != false ||
@@ -37,7 +40,7 @@ Map<String, dynamic> releaseResult(
       break;
     }
   }
-  final asset = InstallerAsset.fromRelease(release);
+  final asset = InstallerAsset.fromRelease(release, platform: platform);
   return {
     'current': current,
     'release': {
@@ -51,7 +54,9 @@ Map<String, dynamic> releaseResult(
     'install_reason': !newer
         ? 'You are up to date.'
         : executable == null
-        ? 'Automatic installation requires a Windows installed copy. Use the releases page for manual installation.'
+        ? (platform == 'macos'
+              ? 'Automatic installation requires a writable application in Applications. Use the releases page for manual installation.'
+              : 'Automatic installation requires a Windows installed copy. Use the releases page for manual installation.')
         : asset == null
         ? 'A verified Flutter installer is not available. Use the releases page for manual installation.'
         : 'The update is ready to download and install.',
@@ -59,7 +64,15 @@ Map<String, dynamic> releaseResult(
 }
 
 class InstallerAsset {
-  const InstallerAsset(this.url, this.size, this.digest);
+  const InstallerAsset(
+    this.url,
+    this.size,
+    this.digest, {
+    this.platform = 'windows',
+    this.version,
+  });
+  final String platform;
+  final String? version;
   final Uri url;
   final int size;
   final String digest;
@@ -68,15 +81,22 @@ class InstallerAsset {
     'url': url.toString(),
     'size': size,
     'sha256': digest,
+    if (platform != 'windows') 'platform': platform,
+    if (version != null) 'version': version,
   };
 
-  static InstallerAsset? fromRelease(Map<String, dynamic> release) {
+  static InstallerAsset? fromRelease(
+    Map<String, dynamic> release, {
+    String platform = 'windows',
+  }) {
+    if (!{'windows', 'macos'}.contains(platform)) return null;
     final tag = release['tag_name'];
     if (tag is! String || !RegExp(r'^v\d+\.\d+\.\d+$').hasMatch(tag)) {
       return null;
     }
-    final name =
-        'modbus-connector-flutter-${tag.substring(1)}-windows-x64-setup.exe';
+    final name = platform == 'macos'
+        ? 'modbus-connector-flutter-${tag.substring(1)}-macos-universal.dmg'
+        : 'modbus-connector-flutter-${tag.substring(1)}-windows-x64-setup.exe';
     final url =
         'https://github.com/$updateRepository/releases/download/$tag/$name';
     for (final a in release['assets'] is List ? release['assets'] : []) {
@@ -95,6 +115,8 @@ class InstallerAsset {
         Uri.parse(url),
         a['size'],
         a['digest'].substring(7).toLowerCase(),
+        platform: platform,
+        version: platform == 'macos' ? tag.substring(1) : null,
       );
     }
     return null;
@@ -105,9 +127,17 @@ class InstallerAsset {
       Uri.parse(value['url'] as String),
       value['size'] as int,
       value['sha256'] as String,
+      platform: value['platform'] as String? ?? 'windows',
+      version: value['version'] as String?,
     );
     validateInstallerUrl(asset.url);
-    if (asset.size <= 0 ||
+    if (!{'windows', 'macos'}.contains(asset.platform) ||
+        (asset.platform == 'macos' &&
+            (asset.version == null ||
+                !RegExp(r'^\d+\.\d+\.\d+$').hasMatch(asset.version!) ||
+                asset.url.toString() !=
+                    'https://github.com/$updateRepository/releases/download/v${asset.version}/modbus-connector-flutter-${asset.version}-macos-universal.dmg')) ||
+        asset.size <= 0 ||
         asset.size > 1024 * 1024 * 1024 ||
         !RegExp(r'^[a-f0-9]{64}$').hasMatch(asset.digest)) {
       throw const FormatException('Invalid installer metadata.');
@@ -147,6 +177,7 @@ String encodePowerShell(String script) => base64Encode([
 
 /// Only the registered per-user Flutter installation may replace itself.
 Future<String?> installedFlutterExecutable() async {
+  if (Platform.isMacOS) return installedMacExecutable();
   if (!Platform.isWindows) return null;
   final exe = File(Platform.resolvedExecutable).absolute;
   if (exe.uri.pathSegments.last.toLowerCase() != 'modbus_desktop.exe') {
@@ -245,8 +276,8 @@ abstract class UpdateHandoff {
   Future<void> abort();
 }
 
-class WindowsUpdateHandoff implements UpdateHandoff {
-  WindowsUpdateHandoff(this.directory, this.process) {
+class ProcessUpdateHandoff implements UpdateHandoff {
+  ProcessUpdateHandoff(this.directory, this.process) {
     process.stdout.drain<void>();
     process.stderr.drain<void>();
     exited = process.exitCode.then((code) {
@@ -299,6 +330,7 @@ class UpdateInstaller {
     File target,
     void Function(double) progress,
   ) async {
+    InstallerAsset.fromJson(asset.toJson());
     validateInstallerUrl(asset.url);
     checkCancel();
     final client = _client = clientFactory();
@@ -346,13 +378,17 @@ class UpdateInstaller {
       checkCancel();
       final digest = await sha256.bind(partial.openRead()).first;
       final header = await partial.open();
-      final magic = await header.read(2);
+      if (asset.platform == 'macos' && received >= 512) {
+        await header.setPosition(received - 512);
+      }
+      final magic = await header.read(asset.platform == 'macos' ? 4 : 2);
       await header.close();
       if (received != asset.size ||
           digest.toString() != asset.digest ||
-          magic.length != 2 ||
-          magic[0] != 77 ||
-          magic[1] != 90) {
+          (asset.platform == 'macos'
+              ? received < 512 ||
+                    ascii.decode(magic, allowInvalid: true) != 'koly'
+              : magic.length != 2 || magic[0] != 77 || magic[1] != 90)) {
         throw const FormatException('Installer verification failed.');
       }
       checkCancel();
@@ -372,6 +408,54 @@ class UpdateInstaller {
     InstallerAsset asset,
     void Function(double) progress,
   ) async {
+    if (Platform.isMacOS) {
+      if (asset.platform != 'macos') {
+        throw const FormatException('Incorrect update platform.');
+      }
+      // Revalidate deserialized release identity before any filesystem or network I/O.
+      InstallerAsset.fromJson(asset.toJson());
+      final executable = await installedMacExecutable();
+      if (executable == null) {
+        throw const FormatException(
+          'Install the application in a writable Applications directory first.',
+        );
+      }
+      final bundle = File(executable).parent.parent.parent;
+      final directory = await bundle.parent.createTemp('.modbus-update-');
+      ProcessUpdateHandoff? handoff;
+      try {
+        final image = File('${directory.path}/update.dmg');
+        await download(asset, image, progress);
+        await stageMacUpdate(directory, image, asset.version!, checkCancel);
+        checkCancel();
+        final script = File('${directory.path}/install.sh');
+        await script.writeAsString(macUpdaterScript(directory, bundle, pid));
+        final process = await Process.start('/bin/bash', [
+          script.path,
+        ], workingDirectory: directory.path);
+        handoff = ProcessUpdateHandoff(directory, process);
+        final deadline = DateTime.now().add(const Duration(seconds: 15));
+        while (!await File('${directory.path}/ready').exists()) {
+          checkCancel();
+          if (handoff.exitCode != null || DateTime.now().isAfter(deadline)) {
+            throw const FormatException('Could not start the update helper.');
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+        checkCancel();
+        return handoff;
+      } catch (_) {
+        if (handoff != null) {
+          await handoff.abort();
+        } else if (await directory.exists()) {
+          await directory.delete(recursive: true);
+        }
+        rethrow;
+      }
+    }
+    if (asset.platform != 'windows') {
+      throw const FormatException('Incorrect update platform.');
+    }
     final executable = await installedFlutterExecutable();
     if (executable == null) {
       throw const FormatException(
@@ -380,7 +464,7 @@ class UpdateInstaller {
     }
     checkCancel();
     final directory = await Directory.systemTemp.createTemp('modbus-update-');
-    WindowsUpdateHandoff? handoff;
+    ProcessUpdateHandoff? handoff;
     try {
       await download(asset, File('${directory.path}/setup.exe'), progress);
       checkCancel();
@@ -400,7 +484,7 @@ class UpdateInstaller {
         environment: powershellEnvironment(),
         includeParentEnvironment: false,
       );
-      handoff = WindowsUpdateHandoff(directory, process);
+      handoff = ProcessUpdateHandoff(directory, process);
       final deadline = DateTime.now().add(const Duration(seconds: 15));
       while (!await File('${directory.path}/ready').exists()) {
         checkCancel();

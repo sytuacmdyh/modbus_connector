@@ -207,6 +207,8 @@ const flutterChinese = <String, String>{
   'The update is ready to download and install.': '可下载并安装更新。',
   'You are up to date.': '当前已是最新版本。',
   'No public stable release is available.': '暂无公开的稳定版本。',
+  'Automatic installation requires a writable application in Applications. Use the releases page for manual installation.':
+      '自动安装需要将应用放置在可写的 Applications 目录中，也可前往发布页面手动安装。',
   'Automatic installation requires a Windows installed copy. Use the releases page for manual installation.':
       '自动安装需要 Windows 安装版；其他版本请前往发布页手动下载。',
   'A verified Flutter installer is not available. Use the releases page for manual installation.':
