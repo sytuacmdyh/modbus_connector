@@ -129,10 +129,27 @@ The native test now opens the Sessions drawer when the sidebar item is absent,
 then selects it and verifies acquisition continues. It retains the same wide
 sidebar assertions on hosts where the sidebar is visible.
 
-## Remaining acceptance
+## Release build and evidence
 
-Run the full Flutter checks and native integration files separately, inspect
-   the resulting macOS application in light/dark modes and at minimum size,
-   and record evidence. Build the universal macOS bundle with the repository
-   script. This verifies this Mac and local TCP simulation; it does not establish
-   Windows installation or physical serial acceptance.
+The final macOS desktop native run also passes after all layout changes and the
+drawer-aware test fix. The five native files were run separately: appearance,
+desktop, parity and templates pass; performance retains the explicitly recorded
+budget failure above. Profile runs report success/failure through both the driver
+and exit status, despite Flutter's plugin-detection warning at teardown.
+
+`bash tool/package_macos.sh` built version 0.16.12 (build 12), verified all five
+Mach-O files contain arm64/x86_64, verified the deep strict code signature, and
+created `modbus-connector-flutter-0.16.12-macos-universal.dmg` (23,445,257 bytes).
+The generated SHA-256 matches the DMG:
+`dcffadc6e72c85f1c33e8e8517b48498eaed4e904741100c7cd643c90d2afd11`.
+The application identifier remains `com.modbusconnector.modbusDesktop`.
+
+Native screenshots and full logs, including failed stress measurements, are
+archived at `/Users/dyh/.local/share/modbus-ui-redesign-acceptance/evidence/`.
+The Release process starts with a separate `MODBUS_FLUTTER_HOME`; the installed
+application and its workspace are not replaced. A manual Release-window
+inspection could not proceed because macOS was locked. The light/dark/minimum
+visual checks and actual UI writes above come from the real native Profile app.
+No Apple Silicon hardware, physical serial or new Windows physical-device
+acceptance is claimed. CI includes Windows/Linux native loopback tests and
+Windows installer validation; the macOS GUI artifact is built locally.
