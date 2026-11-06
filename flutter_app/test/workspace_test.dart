@@ -10,6 +10,54 @@ import 'fake_bridge.dart';
 
 void main() {
   testWidgets(
+    'sidebar switches and closes sessions without a duplicate tab strip',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final workspace = WorkspaceController(bridgeFactory: FakeBridge.new);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SessionWorkspace(
+            controller: workspace,
+            themeMode: ThemeMode.light,
+            onThemeChanged: (_) {},
+          ),
+        ),
+      );
+      await tester.tap(find.text('New session'));
+      await tester.pumpAndSettle();
+      expect(workspace.sessions, hasLength(2));
+      expect(find.byType(InputChip), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('workspace-session-0')));
+      await tester.pumpAndSettle();
+      expect(workspace.selected, 0);
+      await tester.tap(find.byKey(const ValueKey('workspace-close-1')));
+      await tester.pumpAndSettle();
+      expect(workspace.sessions, hasLength(1));
+      tester.view.physicalSize = const Size(900, 650);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('workspace-navigation')).hitTestable(),
+        findsNothing,
+      );
+      await tester.tap(find.byTooltip('Sessions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('workspace-session-0')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('workspace-navigation')).hitTestable(),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+      await workspace.shutdown();
+      await tester.pumpWidget(const SizedBox());
+      workspace.dispose();
+    },
+  );
+
+  testWidgets(
     'local demo keeps row selection visible on the left while polling',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 900);

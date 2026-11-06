@@ -55,6 +55,14 @@ void main() {
         expect(demo.registerMap.polling, isTrue);
         expect(demo.error, isNull);
         expect(demo.registers, hasLength(6));
+        await tester.tap(find.byKey(const ValueKey('workspace-session-0')));
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(workspace.selected, 0);
+        expect(demo.registerMap.polling, isTrue);
+        await tester.tap(find.byKey(const ValueKey('workspace-session-1')));
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(workspace.selected, 1);
+        expect(find.byType(InputChip), findsNothing);
         expect(
           demo.registerResults[0]['values'].single,
           inInclusiveRange(500, 1500),

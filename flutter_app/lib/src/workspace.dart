@@ -245,6 +245,8 @@ class SessionWorkspace extends StatefulWidget {
 }
 
 class _SessionWorkspaceState extends State<SessionWorkspace> {
+  final _workspaceScaffold = GlobalKey<ScaffoldState>();
+
   Future<void> openDemo() async {
     try {
       await workspace.openDemo();
@@ -463,50 +465,169 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
     ),
   );
 
+  Widget _sessionNavigation() {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      key: const ValueKey('workspace-navigation'),
+      width: 184,
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        border: Border(right: BorderSide(color: colors.outlineVariant)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 8, 10),
+            child: LText(
+              'Workspace',
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: workspace.sessions.length,
+              itemBuilder: (context, index) {
+                final session = workspace.sessions[index];
+                return ListenableBuilder(
+                  listenable: session,
+                  builder: (context, _) {
+                    final selected = workspace.selected == index;
+                    final name =
+                        '${tr(session.draft['transport'] == 'demo' ? 'Local demo' : session.mode)} ${index + 1}';
+                    return Material(
+                      color: selected
+                          ? colors.primaryContainer
+                          : Colors.transparent,
+                      child: InkWell(
+                        key: ValueKey('workspace-session-$index'),
+                        onTap: () {
+                          workspace.select(index);
+                          _workspaceScaffold.currentState?.closeDrawer();
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border(
+                              left: BorderSide(
+                                width: 3,
+                                color: selected
+                                    ? colors.primary
+                                    : Colors.transparent,
+                              ),
+                            ),
+                          ),
+                          padding: const EdgeInsets.fromLTRB(9, 8, 2, 8),
+                          child: Row(
+                            children: [
+                              Icon(
+                                session.connected ? Icons.link : Icons.link_off,
+                                size: 16,
+                                color: selected
+                                    ? colors.onPrimaryContainer
+                                    : colors.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 7),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: selected
+                                            ? colors.onPrimaryContainer
+                                            : colors.onSurface,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      session.connected
+                                          ? session.description
+                                          : tr('Disconnected'),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: selected
+                                            ? colors.onPrimaryContainer
+                                            : colors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                key: ValueKey('workspace-close-$index'),
+                                tooltip: tr('Close'),
+                                constraints: const BoxConstraints.tightFor(
+                                  width: 28,
+                                  height: 28,
+                                ),
+                                padding: EdgeInsets.zero,
+                                icon: const Icon(Icons.close, size: 14),
+                                onPressed: () =>
+                                    unawaited(workspace.remove(session)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: OutlinedButton.icon(
+              onPressed: workspace.add,
+              icon: const Icon(Icons.add, size: 16),
+              label: const LText('New session'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: workspace,
     builder: (context, _) => Scaffold(
+      key: _workspaceScaffold,
+      drawer: MediaQuery.sizeOf(context).width < 1100
+          ? Drawer(width: 184, child: SafeArea(child: _sessionNavigation()))
+          : null,
       body: Column(
         children: [
           SizedBox(
             height: 42,
             child: Row(
               children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (var i = 0; i < workspace.sessions.length; i++)
-                          ListenableBuilder(
-                            listenable: workspace.sessions[i],
-                            builder: (context, _) => Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                              ),
-                              child: InputChip(
-                                selected: workspace.selected == i,
-                                avatar: Icon(
-                                  workspace.sessions[i].connected
-                                      ? Icons.link
-                                      : Icons.tab,
-                                  size: 16,
-                                ),
-                                label: LText(
-                                  '${tr(workspace.sessions[i].draft['transport'] == 'demo' ? 'Local demo' : workspace.sessions[i].mode)} ${i + 1}',
-                                ),
-                                onPressed: () => workspace.select(i),
-                                onDeleted: () => unawaited(
-                                  workspace.remove(workspace.sessions[i]),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                if (MediaQuery.sizeOf(context).width < 1100)
+                  IconButton(
+                    tooltip: tr('Sessions'),
+                    onPressed: () =>
+                        _workspaceScaffold.currentState?.openDrawer(),
+                    icon: const Icon(Icons.menu),
                   ),
+                const SizedBox(width: 14),
+                Icon(
+                  Icons.memory,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Modbus Connector',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
                 IconButton(
                   tooltip: tr('Help'),
                   onPressed: () => showFeatureHelp(context),
@@ -591,11 +712,6 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                           .map((m) => PopupMenuItem(value: m, child: LText(m)))
                           .toList(),
                 ),
-                IconButton(
-                  tooltip: tr('New session'),
-                  onPressed: workspace.add,
-                  icon: const Icon(Icons.add),
-                ),
               ],
             ),
           ),
@@ -613,28 +729,37 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
               ],
             ),
           Expanded(
-            child: workspace.loading
-                ? const Center(child: CircularProgressIndicator())
-                : IndexedStack(
-                    index: workspace.selected,
-                    children: [
-                      for (final session in workspace.sessions)
-                        TickerMode(
-                          key: ObjectKey(session),
-                          enabled: identical(
-                            session,
-                            workspace.sessions[workspace.selected],
-                          ),
-                          child: Workbench(
-                            controller: session,
-                            manageLifecycle: false,
-                            onOpenDemo: () => unawaited(openDemo()),
-                            themeMode: widget.themeMode,
-                            onThemeChanged: widget.onThemeChanged,
-                          ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (MediaQuery.sizeOf(context).width >= 1100)
+                  _sessionNavigation(),
+                Expanded(
+                  child: workspace.loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : IndexedStack(
+                          index: workspace.selected,
+                          children: [
+                            for (final session in workspace.sessions)
+                              TickerMode(
+                                key: ObjectKey(session),
+                                enabled: identical(
+                                  session,
+                                  workspace.sessions[workspace.selected],
+                                ),
+                                child: Workbench(
+                                  controller: session,
+                                  manageLifecycle: false,
+                                  onOpenDemo: () => unawaited(openDemo()),
+                                  themeMode: widget.themeMode,
+                                  onThemeChanged: widget.onThemeChanged,
+                                ),
+                              ),
+                          ],
                         ),
-                    ],
-                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
