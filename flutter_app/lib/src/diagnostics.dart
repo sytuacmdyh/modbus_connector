@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:archive/archive_io.dart';
+import 'package:path/path.dart' as p;
 
 import 'settings_store.dart';
 
@@ -124,13 +125,14 @@ class Diagnostics {
     String? loggingError,
   }) async {
     final target = File(path).absolute;
-    if (target.path.startsWith(
-          '${logs.absolute.path}${Platform.pathSeparator}',
-        ) ||
-        (dumps != null &&
-            target.path.startsWith(
-              '${dumps.absolute.path}${Platform.pathSeparator}',
-            ))) {
+    final targetPath = p.normalize(target.path);
+    bool inside(Directory directory) {
+      final directoryPath = p.normalize(directory.absolute.path);
+      return p.equals(directoryPath, targetPath) ||
+          p.isWithin(directoryPath, targetPath);
+    }
+
+    if (inside(logs) || (dumps != null && inside(dumps))) {
       throw const FormatException(
         'Choose an export location outside the log directory',
       );

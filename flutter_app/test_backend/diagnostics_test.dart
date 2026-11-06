@@ -67,4 +67,16 @@ void main() {
       throwsFormatException,
     );
   });
+  test('export rejects normalized paths inside logs and dumps', () async {
+    final log = Diagnostics(root)..write('session', 'hello');
+    final dumps = Directory('${root.path}/dumps')..createSync();
+    for (final name in ['logs', 'dumps']) {
+      final target = '${root.path}/./$name/out.zip';
+      await expectLater(
+        log.exportBundle(target, dumps: dumps),
+        throwsFormatException,
+      );
+      expect(File(target).existsSync(), isFalse);
+    }
+  });
 }

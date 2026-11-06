@@ -17,6 +17,7 @@ dependencies:
   csv: ^8.0.0
   xml: ^7.1.0
   archive: ^4.6.0
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:
