@@ -82,27 +82,36 @@ String describe(Json p) => p['transport'] == 'rtu'
     : '${p['transport']} ${p['host']}:${p['port']}';
 
 class SerialChannel {
-  SerialChannel(Json p, {bool readOnly = false}) {
-    port = SerialPort(p['port']);
+  SerialChannel(
+    Json p, {
+    bool readOnly = false,
+    SerialPort Function(String) createPort = SerialPort.new,
+    SerialPortConfig Function() createConfig = SerialPortConfig.new,
+  }) {
+    port = createPort(p['port']);
     try {
       if (!(readOnly ? port.openRead() : port.openReadWrite())) {
         throw StateError('Could not open serial port: ${SerialPort.lastError}');
       }
-      final config = SerialPortConfig()
-        ..baudRate = p['baudrate']
-        ..bits = p['bytesize']
-        ..parity = ({
-          'N': SerialPortParity.none,
-          'E': SerialPortParity.even,
-          'O': SerialPortParity.odd,
-        }[p['parity']]!)
-        ..stopBits = p['stopbits']
-        ..setFlowControl(SerialPortFlowControl.none);
+      final config = createConfig();
       try {
-        port.config = config;
-      } finally {
+        config
+          ..baudRate = p['baudrate']
+          ..bits = p['bytesize']
+          ..parity = ({
+            'N': SerialPortParity.none,
+            'E': SerialPortParity.even,
+            'O': SerialPortParity.odd,
+          }[p['parity']]!)
+          ..stopBits = p['stopbits']
+          ..setFlowControl(SerialPortFlowControl.none);
+      } catch (_) {
         config.dispose();
+        rethrow;
       }
+      // libserialport retains this object, even when the setter throws.
+      // SerialPort.dispose owns its release; disposing here causes double-free.
+      port.config = config;
       timer = Timer.periodic(const Duration(milliseconds: 2), (_) {
         try {
           final available = port.bytesAvailable;

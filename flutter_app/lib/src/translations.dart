@@ -73,6 +73,14 @@ String trf(String key, Map<String, Object?> values) {
 }
 
 const flutterChinese = <String, String>{
+  'Export crash logs': '导出崩溃日志',
+  'Clear logs': '清空日志',
+  'Clear saved logs?': '清空已保存的日志？',
+  'Delete saved application logs and this app’s Windows crash dumps. Export first if needed. Windows system events are preserved.':
+      '删除已保存的应用日志和本程序的 Windows 崩溃转储。如需保留请先导出。Windows 系统事件将保留。',
+  'Crash logs exported': '崩溃日志已导出',
+  'Saved logs cleared': '已清空保存的日志',
+
   'Connection settings': '连接设置',
   'Save and connect': '保存并连接',
   'Session tools': '会话工具',

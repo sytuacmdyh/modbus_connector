@@ -470,3 +470,37 @@ integration passed selection, both buttons, real-bridge reads, scrolling and
 resizing. The new regression checks skipped reads, resuming reads, unselected-row
 isolation and saved polling flags. The installed Release UI also verified drag
 selection, cancellation pause markers and reenabling on three rows.
+
+## Serial disconnect crash and persisted diagnostics (2026-11-06, 0.16.8)
+
+Windows 0.16.7 dumps reported heap corruption (`0xc0000374`); both exception
+stacks contained `serialport.dll+0x361f`, inside `sp_free_config` after `free`.
+The application disposed a config immediately after assigning it to the port,
+although libserialport 0.3.0+1 retains and disposes that same object. Configuration
+now stays owned by the port, with separate cleanup for failures before transfer.
+The caller regression tests fail with the old cleanup and pass with the repair.
+
+Activity now offers Export crash logs / Clear logs. Per-isolate flushed JSONL
+logs persist startup, connection lifecycle and error evidence with bounded
+rotation. ZIP export runs away from the UI isolate and includes available
+Windows crash dumps and application-specific Windows events. Confirmed clear
+preserves configuration, templates, CSV/JSONL data logs and system events.
+
+Validation:
+- `flutter analyze`: clean; `flutter test`: 104 passed.
+- `dart test test_backend`: 388 passed, including config ownership/error cleanup,
+  archive content, log rotation, clear scope and file-I/O failure handling.
+- Python reference/CLI/MCP: 635 passed initially; the one version metadata check
+  passed after refreshing the editable installation from 0.16.6 to 0.16.8.
+- Windows actual serialport.dll: 1,000 config ownership/release cycles passed
+  without opening any device. Native diagnostic export contained the two
+  November 6 dumps and matching Windows event records.
+- Windows desktop and parity integration files ran separately in Profile mode;
+  both passed (two scenarios per file). Release and NSIS build succeeded.
+- Local installation updated to 0.16.8; all 17 shipped file SHA-256 hashes matched
+  the release bundle and all three existing Flutter state files were unchanged
+  immediately after installation. Previous installation/state backed up first.
+- Physical USB/RS485 polling/disconnect acceptance has not been performed.
+- Installed Release launched successfully and created UI/worker startup logs.
+  Window capture confirmed both Chinese diagnostic buttons and the restored
+  102-row workspace. The application was left running and disconnected.

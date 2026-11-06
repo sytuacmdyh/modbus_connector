@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'register_map_controller.dart';
+import 'diagnostics.dart';
 
 import 'dart:async';
 import 'dart:collection';
@@ -85,6 +86,7 @@ class SessionController extends ChangeNotifier {
   bool disconnecting = false;
   bool toolActive = false;
   bool logging = false;
+
   /// Group adjacent/overlapping map reads.  This is always enabled; the
   /// persisted `map_grouped` field and setter remain only for compatibility
   /// with older workspace/template data.
@@ -251,6 +253,7 @@ class SessionController extends ChangeNotifier {
       Duration(milliseconds: (timeoutSeconds * 5000).round() + 10000);
 
   void _log(String message, {bool isError = false}) {
+    Diagnostics.current?.write(isError ? 'session-error' : 'session', message);
     logs.addFirst(LogEntry(message, isError: isError));
     while (logs.length > 300) {
       logs.removeLast();

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'catalog.dart';
+import '../diagnostics.dart';
 import 'service.dart';
 
 // Pure Dart worker: native ports, protocol timers and servers never share the
@@ -10,6 +11,7 @@ import 'service.dart';
 void nativeWorker(List<dynamic> arguments) {
   final output = arguments[0] as SendPort;
   final directory = arguments[1] as String?;
+  Diagnostics.initialize(role: 'worker', directory: directory);
   final service = NativeService(
     catalog: directory == null
         ? null

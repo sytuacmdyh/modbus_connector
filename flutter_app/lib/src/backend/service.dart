@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter_libserialport/flutter_libserialport.dart';
 
 import 'catalog.dart';
+import '../diagnostics.dart';
 import 'devices.dart';
 import 'files.dart';
 import 'online.dart';
@@ -82,9 +83,23 @@ class NativeService {
     traffic.clear();
     final clock = Stopwatch()..start();
     Json response;
+    final lifecycle = [
+      'connect',
+      'disconnect',
+      'shutdown',
+      'device_start',
+      'device_stop',
+    ].contains(d['command']);
+    if (lifecycle) {
+      Diagnostics.current?.write('backend', "${d['command']} begin");
+    }
     try {
       response = {'ok': true, 'result': await dispatch(d)};
-    } catch (e) {
+      if (lifecycle) {
+        Diagnostics.current?.write('backend', "${d['command']} complete");
+      }
+    } catch (e, stack) {
+      Diagnostics.current?.write('backend-error', "${d['command']}: $e", stack);
       response = {
         'ok': false,
         'error': {

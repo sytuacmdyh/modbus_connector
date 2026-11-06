@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'file_paths.dart';
+import 'diagnostics.dart';
 
 import 'scanner.dart';
 import 'register_map.dart';
@@ -587,6 +588,67 @@ class _WorkbenchState extends State<Workbench> {
     );
   }
 
+  bool _diagnosticsBusy = false;
+  Future<void> _diagnosticsAction(bool export) async {
+    if (_diagnosticsBusy) return;
+    final diagnostics = Diagnostics.current;
+    if (diagnostics == null) return;
+    setState(() => _diagnosticsBusy = true);
+    try {
+      if (export) {
+        final path = await chooseFilePath(
+          context,
+          save: true,
+          title: 'Export crash logs',
+          extension: 'zip',
+          suggestedName:
+              'modbus-diagnostics-${DateTime.now().millisecondsSinceEpoch}.zip',
+        );
+        if (path == null) return;
+        await diagnostics.export(path);
+      } else {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const LText('Clear saved logs?'),
+            content: const LText(
+              'Delete saved application logs and this app’s Windows crash dumps. Export first if needed. Windows system events are preserved.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const LText('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const LText('Clear logs'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true) return;
+        diagnostics.clear(dumps: diagnostics.crashDumps);
+        session.clearLog();
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: LText(
+              export ? 'Crash logs exported' : 'Saved logs cleared',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: LText(userError(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _diagnosticsBusy = false);
+    }
+  }
+
   Widget _logs() {
     final logs = session.logs
         .where(
@@ -671,6 +733,30 @@ class _WorkbenchState extends State<Workbench> {
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Wrap(
+              children: [
+                TextButton.icon(
+                  key: const ValueKey('export-diagnostics'),
+                  onPressed: _diagnosticsBusy
+                      ? null
+                      : () => _diagnosticsAction(true),
+                  icon: const Icon(Icons.download, size: 16),
+                  label: const LText('Export crash logs'),
+                ),
+                TextButton.icon(
+                  key: const ValueKey('clear-diagnostics'),
+                  onPressed: _diagnosticsBusy
+                      ? null
+                      : () => _diagnosticsAction(false),
+                  icon: const Icon(Icons.delete_outline, size: 16),
+                  label: const LText('Clear logs'),
+                ),
+              ],
+            ),
+          ),
+          if (_diagnosticsBusy) const LinearProgressIndicator(),
           if (_showLogFilter)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),

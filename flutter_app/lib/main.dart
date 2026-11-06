@@ -1,3 +1,7 @@
+import 'dart:ui';
+
+import 'src/diagnostics.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -8,8 +12,24 @@ import 'src/workbench.dart';
 import 'src/workspace.dart';
 import 'src/graph_window.dart';
 
-void main(List<String> args) =>
-    runApp(ModbusApp(graphWindow: args.contains('--graph-window')));
+void main(List<String> args) {
+  Diagnostics.initialize(
+    role: args.contains('--graph-window') ? 'graph' : 'ui',
+  );
+  FlutterError.onError = (details) {
+    Diagnostics.current?.write(
+      'flutter-error',
+      details.exceptionAsString(),
+      details.stack,
+    );
+    FlutterError.presentError(details);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    Diagnostics.current?.write('unhandled-error', '$error', stack);
+    return false;
+  };
+  runApp(ModbusApp(graphWindow: args.contains('--graph-window')));
+}
 
 class ModbusApp extends StatefulWidget {
   const ModbusApp({super.key, this.controller, this.graphWindow = false});

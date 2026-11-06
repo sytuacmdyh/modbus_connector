@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:isolate';
 
 import 'backend/service.dart';
+import 'diagnostics.dart';
 import 'backend/worker.dart';
 
 class BridgeReply {
@@ -55,6 +56,7 @@ class NativeBridge extends BridgeTransport {
     void failed(String message) {
       if (_dead) return;
       _dead = true;
+      Diagnostics.current?.write('worker-exit', message);
       final error = BridgeException(message, connected: false);
       if (!ready.isCompleted) ready.completeError(error);
       if (_response != null && !_response!.isCompleted) {

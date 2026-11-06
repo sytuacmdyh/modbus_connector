@@ -172,3 +172,25 @@ use **Enable trend** on selected rows to collect and show history.
 During polling, structural editing tools keep a stable disabled state; selection
 and value writes remain available. Raw value changes highlight only the current
 value cell in amber for three seconds; repeated identical reads do not extend it.
+
+### Diagnostic logs and native crashes
+
+The Activity panel has **Export crash logs** and **Clear logs** buttons. Application
+startup, connection lifecycle, session errors, Flutter errors and worker failures
+are persisted under `~/.modbus_connector/flutter/logs` (honoring
+`MODBUS_FLUTTER_HOME`). Each isolate uses its own flushed JSONL file; files rotate
+at 2 MiB with one previous segment, retaining at most 32 application log files.
+Command payloads and saved cloud configuration are not included.
+
+Export creates a ZIP off the UI isolate containing retained application logs,
+available `%LOCALAPPDATA%/CrashDumps/modbus_desktop.exe*.dmp` files, and a snapshot
+of this application's Windows Application Error/WER events from the last 14 days.
+Missing or inaccessible Windows evidence is noted in `README.txt`; native dump
+availability depends on Windows crash reporting. Dumps can contain process memory.
+Clearing requires confirmation, deletes only this application's saved logs/dumps
+and clears the current activity view. It preserves settings, templates, data logs,
+previously exported ZIPs and Windows system events. New activity creates new logs.
+
+Version 0.16.8 fixes serial disconnect heap corruption by leaving assigned
+`SerialPortConfig` disposal to `SerialPort`, as required by the pinned
+`libserialport 0.3.0+1` implementation (including setter failure).
