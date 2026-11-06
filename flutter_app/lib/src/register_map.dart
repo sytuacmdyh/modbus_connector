@@ -564,10 +564,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
     data: Theme.of(context).copyWith(
       inputDecorationTheme: Theme.of(context).inputDecorationTheme.copyWith(
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
       ),
     ),
     child: Focus(
@@ -576,8 +573,8 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
         if (mounted) setState(() {});
       },
       child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: 6,
+        runSpacing: 6,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           SizedBox(
@@ -655,7 +652,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
             ),
           ),
           SizedBox(
-            width: 185,
+            width: 165,
             child: DropdownButtonFormField<String>(
               key: const ValueKey('map-filter-area'),
               initialValue: areaFilter,
@@ -690,12 +687,17 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                   }),
             icon: const Icon(Icons.filter_alt_off_outlined, size: 20),
           ),
-          LText(
-            trf('Showing {shown} / {total}', {
-              'shown': shown,
-              'total': model.rows.length,
-            }),
-            style: Theme.of(context).textTheme.bodySmall,
+          SizedBox(
+            width: 160,
+            child: LText(
+              trf('Showing {shown} / {total}', {
+                'shown': shown,
+                'total': model.rows.length,
+              }),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ),
         ],
       ),
@@ -829,7 +831,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                         maxHeight:
                             widget.shrinkWrap || !constraints.hasBoundedHeight
                             ? double.infinity
-                            : constraints.maxHeight * .6,
+                            : constraints.maxHeight * .55,
                       ),
                       child: SingleChildScrollView(
                         child: Column(
@@ -1057,17 +1059,18 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                         compactByDefault: true,
                         bottomPadding: hasSelection ? 66 : 14,
                         columns: const [
-                          TableColumnSpec('select', 'Select', 70),
-                          TableColumnSpec('name', 'Name', 150),
+                          TableColumnSpec('select', 'Select', 64),
+                          TableColumnSpec('address', 'Address', 68),
+                          TableColumnSpec('name', 'Name', 156),
                           TableColumnSpec(
                             'kind',
                             'Area',
                             160,
                             hiddenByDefault: true,
                           ),
-                          TableColumnSpec('address', 'Address', 95),
-                          TableColumnSpec('value', 'Value', 190),
-                          TableColumnSpec('format', 'Format', 85),
+                          TableColumnSpec('format', 'Format', 68),
+                          TableColumnSpec('value', 'Value', 136),
+                          TableColumnSpec('raw', 'Raw HEX', 100),
                           TableColumnSpec(
                             'count',
                             'Count',
@@ -1080,8 +1083,8 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                             80,
                             hiddenByDefault: true,
                           ),
-                          TableColumnSpec('trend', 'Trend', 130),
-                          TableColumnSpec('actions', 'Actions', 260),
+                          TableColumnSpec('trend', 'Trend', 88),
+                          TableColumnSpec('actions', 'Actions', 180),
                         ],
                         layout: desktopTableLayout(
                           widget.session.draft,
@@ -1204,6 +1207,20 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                           }
                           final text = key == 'value'
                               ? (result?['display'] ?? '—')
+                              : key == 'raw'
+                              ? ((result?['values'] as List?)
+                                        ?.map(
+                                          (v) => v is bool
+                                              ? (v ? '0001' : '0000')
+                                              : v is int
+                                              ? v
+                                                    .toRadixString(16)
+                                                    .toUpperCase()
+                                                    .padLeft(4, '0')
+                                              : '$v',
+                                        )
+                                        .join(' ') ??
+                                    '—')
                               : key == 'unit_id'
                               ? row[key] ?? widget.session.unit
                               : row[key] ?? '';
@@ -1216,7 +1233,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                               child: Row(
                                 children: [
                                   SizedBox(
-                                    width: 20,
+                                    width: paused ? 20 : 0,
                                     child: paused
                                         ? ExcludeSemantics(
                                             child: Icon(
@@ -1265,14 +1282,27 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                               '$text',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: key != 'value' || result?['alarm'] == null
-                                  ? null
-                                  : TextStyle(
-                                      color:
-                                          result!['alarm']['color'] == 'yellow'
+                              style: TextStyle(
+                                fontFamily:
+                                    ['value', 'address', 'raw'].contains(key)
+                                    ? 'monospace'
+                                    : null,
+                                fontFamilyFallback: const ['Menlo', 'Consolas'],
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                                fontSize: key == 'raw' ? 11 : 12,
+                                color:
+                                    key == 'value' && result?['alarm'] != null
+                                    ? result!['alarm']['color'] == 'yellow'
                                           ? Colors.amber.shade800
-                                          : Colors.red,
-                                    ),
+                                          : Colors.red
+                                    : key == 'raw'
+                                    ? Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant
+                                    : null,
+                              ),
                             ),
                           );
                           return key == 'value'
@@ -1282,7 +1312,15 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                                   color: model.valueChanged(row)
                                       ? Colors.amber.withValues(alpha: .25)
                                       : null,
-                                  child: cell,
+                                  child: InkWell(
+                                    onTap: writable && model.canWrite
+                                        ? () => write(i)
+                                        : null,
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: cell,
+                                    ),
+                                  ),
                                 )
                               : cell;
                         },

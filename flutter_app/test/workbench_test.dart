@@ -12,7 +12,42 @@ import 'package:modbus_desktop/src/register_map.dart';
 import 'fake_bridge.dart';
 
 void main() {
-  testWidgets('rare map tools collapse and the table recovers their space', (tester) async {
+  testWidgets(
+    'engineering value cell opens write dialog while polling and raw HEX stays visible',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final session = SessionController(FakeBridge());
+      session.registers.add({
+        'name': 'Setpoint',
+        'kind': 'holding_registers',
+        'address': 0,
+        'count': 1,
+        'format': 'u16',
+      });
+      await session.connect({'transport': 'tcp', 'timeout': .1}, 1);
+      await tester.pumpWidget(ModbusApp(controller: session));
+      session.registerMap.start(500);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('0064'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('map-value-0')));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(session.registerMap.polling, isTrue);
+      await tester.tap(find.text('Cancel'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tester.takeException(), isNull);
+      await session.shutdown();
+      await tester.pumpWidget(const SizedBox());
+      session.dispose();
+    },
+  );
+
+  testWidgets('rare map tools collapse and the table recovers their space', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -111,7 +146,7 @@ void main() {
   );
 
   testWidgets(
-    'activity stays on the right and can be hidden to widen the map',
+    'activity docks below the map and collapses without changing its width',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 900);
       tester.view.devicePixelRatio = 1;
@@ -126,11 +161,11 @@ void main() {
       await tester.pumpAndSettle();
       final map = tester.getRect(find.byType(RegisterMapPanel));
       final activity = tester.getRect(find.widgetWithText(Card, 'Activity'));
-      expect(activity.left, greaterThan(map.right));
-      expect((activity.bottom - map.bottom).abs(), lessThan(15));
+      expect(activity.top, greaterThanOrEqualTo(map.bottom));
+      expect(activity.width, greaterThanOrEqualTo(map.width));
       expect(
         tester.getSize(find.byType(DesktopTable)).height,
-        greaterThan(500),
+        greaterThan(400),
       );
       final logs = find.byKey(const ValueKey('activity-list'));
       await tester.drag(logs, const Offset(0, -300));
@@ -141,10 +176,12 @@ void main() {
       expect(session.logs, isEmpty);
       await tester.tap(find.byTooltip('Hide activity'));
       await tester.pumpAndSettle();
-      expect(find.text('Activity'), findsNothing);
+      expect(find.text('Activity'), findsOneWidget);
+      expect(find.byKey(const ValueKey('activity-list')), findsNothing);
+      expect(tester.getSize(find.byType(RegisterMapPanel)).width, map.width);
       expect(
-        tester.getSize(find.byType(RegisterMapPanel)).width,
-        greaterThan(map.width + 250),
+        tester.getSize(find.byType(RegisterMapPanel)).height,
+        greaterThan(map.height),
       );
       await tester.tap(find.byTooltip('Show activity'));
       await tester.pumpAndSettle();
@@ -155,48 +192,59 @@ void main() {
     },
   );
 
-  testWidgets('minimum window uses a right drawer with errors and large text', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1350, 975);
-    tester.view.devicePixelRatio = 1.5;
-    tester.platformDispatcher.textScaleFactorTestValue = 1.3;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-    final bridge = FakeBridge();
-    final session = SessionController(bridge);
-    await tester.pumpWidget(ModbusApp(controller: session));
-    await session.connect({'transport': 'tcp', 'timeout': 0.1}, 1);
-    bridge.heldRead = Completer<BridgeReply>();
-    final reading = session.command({'command': 'read', 'count': 1});
-    bridge.heldRead!.completeError(
-      const BridgeException(
-        'Device timed out. Check the connection and retry reading.',
-        connected: true,
-      ),
-    );
-    await reading;
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('Dismiss error'), findsOneWidget);
-    expect(find.text('Activity'), findsNothing);
-    expect(tester.getSize(find.byType(DesktopTable)).height, greaterThan(120));
-    await tester.tap(find.text('More tools'));
-    await tester.pumpAndSettle();
-    expect(tester.getSize(find.byType(DesktopTable)).height, greaterThan(120));
-    await tester.tap(find.byTooltip('Show activity'));
-    await tester.pumpAndSettle();
-    expect(find.text('Activity'), findsOneWidget);
-    expect(tester.getRect(find.byType(Drawer)).right, 900);
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Dismiss error'));
-    await tester.pumpAndSettle();
-    expect(session.error, isNull);
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
-    session.dispose();
-  });
+  testWidgets(
+    'minimum window keeps a collapsible bottom console with errors and large text',
+    (tester) async {
+      tester.view.physicalSize = const Size(1350, 975);
+      tester.view.devicePixelRatio = 1.5;
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final bridge = FakeBridge();
+      final session = SessionController(bridge);
+      await tester.pumpWidget(ModbusApp(controller: session));
+      await session.connect({'transport': 'tcp', 'timeout': 0.1}, 1);
+      bridge.heldRead = Completer<BridgeReply>();
+      final reading = session.command({'command': 'read', 'count': 1});
+      bridge.heldRead!.completeError(
+        const BridgeException(
+          'Device timed out. Check the connection and retry reading.',
+          connected: true,
+        ),
+      );
+      await reading;
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Dismiss error'), findsOneWidget);
+      expect(find.byKey(const ValueKey('activity-list')), findsNothing);
+      expect(
+        tester.getSize(find.byType(DesktopTable)).height,
+        greaterThan(120),
+      );
+      await tester.tap(find.text('More tools'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSize(find.byType(DesktopTable)).height,
+        greaterThan(120),
+      );
+      await tester.tap(find.byTooltip('Show activity'));
+      await tester.pumpAndSettle();
+      expect(find.text('Activity'), findsOneWidget);
+      expect(find.byType(Drawer), findsNothing);
+      expect(
+        tester.getRect(find.byKey(const ValueKey('activity-console'))).top,
+        greaterThan(tester.getRect(find.byType(DesktopTable)).bottom - 1),
+      );
+      await tester.tap(find.byTooltip('Hide activity'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Dismiss error'));
+      await tester.pumpAndSettle();
+      expect(session.error, isNull);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      session.dispose();
+    },
+  );
 
   testWidgets(
     'connection settings apply atomically and cancel restores the draft',

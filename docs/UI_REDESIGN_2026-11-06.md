@@ -53,15 +53,34 @@ controls fit without overlap. The virtualized table remains scrollable when
 large text reduces the number of visible rows. As with the desktop run, the
 driver reports success with the integration-test plugin warning at teardown.
 
-## Remaining implementation blocks
+## Register work area and bottom console
 
-1. Reorganize the master connection summary, map toolbar and filters; improve
-   table density and column presentation while retaining saved overrides and
-   the required 48 px default and hidden Area/Count/Unit defaults.
-2. Move activity into a collapsible bottom console and add a compact status
-   strip backed by real session state. Keep logging, export and diagnostics
-   accessible and preserve the table viewport during row selection.
-3. Run the full Flutter checks and native integration files separately, inspect
+- Connection settings and connection actions sit beside the endpoint summary.
+- Activity now docks below the full-width map, with filtering, log export,
+  diagnostics and a collapse control. Short windows initially fold the console.
+- The status strip uses actual connection/polling state, unit, TX/RX bytes,
+  errors and average operation latency. Horizontal overflow cannot change its
+  height as counters grow.
+- Default columns group address, name, format, engineering value and raw HEX;
+  smaller widths, tabular numbers, alternate rows and fine grid lines make the
+  map denser. Row height stays 48 px; saved columns remain authoritative.
+- Writable engineering-value cells open the existing validated write dialog,
+  including during polling. Row menus, inline enums and read-only restrictions
+  remain available. New demos use the default map layout and explicitly enable
+  the two signal trends; existing saved demo layouts are not rewritten.
+- Filter counts reserve a stable width so changing row counts does not resize
+  the table. Selection controls still float above the unchanged viewport.
+
+Validation: analyzer clean; the 121-test full regression passes, followed by
+the new engineering-value hit-target test. The final native appearance run
+passes light/dark/minimum-size scenes and actual dialog writes of 23.5, 24.5
+and 25.5, with raw readback verified while polling continues. Native assertions
+also check console collapse and unchanged table bounds during selection. The
+three final PNGs were inspected for grid lines, contrast and control fit.
+
+## Remaining acceptance
+
+Run the full Flutter checks and native integration files separately, inspect
    the resulting macOS application in light/dark modes and at minimum size,
    and record evidence. Build the universal macOS bundle with the repository
    script. This verifies this Mac and local TCP simulation; it does not establish

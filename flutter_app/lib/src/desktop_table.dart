@@ -414,19 +414,42 @@ class _DesktopTableState extends State<DesktopTable> {
             child: Material(
               color: widget.selected?.call(i) == true
                   ? Theme.of(context).colorScheme.primaryContainer
-                  : Colors.transparent,
+                  : i.isEven
+                  ? Theme.of(context).colorScheme.surface
+                  : Theme.of(context).colorScheme.surfaceContainerLow
+                        .withValues(alpha: .4),
               child: InkWell(
                 onTap: widget.onRowTap == null
                     ? null
                     : () => widget.onRowTap!(i),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     for (final key in keys)
-                      SizedBox(
+                      Container(
                         width: width(key),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .outlineVariant
+                                  .withValues(alpha: .5),
+                            ),
+                            right: BorderSide(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .outlineVariant
+                                  .withValues(alpha: .3),
+                            ),
+                          ),
+                        ),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: widget.cellBuilder(context, i, key),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: widget.cellBuilder(context, i, key),
+                          ),
                         ),
                       ),
                   ],
@@ -452,7 +475,7 @@ class _DesktopTableState extends State<DesktopTable> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Material(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
                   child: headers(keys),
                 ),
                 if (widget.shrinkWrap)

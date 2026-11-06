@@ -135,8 +135,9 @@ unsupported hosts. The master map fills the height below a compact connection
 summary. Connection settings opens a dialog for transport, serial/network parameters,
 unit and timeout; Apply validates and saves, Cancel discards edits. Connect uses the
 saved parameters and opens settings when required values are missing. Activity lives
-in a collapsible right panel on wide windows; narrower windows open it in a right
-drawer. Session tools contains traffic, logging, scanning, diagnostics and appearance.
+in a collapsible bottom console, initially folded on shorter windows. The status
+strip shows live connection/polling state and bus counters without resizing when
+values change. Session tools contains traffic, logging, scanning, diagnostics and appearance.
 Read/Poll map, interval, Add row and filtering remain visible. More tools expands
 grouping, graphs, expressions, CSV and snapshots. Selected-row actions appear in a
 floating bottom bar, with room to scroll the last row clear of it; the table viewport
@@ -145,6 +146,8 @@ headers or their edges, or use the header movement/reset menu. That menu also
 hides/restores columns and switches compact row height, with all preferences
 persisted per session.
 The master map defaults to 48 px compact rows with Area, Count and Unit hidden.
+Address, format, engineering value and raw hexadecimal words are grouped in a
+compact grid; clicking a writable engineering value opens its write dialog.
 Saved visibility and density preferences take precedence; Reset columns restores
 these defaults, and the header menu can show any hidden column again.
 The filter bar combines case-insensitive name matching, a zero-based address or

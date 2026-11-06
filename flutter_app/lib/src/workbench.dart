@@ -40,8 +40,9 @@ class Workbench extends StatefulWidget {
 
 class _WorkbenchState extends State<Workbench> {
   SessionController get session => widget.controller;
-  final _scaffoldKey = GlobalKey<ScaffoldState>();
-  bool _showActivity = true;
+  bool? _showActivity;
+  bool get _activityExpanded =>
+      _showActivity ?? MediaQuery.sizeOf(context).height >= 720;
   bool _editingConnection = false;
   StateSetter? _dialogSetState;
   final _logScroll = ScrollController();
@@ -512,18 +513,19 @@ class _WorkbenchState extends State<Workbench> {
     ],
   );
 
-  Widget _connectionBar(bool wide) {
+  Widget _connectionBar() {
     final connecting = session.busy && !session.connected && !_refreshingPorts;
     final locked = session.connected || session.busy || session.disconnecting;
     return Card(
+      margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
           children: [
-            OutlinedButton.icon(
-              onPressed: locked ? null : _configure,
-              icon: const Icon(Icons.settings_outlined, size: 18),
-              label: const LText('Connection settings'),
+            Icon(
+              session.connected ? Icons.link : Icons.link_off,
+              size: 18,
+              color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -539,6 +541,11 @@ class _WorkbenchState extends State<Workbench> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+            ),
+            OutlinedButton.icon(
+              onPressed: locked ? null : _configure,
+              icon: const Icon(Icons.settings_outlined, size: 18),
+              label: const LText('Connection settings'),
             ),
             const SizedBox(width: 8),
             FilledButton.icon(
@@ -568,20 +575,6 @@ class _WorkbenchState extends State<Workbench> {
               ),
             ),
             _tools(),
-            IconButton(
-              tooltip: tr(
-                wide && _showActivity ? 'Hide activity' : 'Show activity',
-              ),
-              isSelected: wide && _showActivity,
-              icon: const Icon(Icons.view_sidebar_outlined),
-              onPressed: () {
-                if (wide) {
-                  setState(() => _showActivity = !_showActivity);
-                } else {
-                  _scaffoldKey.currentState!.openEndDrawer();
-                }
-              },
-            ),
           ],
         ),
       ),
@@ -662,11 +655,12 @@ class _WorkbenchState extends State<Workbench> {
         .join('\n');
     final colors = Theme.of(context).colorScheme;
     return Card(
+      margin: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 4, 8, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Row(
               children: [
                 Expanded(
@@ -686,6 +680,7 @@ class _WorkbenchState extends State<Workbench> {
                     size: 18,
                   ),
                   onPressed: () => setState(() {
+                    _showActivity = true;
                     _showLogFilter = !_showLogFilter;
                     if (!_showLogFilter) {
                       _logFilter = '';
@@ -730,92 +725,148 @@ class _WorkbenchState extends State<Workbench> {
                   onPressed: session.clearLog,
                   icon: const Icon(Icons.delete_sweep_outlined, size: 18),
                 ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Wrap(
-              children: [
-                TextButton.icon(
-                  key: const ValueKey('export-diagnostics'),
-                  onPressed: _diagnosticsBusy
-                      ? null
-                      : () => _diagnosticsAction(true),
-                  icon: const Icon(Icons.download, size: 16),
-                  label: const LText('Export crash logs'),
-                ),
-                TextButton.icon(
-                  key: const ValueKey('clear-diagnostics'),
-                  onPressed: _diagnosticsBusy
-                      ? null
-                      : () => _diagnosticsAction(false),
-                  icon: const Icon(Icons.delete_outline, size: 16),
-                  label: const LText('Clear logs'),
-                ),
-              ],
-            ),
-          ),
-          if (_diagnosticsBusy) const LinearProgressIndicator(),
-          if (_showLogFilter)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        labelText: tr('Filter activity'),
-                      ),
-                      onChanged: (value) => setState(() => _logFilter = value),
-                    ),
+                IconButton(
+                  tooltip: tr(
+                    _activityExpanded ? 'Hide activity' : 'Show activity',
                   ),
-                  IconButton(
-                    tooltip: tr('Errors only'),
-                    isSelected: _errorsOnly,
-                    icon: const Icon(Icons.error_outline),
-                    onPressed: () => setState(() => _errorsOnly = !_errorsOnly),
+                  onPressed: () =>
+                      setState(() => _showActivity = !_activityExpanded),
+                  icon: Icon(
+                    _activityExpanded ? Icons.expand_more : Icons.expand_less,
+                    size: 18,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_activityExpanded) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Wrap(
+                children: [
+                  TextButton.icon(
+                    key: const ValueKey('export-diagnostics'),
+                    onPressed: _diagnosticsBusy
+                        ? null
+                        : () => _diagnosticsAction(true),
+                    icon: const Icon(Icons.download, size: 16),
+                    label: const LText('Export crash logs'),
+                  ),
+                  TextButton.icon(
+                    key: const ValueKey('clear-diagnostics'),
+                    onPressed: _diagnosticsBusy
+                        ? null
+                        : () => _diagnosticsAction(false),
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const LText('Clear logs'),
                   ),
                 ],
               ),
             ),
-          Expanded(
-            child: logs.isEmpty
-                ? const Center(
-                    child: LText('Connection and error events appear here'),
-                  )
-                : Scrollbar(
-                    controller: _logScroll,
-                    thumbVisibility: true,
-                    child: ListView.builder(
-                      key: const ValueKey('activity-list'),
-                      controller: _logScroll,
-                      primary: false,
-                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
-                      itemCount: logs.length,
-                      itemBuilder: (context, i) {
-                        final log = logs[i];
-                        final time = log.time.toIso8601String().substring(
-                          11,
-                          19,
-                        );
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: SelectableText(
-                            '$time  ${tr(log.message)}',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: log.isError
-                                      ? colors.error
-                                      : colors.onSurfaceVariant,
-                                ),
-                          ),
-                        );
-                      },
+            if (_diagnosticsBusy) const LinearProgressIndicator(),
+            if (_showLogFilter)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        decoration: InputDecoration(
+                          labelText: tr('Filter activity'),
+                        ),
+                        onChanged: (value) =>
+                            setState(() => _logFilter = value),
+                      ),
                     ),
-                  ),
-          ),
+                    IconButton(
+                      tooltip: tr('Errors only'),
+                      isSelected: _errorsOnly,
+                      icon: const Icon(Icons.error_outline),
+                      onPressed: () =>
+                          setState(() => _errorsOnly = !_errorsOnly),
+                    ),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: logs.isEmpty
+                  ? const Center(
+                      child: LText('Connection and error events appear here'),
+                    )
+                  : Scrollbar(
+                      controller: _logScroll,
+                      thumbVisibility: true,
+                      child: ListView.builder(
+                        key: const ValueKey('activity-list'),
+                        controller: _logScroll,
+                        primary: false,
+                        padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+                        itemCount: logs.length,
+                        itemBuilder: (context, i) {
+                          final log = logs[i];
+                          final time = log.time.toIso8601String().substring(
+                            11,
+                            19,
+                          );
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: SelectableText(
+                              '$time  ${tr(log.message)}',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: log.isError
+                                        ? colors.error
+                                        : colors.onSurfaceVariant,
+                                  ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _statusBar() {
+    final stats = session.busStatistics;
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      key: const ValueKey('workbench-status'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        border: Border(top: BorderSide(color: colors.outlineVariant)),
+      ),
+      child: DefaultTextStyle(
+        style: Theme.of(context).textTheme.bodySmall!
+            .copyWith(fontSize: 11, color: colors.onSurfaceVariant),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            spacing: 16,
+            children: [
+              LText(
+                session.registerMap.polling
+                    ? 'Polling'
+                    : session.connected
+                    ? 'Connected'
+                    : 'Disconnected',
+              ),
+              Text('${tr('Unit')} ${session.unit}'),
+              Text(
+                'TX ${stats['tx_bytes'] ?? 0} B  ·  RX ${stats['rx_bytes'] ?? 0} B',
+              ),
+              Text('${tr('Errors')} ${stats['errors'] ?? 0}'),
+              Text(
+                '${tr('Average')} ${((stats['average_ms'] as num?) ?? 0).toStringAsFixed(1)} ms',
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -828,22 +879,18 @@ class _WorkbenchState extends State<Workbench> {
         return DevicePanel(key: ValueKey(session.mode), session: session);
       }
       final colors = Theme.of(context).colorScheme;
-      final wide = MediaQuery.sizeOf(context).width >= 1100;
       return Scaffold(
-        key: _scaffoldKey,
-        endDrawer: wide
-            ? null
-            : Drawer(width: 320, child: SafeArea(child: _logs())),
         body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
+          child: LayoutBuilder(
+            builder: (context, constraints) => Column(
               children: [
-                _connectionBar(wide),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
+                  child: _connectionBar(),
+                ),
                 if (session.error != null)
                   Material(
                     color: colors.errorContainer,
-                    borderRadius: BorderRadius.circular(8),
                     child: Row(
                       children: [
                         const SizedBox(width: 12),
@@ -868,39 +915,41 @@ class _WorkbenchState extends State<Workbench> {
                       ],
                     ),
                   ),
-                const SizedBox(height: 8),
                 Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                LText(
-                                  'Register map',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium,
-                                ),
-                                const SizedBox(height: 6),
-                                Expanded(
-                                  child: RegisterMapPanel(session: session),
-                                ),
-                              ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Card(
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            LText(
+                              'Register map',
+                              style: Theme.of(context).textTheme.titleMedium,
                             ),
-                          ),
+                            const SizedBox(height: 6),
+                            Expanded(child: RegisterMapPanel(session: session)),
+                          ],
                         ),
                       ),
-                      if (wide && _showActivity) ...[
-                        const SizedBox(width: 8),
-                        SizedBox(width: 280, child: _logs()),
-                      ],
-                    ],
+                    ),
                   ),
+                ),
+                SizedBox(
+                  key: const ValueKey('activity-console'),
+                  height: _activityExpanded
+                      ? (constraints.maxHeight * .24).clamp(
+                          _showLogFilter ? 200.0 : 168.0,
+                          240.0,
+                        )
+                      : 48,
+                  child: _logs(),
+                ),
+                ListenableBuilder(
+                  listenable: session.registerMap,
+                  builder: (context, _) => _statusBar(),
                 ),
               ],
             ),
