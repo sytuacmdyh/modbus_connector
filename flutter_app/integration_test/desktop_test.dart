@@ -55,12 +55,22 @@ void main() {
         expect(demo.registerMap.polling, isTrue);
         expect(demo.error, isNull);
         expect(demo.registers, hasLength(6));
-        await tester.tap(find.byKey(const ValueKey('workspace-session-0')));
-        await tester.pump(const Duration(milliseconds: 100));
+        Future<void> selectSession(int index) async {
+          final target = find.byKey(ValueKey('workspace-session-$index'));
+          // The host window can be narrower than the test render surface (for
+          // example Windows CI). Use the drawer whenever the sidebar is hidden.
+          if (target.evaluate().isEmpty) {
+            await tester.tap(find.byTooltip('Sessions'));
+            await tester.pump(const Duration(milliseconds: 300));
+          }
+          await tester.tap(target);
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+
+        await selectSession(0);
         expect(workspace.selected, 0);
         expect(demo.registerMap.polling, isTrue);
-        await tester.tap(find.byKey(const ValueKey('workspace-session-1')));
-        await tester.pump(const Duration(milliseconds: 100));
+        await selectSession(1);
         expect(workspace.selected, 1);
         expect(find.byType(InputChip), findsNothing);
         expect(
