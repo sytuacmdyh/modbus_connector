@@ -708,50 +708,59 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: Listenable.merge([model, widget.session, appLanguage]),
     builder: (context, _) {
+      final macShortcuts = Theme.of(context).platform == TargetPlatform.macOS;
       final visible = visibleRows;
       final hasSelection = visible.any(selectedRows.contains);
       return CallbackShortcuts(
         bindings: filterFocus.hasFocus
             ? const {}
             : {
-                const SingleActivator(
+                SingleActivator(
                   LogicalKeyboardKey.keyC,
-                  control: true,
+                  control: !macShortcuts,
+                  meta: macShortcuts,
                 ): () =>
                     valueAction('copy'),
-                const SingleActivator(
+                SingleActivator(
                   LogicalKeyboardKey.digit0,
-                  control: true,
+                  control: !macShortcuts,
+                  meta: macShortcuts,
                 ): () =>
                     valueAction('zero'),
-                const SingleActivator(
+                SingleActivator(
                   LogicalKeyboardKey.digit1,
-                  control: true,
+                  control: !macShortcuts,
+                  meta: macShortcuts,
                 ): () =>
                     valueAction('one'),
-                const SingleActivator(
+                SingleActivator(
                   LogicalKeyboardKey.equal,
-                  control: true,
+                  control: !macShortcuts,
+                  meta: macShortcuts,
                 ): () =>
                     valueAction('increment'),
-                const SingleActivator(
+                SingleActivator(
                   LogicalKeyboardKey.minus,
-                  control: true,
+                  control: !macShortcuts,
+                  meta: macShortcuts,
                 ): () =>
                     valueAction('decrement'),
-                const SingleActivator(
+                SingleActivator(
                   LogicalKeyboardKey.keyT,
-                  control: true,
+                  control: !macShortcuts,
+                  meta: macShortcuts,
                 ): () =>
                     valueAction('toggle'),
-                const SingleActivator(
+                SingleActivator(
                   LogicalKeyboardKey.keyA,
-                  control: true,
+                  control: !macShortcuts,
+                  meta: macShortcuts,
                 ): () =>
                     batch('all'),
-                const SingleActivator(
+                SingleActivator(
                   LogicalKeyboardKey.keyR,
-                  control: true,
+                  control: !macShortcuts,
+                  meta: macShortcuts,
                 ): () {
                   if (!hasSelection) {
                     model.read();
@@ -759,27 +768,31 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                     batch('read');
                   }
                 },
-                const SingleActivator(
+                SingleActivator(
                   LogicalKeyboardKey.keyR,
-                  control: true,
+                  control: !macShortcuts,
+                  meta: macShortcuts,
                   shift: true,
                 ): () =>
                     model.read(),
-                const SingleActivator(
+                SingleActivator(
                   LogicalKeyboardKey.arrowUp,
-                  control: true,
+                  control: !macShortcuts,
+                  meta: macShortcuts,
                 ): () =>
                     batch('up'),
-                const SingleActivator(
+                SingleActivator(
                   LogicalKeyboardKey.arrowDown,
-                  control: true,
+                  control: !macShortcuts,
+                  meta: macShortcuts,
                 ): () =>
                     batch('down'),
                 const SingleActivator(LogicalKeyboardKey.delete): () =>
                     batch('delete'),
-                const SingleActivator(
+                SingleActivator(
                   LogicalKeyboardKey.keyN,
-                  control: true,
+                  control: !macShortcuts,
+                  meta: macShortcuts,
                 ): () {
                   if (!model.editingLocked) edit();
                 },

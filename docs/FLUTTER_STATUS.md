@@ -530,3 +530,18 @@ release). The 0.16.9 Release and NSIS installer built successfully; local update
 preserved all six pre-existing state/log files, and all 17 shipped payload hashes
 matched the build. The previous application closed normally before backup/install.
 Installed 0.16.9 launched successfully and was left disconnected for device testing.
+
+## macOS implementation follow-up (2026-11-06)
+
+The working tree now includes a macOS host, CocoaPods configuration, Command map
+shortcuts, universal local build/DMG packaging scripts and GitHub Releases DMG
+updates with verification, cancellation, exit handoff and rollback. Static analysis
+is clean; 109 widget/controller tests and 400 backend tests pass (2 skipped).
+macOS mechanism tests compile a temporary universal signed application and exercise
+real DMG staging; handoff tests mock signature verification and application launch.
+Xcode 16.2 is now installed. The universal 0.16.9 Release/DMG built successfully
+and the application was installed locally. Three native integration files passed;
+the performance file failed its existing 16.7 ms resize budget (p90 18.602 ms).
+Basic installed-app interactions and real-product DMG staging passed. Independent
+graph visual acceptance, online full upgrade, physical serial and Apple Silicon
+runtime remain outstanding. See `UI_ACCEPTANCE_2026-11-06.md` for evidence and limits.

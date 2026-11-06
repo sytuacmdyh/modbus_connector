@@ -483,6 +483,7 @@ class NativeOnline {
           map(jsonDecode(utf8.decode(bytes))),
           applicationVersion,
           executable: await installedFlutterExecutable(),
+          platform: Platform.isMacOS ? 'macos' : 'windows',
         );
         releasePage = result['url'] as String;
         return result;

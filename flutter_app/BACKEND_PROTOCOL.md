@@ -296,3 +296,21 @@ using its polling generation. Cancellation unwinds grouped-read fallback and
 serial write retries, and is excluded from communication-error statistics.
 RTU restarts drain through the cancelled request's original response deadline;
 this drain is itself cancellable. Ordinary commands and writes remain serialized.
+## macOS update acceptance addition (2026-11-06)
+
+On macOS, `update_check` selects only the exact stable-release asset
+`modbus-connector-flutter-<version>-macos-universal.dmg` with uploaded state,
+matching repository URL, positive bounded size and SHA-256 digest. Installer
+metadata adds `platform: macos` and `version`; Windows metadata remains compatible.
+Automatic installation is offered only for `Modbus Connector.app` under a writable
+`/Applications` or `~/Applications` with the expected bundle identifier.
+
+The UI-owned installer verifies the download and UDIF trailer, mounts read-only,
+checks bundle identity/version, contained symlinks, size, code signatures and both
+Mach-O architectures, then stages on the destination volume. Cancellation reaps
+native commands and detaches the image. The helper requires an explicit commit,
+waits for application exit and rejects another running instance before replacing.
+It restores the previous application on replacement/launch failure and retains
+the previous bundle in `.modbus-update-*` for recovery. A successful launch request
+does not establish continued application health; installed GUI acceptance remains
+separate from helper tests.
