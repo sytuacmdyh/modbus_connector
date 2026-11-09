@@ -141,7 +141,7 @@ def encode(data: dict[str, Any]) -> list[int | bool]:
             return [
                 ord(c) if ord(c) < 128 else 63 for c in content[: row.count].ljust(row.count, "\0")
             ]
-        return encode_ascii_values(content, row.count)
+        return encode_ascii_values(content, row.count, order=row.order or "ABCD")
     if row.format == "hex":
         return parse_formatted_values(content, row.format, row.count)
     if row.scale == 0:

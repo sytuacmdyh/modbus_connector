@@ -93,6 +93,9 @@ Register map commands (additive v1):
   Formats: u16/hex/s16/u32/s32/f32/u64/s64/f64/ascii/ascii1 (`dec` is a legacy
   alias); byte orders
   ABCD/CDAB/BADC/DCBA. All rows validate before I/O, including format width.
+  For `ascii`, byte order applies to the entire fixed-width field before NUL
+  termination; encoding pads/truncates before applying the same order. `ascii1`
+  always uses one character per register's low byte and ignores byte order.
   Returns `{rows:[{values,display,numeric,alarm}],elapsed_ms}`. Nonfinite numeric
   values become null. Flutter reads one row per request for cancellation.
 - `encode_values`: `{row,text}` converts engineering values to raw values using

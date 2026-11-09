@@ -281,8 +281,14 @@ Json render(Json r, List<dynamic> raw) {
     final bytes = [
       for (final v in values) ...fmt == 'ascii' ? [v >> 8, v & 255] : [v & 255],
     ];
+    final ordered = fmt == 'ascii'
+        ? [
+            for (final i in permutation(r['order'] ?? 'ABCD', bytes.length))
+              bytes[i],
+          ]
+        : bytes;
     display = String.fromCharCodes(
-      bytes.takeWhile((b) => b != 0).map((b) => b >= 32 && b <= 126 ? b : 46),
+      ordered.takeWhile((b) => b != 0).map((b) => b >= 32 && b <= 126 ? b : 46),
     );
   } else {
     final nums = decode(raw, fmt, r['order']);
@@ -340,13 +346,22 @@ List<dynamic> encodeValues(Json data) {
     final bytes = text.runes
         .map((v) => (fmt == 'ascii1' ? v < 128 : v >= 32 && v <= 126) ? v : 63)
         .toList();
-    return List.generate(
-      count,
-      (i) => fmt == 'ascii1'
-          ? (i < bytes.length ? bytes[i] : 0)
-          : ((2 * i < bytes.length ? bytes[2 * i] : 0) << 8) |
-                (2 * i + 1 < bytes.length ? bytes[2 * i + 1] : 0),
-    );
+    if (fmt == 'ascii') {
+      // Order the entire fixed-width field, including its NUL padding, just as
+      // render() does. All supported permutations are their own inverse.
+      final padded = List.generate(
+        count * 2,
+        (i) => i < bytes.length ? bytes[i] : 0,
+      );
+      final ordered = [
+        for (final i in permutation(r['order'], padded.length)) padded[i],
+      ];
+      return List.generate(
+        count,
+        (i) => (ordered[2 * i] << 8) | ordered[2 * i + 1],
+      );
+    }
+    return List.generate(count, (i) => i < bytes.length ? bytes[i] : 0);
   }
   if (fmt == 'hex') {
     final result = tokens.map((t) => int.parse(t)).toList();

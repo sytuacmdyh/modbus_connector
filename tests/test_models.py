@@ -270,9 +270,20 @@ class TestAsciiFormat:
     def test_no_nul_reads_all_registers(self) -> None:
         assert format_register_values([0x4142, 0x4344], "ascii") == "ABCD"
 
-    def test_order_does_not_apply(self) -> None:
-        values = [0x4865, 0x6C6C, 0x6F00]
-        assert format_register_values(values, "ascii", "DCBA") == "Hello"
+    @pytest.mark.parametrize("order,values", [
+        ("ABCD", [0x4865, 0x6C6C, 0x6F00]),
+        ("BADC", [0x6548, 0x6C6C, 0x006F]),
+        ("CDAB", [0x6F00, 0x6C6C, 0x4865]),
+        ("DCBA", [0x006F, 0x6C6C, 0x6548]),
+    ])
+    def test_ascii_byte_order(self, order, values) -> None:
+        assert format_register_values(values, "ascii", order) == "Hello"
+        assert encode_ascii_values("Hello", 3, order=order) == values
+
+    def test_firmware_version_badc(self) -> None:
+        values = [0x3156, 0x302E, 0x302E, 0]
+        assert format_register_values(values, "ascii", "BADC") == "V1.0.0"
+        assert encode_ascii_values("V1.0.0", 4, order="BADC") == values
 
 
 class Test64BitFormats:

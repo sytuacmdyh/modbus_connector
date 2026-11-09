@@ -605,14 +605,17 @@ def parse_formatted_values(text: str, fmt: DisplayFormat, count: int) -> list[in
     return (encoded + [0] * count)[:count]
 
 
-def encode_ascii_values(text: str, count: int, chars_per_register: int = 2) -> list[int]:
+def encode_ascii_values(
+    text: str, count: int, chars_per_register: int = 2, order: ByteOrder = "ABCD"
+) -> list[int]:
     """Текст → регистры для ascii-форматов.
 
     chars_per_register=2 (ascii): 2 символа на регистр (high byte first),
     нечётная длина добивается NUL. chars_per_register=1 (ascii1): один символ
     на регистр в младшем байте (Wiren Board). Непечатные/не-ASCII символы
     заменяются на '?'. Результат — ровно count регистров (pad/truncate).
-    Зеркало ascii-веток format_register_values."""
+    Зеркало ascii-веток format_register_values. For two-character registers,
+    order permutes the entire padded/truncated field; ascii1 ignores order."""
     if chars_per_register == 1:
         values = []
         for ch in text:
@@ -623,8 +626,8 @@ def encode_ascii_values(text: str, count: int, chars_per_register: int = 2) -> l
     for ch in text:
         code = ord(ch)
         raw.append(code if 0x20 <= code <= 0x7E else 0x3F)
-    if len(raw) % 2:
-        raw.append(0)
+    raw = (raw + bytearray(count * 2))[:count * 2]
+    raw = bytearray(raw[i] for i in _order_permutation(order, len(raw)))
     values = [int.from_bytes(raw[i : i + 2], "big") for i in range(0, len(raw), 2)]
     return (values + [0] * count)[:count]
 
@@ -641,14 +644,14 @@ def format_register_values(
     if fmt == "hex":
         return ", ".join(f"0x{v:04X}" for v in values)
     if fmt == "ascii":
-        # two chars per register (high, low byte); NUL terminates, other
-        # non-printable bytes show as '.'; `order` does not apply to strings
+        # Reorder the entire field before interpreting NUL or printable bytes.
+        raw = b"".join(value.to_bytes(2, "big") for value in values)
         chars = []
-        for value in values:
-            for byte in value.to_bytes(2, "big"):
-                if byte == 0:
-                    return "".join(chars)
-                chars.append(chr(byte) if 0x20 <= byte <= 0x7E else ".")
+        for i in _order_permutation(order, len(raw)):
+            byte = raw[i]
+            if byte == 0:
+                break
+            chars.append(chr(byte) if 0x20 <= byte <= 0x7E else ".")
         return "".join(chars)
     if fmt == "ascii1":
         # ONE char per register in the low byte (Wiren Board string convention);

@@ -5428,7 +5428,7 @@
             3,
             4
           ],
-          "display": "",
+          "display": ".",
           "numeric": null,
           "alarm": null
         }
@@ -5464,7 +5464,7 @@
             0,
             0
           ],
-          "display": "BH",
+          "display": "HB",
           "numeric": null,
           "alarm": null
         }
@@ -5608,7 +5608,7 @@
             0,
             0
           ],
-          "display": "BH",
+          "display": "",
           "numeric": null,
           "alarm": null
         }
@@ -5716,7 +5716,7 @@
             3,
             4
           ],
-          "display": "",
+          "display": ".",
           "numeric": null,
           "alarm": null
         }
@@ -5752,7 +5752,7 @@
             0,
             0
           ],
-          "display": "BH",
+          "display": "",
           "numeric": null,
           "alarm": null
         }
