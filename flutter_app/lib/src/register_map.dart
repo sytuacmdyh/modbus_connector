@@ -329,9 +329,37 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
         Rect.fromLTWH(position.dx, position.dy, 0, 0),
         Offset.zero & overlay.size,
       ),
-      items: rowActions(),
+      items: [
+        PopupMenuItem(
+          value: 'write_row',
+          enabled: model.canWrite && rowWritable(model.rows[i]),
+          child: const LText('Write row'),
+        ),
+        if (canEditBits(model.rows[i]))
+          PopupMenuItem(
+            value: 'write_bits',
+            enabled: model.canWrite && rowWritable(model.rows[i]),
+            child: const LText('Edit bits'),
+          ),
+        PopupMenuItem(
+          value: 'edit_row',
+          enabled: !model.editingLocked,
+          child: const LText('Edit row'),
+        ),
+        const PopupMenuDivider(),
+        ...rowActions(),
+      ],
     );
-    if (mounted && action != null) batch(action);
+    if (!mounted || action == null) return;
+    if (action == 'write_row') {
+      write(i);
+    } else if (action == 'write_bits') {
+      write(i, bits: true);
+    } else if (action == 'edit_row') {
+      edit(i);
+    } else {
+      batch(action);
+    }
   }
 
   Future<void> edit([int? index]) async {
@@ -924,17 +952,18 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
         compactByDefault: true,
         bottomPadding: hasSelection ? 66 : 14,
         columns: const [
-          TableColumnSpec('select', 'Select', 64),
+          TableColumnSpec('select', 'Select', 40),
           TableColumnSpec('address', 'Address', 68),
-          TableColumnSpec('name', 'Name', 156),
+          TableColumnSpec('name', 'Name', 220),
           TableColumnSpec('kind', 'Area', 160, hiddenByDefault: true),
-          TableColumnSpec('format', 'Format', 68),
-          TableColumnSpec('value', 'Value', 136),
-          TableColumnSpec('raw', 'Raw HEX', 100),
+          TableColumnSpec('format', 'Data type', 80),
+          TableColumnSpec('value', 'Engineering value', 156),
+          TableColumnSpec('raw', 'Raw HEX', 124),
           TableColumnSpec('count', 'Count', 80, hiddenByDefault: true),
           TableColumnSpec('unit_id', 'Unit', 80, hiddenByDefault: true),
           TableColumnSpec('trend', 'Trend', 88),
-          TableColumnSpec('actions', 'Actions', 180),
+          TableColumnSpec('status', 'Status', 80),
+          TableColumnSpec('actions', 'Actions', 44),
         ],
         layout: desktopTableLayout(widget.session.draft, 'map_table'),
         key: ValueKey(visible.join(',')),
@@ -989,51 +1018,61 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
               ),
             );
           }
+          if (key == 'status') {
+            final alarm = result?['alarm'];
+            final label = row['poll_enabled'] == false
+                ? 'Paused'
+                : !widget.session.connected
+                ? 'Disconnected'
+                : result?['error'] != null
+                ? 'Error'
+                : alarm != null
+                ? 'Warning'
+                : result?['values'] == null
+                ? '—'
+                : 'Normal';
+            final colors = Theme.of(context).colorScheme;
+            final color = label == 'Warning'
+                ? (alarm['color'] == 'yellow'
+                      ? Colors.amber.shade800
+                      : colors.error)
+                : label == 'Error'
+                ? colors.error
+                : label == 'Normal'
+                ? colors.primary
+                : colors.onSurfaceVariant;
+            return Tooltip(
+              message: result?['error']?.toString() ?? tr(label),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: alarm == null ? null : color.withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                child: LText(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 10, color: color),
+                ),
+              ),
+            );
+          }
           if (key == 'actions') {
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (canEditBits(row))
-                    IconButton(
-                      tooltip: tr('Edit bits'),
-                      onPressed: !writable || !model.canWrite
-                          ? null
-                          : () => write(i, bits: true),
-                      icon: const Icon(Icons.grid_4x4, size: 18),
-                    ),
-                  if (hasInlineEnum(row))
-                    inlineEnumEditor(
-                      row,
-                      result?['values'] as List? ?? [],
-                      !writable || !model.canWrite
-                          ? null
-                          : (v) => writeRaw(i, [v]),
-                    )
-                  else
-                    IconButton(
-                      key: ValueKey('map-write-$i'),
-                      tooltip: tr(
-                        writable ? 'Write row' : 'Register row is read-only',
-                      ),
-                      onPressed: !writable || !model.canWrite
-                          ? null
-                          : () => write(i),
-                      icon: const Icon(Icons.edit_note),
-                    ),
-                  IconButton(
-                    tooltip: tr('Delete row'),
-                    onPressed: model.editingLocked
-                        ? null
-                        : () {
-                            model.rows.removeAt(i);
-                            selectedRows.clear();
-                            model.changed();
-                          },
-                    icon: const Icon(Icons.close, size: 18),
-                  ),
-                ],
+            return Builder(
+              builder: (buttonContext) => IconButton(
+                key: ValueKey('map-actions-$i'),
+                tooltip: tr('Row actions'),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 28,
+                  height: 28,
+                ),
+                icon: const Icon(Icons.more_horiz, size: 16),
+                onPressed: () {
+                  final box = buttonContext.findRenderObject() as RenderBox;
+                  rowMenu(i, box.localToGlobal(Offset(0, box.size.height)));
+                },
               ),
             );
           }
@@ -1053,6 +1092,20 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                         )
                         .join(' ') ??
                     '—')
+              : key == 'address'
+              ? '${row[key] ?? 0}'.padLeft(4, '0')
+              : key == 'format'
+              ? const {
+                      'u16': 'UINT16',
+                      's16': 'INT16',
+                      'u32': 'UINT32',
+                      's32': 'INT32',
+                      'u64': 'UINT64',
+                      's64': 'INT64',
+                      'f32': 'FLOAT32',
+                      'f64': 'FLOAT64',
+                    }[row[key]] ??
+                    '${row[key] ?? ''}'.toUpperCase()
               : key == 'unit_id'
               ? row[key] ?? widget.session.unit
               : row[key] ?? '';
@@ -1070,7 +1123,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                         ? ExcludeSemantics(
                             child: Icon(
                               Icons.pause_circle_outline,
-                              size: 16,
+                              size: 12,
                               color: Theme.of(context)
                                   .colorScheme
                                   .onSurfaceVariant,
@@ -1099,30 +1152,44 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                             ? 'Marked read-only in this register map'
                             : 'This register area is read-only',
                       ),
-                      child: const Icon(Icons.lock_outline, size: 14),
+                      child: Icon(
+                        Icons.lock_outline,
+                        size: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                 ],
               ),
             );
           }
+          final unit = '${row['unit'] ?? ''}';
+          final valueText = '$text';
+          final hasUnit =
+              key == 'value' && unit.isNotEmpty && valueText.endsWith(' $unit');
+          final displayText = hasUnit
+              ? valueText.substring(0, valueText.length - unit.length - 1)
+              : valueText;
           final cell = Tooltip(
             message: tr('$text'),
             child: LText(
-              '$text',
+              displayText,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontFamily: ['value', 'address', 'raw'].contains(key)
+                fontFamily: ['value', 'address', 'raw', 'format'].contains(key)
                     ? 'monospace'
                     : null,
                 fontFamilyFallback: const ['Menlo', 'Consolas'],
                 fontFeatures: const [FontFeature.tabularFigures()],
-                fontSize: key == 'raw' ? 11 : 12,
+                fontSize: ['raw', 'format'].contains(key) ? 10 : 12,
+                fontWeight: key == 'value'
+                    ? FontWeight.w500
+                    : FontWeight.normal,
                 color: key == 'value' && result?['alarm'] != null
                     ? result!['alarm']['color'] == 'yellow'
                           ? Colors.amber.shade800
                           : Colors.red
-                    : key == 'raw'
+                    : ['raw', 'format', 'address'].contains(key)
                     ? Theme.of(context).colorScheme.onSurfaceVariant
                     : null,
               ),
@@ -1131,13 +1198,42 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
           return key == 'value'
               ? Container(
                   key: ValueKey('map-value-$i'),
-                  alignment: Alignment.centerLeft,
+                  alignment: Alignment.centerRight,
                   color: model.valueChanged(row)
                       ? Colors.amber.withValues(alpha: .25)
                       : null,
                   child: InkWell(
                     onTap: writable && model.canWrite ? () => write(i) : null,
-                    child: Align(alignment: Alignment.centerLeft, child: cell),
+                    child: SizedBox.expand(
+                      child: hasInlineEnum(row)
+                          ? DropdownButtonHideUnderline(
+                              child: inlineEnumEditor(
+                                row,
+                                result?['values'] as List? ?? [],
+                                writable && model.canWrite
+                                    ? (v) => writeRaw(i, [v])
+                                    : null,
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Flexible(child: cell),
+                                if (hasUnit) ...[
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    unit,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                    ),
                   ),
                 )
               : cell;

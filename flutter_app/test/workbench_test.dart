@@ -71,7 +71,29 @@ void main() {
       session.registerMap.start(500);
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.text('0064'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('map-value-0')));
+      await tester.tapAt(
+        tester.getTopLeft(find.byKey(const ValueKey('map-value-0'))) +
+            const Offset(5, 3),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(session.registerMap.polling, isTrue);
+      await tester.tap(find.text('Cancel'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.byKey(const ValueKey('map-actions-0')));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<PopupMenuItem<String>>(
+              find.ancestor(
+                of: find.text('Edit row'),
+                matching: find.byType(PopupMenuItem<String>),
+              ),
+            )
+            .enabled,
+        isFalse,
+      );
+      await tester.tap(find.text('Write row'));
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.byType(AlertDialog), findsOneWidget);
       expect(session.registerMap.polling, isTrue);

@@ -135,6 +135,8 @@ void main() {
               : scene.name == 'dark'
               ? 245
               : 255;
+          await tester.ensureVisible(find.byKey(const ValueKey('map-value-2')));
+          await tester.pump(const Duration(milliseconds: 100));
           await tester.tap(find.byKey(const ValueKey('map-value-2')));
           await tester.pump(const Duration(milliseconds: 300));
           await tester.enterText(

@@ -107,15 +107,22 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
         expect(
           tester
-              .widget<IconButton>(find.byKey(const ValueKey('map-write-3')))
-              .onPressed,
+              .widget<InkWell>(
+                find
+                    .descendant(
+                      of: find.byKey(const ValueKey('map-value-3')),
+                      matching: find.byType(InkWell),
+                    )
+                    .first,
+              )
+              .onTap,
           isNull,
         );
         final txBefore = demo.busStatistics['tx_bytes'];
         await demo.registerMap.writeRow(3, values: [999]);
         expect(demo.busStatistics['tx_bytes'], txBefore);
         expect(demo.registerResults[3]['values'], [101]);
-        await tester.tap(find.byKey(const ValueKey('map-write-2')));
+        await tester.tap(find.byKey(const ValueKey('map-value-2')));
         await tester.pump(const Duration(milliseconds: 100));
         await tester.pump(const Duration(milliseconds: 300));
         await tester.enterText(

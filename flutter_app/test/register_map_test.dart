@@ -383,13 +383,15 @@ void main() {
     session.registerMap.start(100);
     await tester.pump();
     expect(find.byType(LinearProgressIndicator), findsNothing);
-    final write = tester.widget<IconButton>(
-      find.ancestor(
-        of: find.byTooltip('Write row'),
-        matching: find.byType(IconButton),
-      ),
+    final write = tester.widget<InkWell>(
+      find
+          .descendant(
+            of: find.byKey(const ValueKey('map-value-0')),
+            matching: find.byType(InkWell),
+          )
+          .first,
     );
-    expect(write.onPressed, isNotNull);
+    expect(write.onTap, isNotNull);
     session.registerMap.stop();
     bridge.held!.complete(const BridgeReply({'rows': []}, true));
     await tester.pump();

@@ -340,6 +340,10 @@ class _DesktopTableState extends State<DesktopTable> {
                     padding: const EdgeInsets.all(8),
                     child: LText(
                       spec.label,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -444,7 +448,9 @@ class _DesktopTableState extends State<DesktopTable> {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         child: Align(
-                          alignment: Alignment.centerLeft,
+                          alignment: key == widget.selectionColumn
+                              ? Alignment.center
+                              : Alignment.centerLeft,
                           child: widget.cellBuilder(context, i, key),
                         ),
                       ),

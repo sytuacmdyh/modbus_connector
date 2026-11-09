@@ -175,3 +175,31 @@ The native appearance driver passes with both trend width assertions and live
 write/readback in all three scenes. Its captured light screenshot now shows
 two distinct curves spanning the preview cells. The earlier full-history
 performance budget failure remains applicable; this is a drawing-layout fix.
+
+## Register-row fidelity follow-up (2026-11-09)
+
+The register rows now follow the prototype's information hierarchy: engineering
+values align right, units use smaller secondary text, addresses use four-digit
+padding, and type labels use UINT16/INT16-style display names without changing
+the stored format IDs. Type, address and raw HEX text are muted; lock icons are
+smaller. The default name column is wider, selection is centered, and the former
+180 px action area becomes a single 44 px ellipsis menu.
+
+A new status column reflects actual disconnected, paused, normal, error and alarm
+states. Direct enum choices move into the engineering-value cell. Write, bit
+editing and row editing remain accessible from the row menu; polling still
+permits value writes while structural edits remain locked. Existing saved column
+overrides and the 48 px compact row default are preserved. Use Reset columns to
+apply the revised default widths to a customized table.
+
+The native minimum-window write test now scrolls the target into view before
+clicking it; its third-row center can otherwise be covered by the bottom
+scrollbar when the activity console is expanded at 130% text scale.
+
+Validation: analyzer clean. The complete widget run exposed an edge-click miss
+in the engineering-value cell; expanding the InkWell child restores the full
+cell hit area. All 10 workbench tests pass after this fix, including the new
+edge-click and overflow-menu write checks. The 17-case workbench/localization
+recheck passes after updating the displayed type-label expectation. The native
+appearance recheck passes light/dark/minimum-window writes with the target
+scrolled into view. No new performance acceptance is claimed.

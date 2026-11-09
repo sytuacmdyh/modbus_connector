@@ -73,6 +73,14 @@ String trf(String key, Map<String, Object?> values) {
 }
 
 const flutterChinese = <String, String>{
+  'Row actions': '行操作',
+  'Data type': '数据类型',
+  'Engineering value': '工程值',
+  'Status': '状态',
+  'Normal': '正常',
+  'Paused': '已暂停',
+  'Warning': '告警',
+  'Edit row': '编辑行',
   'Allow writes': '允许写入',
   'writable': '允许写入',
   'Marked read-only in this register map': '此寄存器在模板或映射中设为只读',

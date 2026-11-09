@@ -93,7 +93,7 @@ void main() {
     expect(session.registers.single['name'], '寄存器');
     expect(session.registers.single['format'], 'u16');
     expect(session.registers.single['kind'], 'holding_registers');
-    expect(find.text('u16'), findsOneWidget);
+    expect(find.text('UINT16'), findsOneWidget);
     await tester.tap(find.text('寄存器'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, '名称'), 'Voltage');
