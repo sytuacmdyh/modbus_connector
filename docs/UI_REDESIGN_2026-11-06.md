@@ -217,3 +217,18 @@ The running local debug app was hot reloaded and visually checked. Analyzer and
 19 workbench/table tests pass, including selection sweep and edge auto-scroll.
 A density regression also verifies 34 → 48 → 34 row spacing through the column
 menu and usable trend width after minimum-window resizing.
+
+## Toolbar alignment follow-up (2026-11-09)
+
+The map action and filter strips now use 32 px controls, 6 px spacing and smaller
+icons. Poll interval displays directly as milliseconds; filters use inline hints
+instead of floating captions. The local toolbar theme retains the small corner
+radius and makes Material visual density explicit so buttons do not shrink below
+inputs. Search/address icon constraints also keep their visible outline at the
+same height as dropdown outlines. Text scaling and invalid-address messages
+remain supported. Advanced tool labels share the same control height.
+
+Alignment acceptance checks eight action/filter controls, their row positions,
+and the actual InputDecorator border containers. The final alignment regression
+passes; the related workbench/filter/address run passes its other 19 cases.
+The running debug app has been hot reloaded for direct visual review.

@@ -590,9 +590,13 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
 
   Widget filterBar(int shown) => Theme(
     data: Theme.of(context).copyWith(
+      visualDensity: VisualDensity.standard,
       inputDecorationTheme: Theme.of(context).inputDecorationTheme.copyWith(
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+        constraints: BoxConstraints(
+          minHeight: 32 * MediaQuery.textScalerOf(context).scale(1).clamp(1, 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       ),
     ),
     child: Focus(
@@ -606,11 +610,21 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           SizedBox(
-            width: 160,
+            width: 176,
             child: TextField(
               key: const ValueKey('map-filter-name'),
               controller: nameFilter,
-              decoration: InputDecoration(labelText: tr('Filter by name')),
+              style: const TextStyle(fontSize: 12),
+              decoration: InputDecoration(
+                hintText: tr('Filter by name'),
+                prefixIcon: const Icon(Icons.search, size: 16),
+                prefixIconConstraints: BoxConstraints(
+                  minWidth: 30,
+                  minHeight:
+                      32 *
+                      MediaQuery.textScalerOf(context).scale(1).clamp(1, 2),
+                ),
+              ),
               onChanged: (_) => changeFilters(() {}),
             ),
           ),
@@ -619,9 +633,15 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
             child: TextField(
               key: const ValueKey('map-filter-address'),
               controller: addressFilter,
+              style: const TextStyle(fontSize: 12),
               decoration: InputDecoration(
-                labelText: tr('Address / start-count'),
-                hintText: '100 / 100-20',
+                hintText: tr('Address / start-count'),
+                suffixIconConstraints: BoxConstraints.tightFor(
+                  width: 28,
+                  height:
+                      32 *
+                      MediaQuery.textScalerOf(context).scale(1).clamp(1, 2),
+                ),
                 suffixIcon: PopupMenuButton<String>(
                   key: const ValueKey('map-address-presets'),
                   tooltip: tr('Address range presets'),
@@ -661,8 +681,13 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
             child: DropdownButtonFormField<String>(
               key: const ValueKey('map-filter-polling'),
               initialValue: pollingFilter,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
               isExpanded: true,
-              decoration: InputDecoration(labelText: tr('Polling status')),
+              iconSize: 16,
+              decoration: const InputDecoration(),
               items: const [
                 DropdownMenuItem(value: 'all', child: LText('All rows')),
                 DropdownMenuItem(
@@ -684,8 +709,13 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
             child: DropdownButtonFormField<String>(
               key: const ValueKey('map-filter-area'),
               initialValue: areaFilter,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
               isExpanded: true,
-              decoration: InputDecoration(labelText: tr('Function area')),
+              iconSize: 16,
+              decoration: const InputDecoration(),
               items: [
                 const DropdownMenuItem(value: 'all', child: LText('All areas')),
                 for (final entry in areas.entries)
@@ -716,7 +746,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
             icon: const Icon(Icons.filter_alt_off_outlined, size: 20),
           ),
           SizedBox(
-            width: 160,
+            width: 116,
             child: LText(
               trf('Showing {shown} / {total}', {
                 'shown': shown,
@@ -734,18 +764,21 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
 
   Widget toolbarMenuLabel(IconData icon, String label, {bool enabled = true}) {
     final color = enabled ? null : Theme.of(context).disabledColor;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      child: IconTheme.merge(
-        data: IconThemeData(size: 18, color: color),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon),
-            const SizedBox(width: 6),
-            LText(label, style: TextStyle(color: color)),
-            const Icon(Icons.arrow_drop_down),
-          ],
+    return SizedBox(
+      height: 32 * MediaQuery.textScalerOf(context).scale(1).clamp(1, 2),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: IconTheme.merge(
+          data: IconThemeData(size: 18, color: color),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon),
+              const SizedBox(width: 6),
+              LText(label, style: TextStyle(color: color, fontSize: 12)),
+              const Icon(Icons.arrow_drop_down),
+            ],
+          ),
         ),
       ),
     );
@@ -759,192 +792,262 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
       final visible = visibleRows;
       final hasSelection = visible.any(selectedRows.contains);
       // Build controls once per data change; viewport constraints only lay them out.
-      final toolbar = SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Acquisition stays above editing tools at every window width.
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: !widget.session.connected || model.editingLocked
-                        ? null
-                        : model.read,
-                    icon: const Icon(Icons.refresh, size: 18),
-                    label: const LText('Read map'),
-                  ),
-                  FilledButton.icon(
-                    onPressed: model.polling
-                        ? model.stop
-                        : !widget.session.connected
-                        ? null
-                        : () => model.start(interval),
-                    icon: Icon(
-                      model.polling ? Icons.stop : Icons.play_arrow,
-                      size: 18,
-                    ),
-                    label: LText(model.polling ? 'Stop' : 'Start polling'),
-                  ),
-                  toolChoice(
-                    'Interval, ms',
-                    '$interval',
-                    ['100', '500', '1000', '5000'],
-                    model.polling
-                        ? null
-                        : (v) => setState(() {
-                            interval = int.parse(v);
-                            widget.session.draft['map_interval'] = interval;
-                          }),
-                    width: 125,
-                  ),
-                  OutlinedButton.icon(
-                    onPressed:
-                        model.editingLocked ||
-                            model.rows.length >= maxRegisterRows
-                        ? null
-                        : edit,
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const LText('Add row'),
-                  ),
-                  IconButton(
-                    tooltip: tr('Select all / clear'),
-                    onPressed: () => batch('all'),
-                    icon: const Icon(Icons.select_all, size: 20),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => setState(() => showTools = !showTools),
-                    icon: Icon(
-                      showTools ? Icons.expand_less : Icons.expand_more,
-                      size: 18,
-                    ),
-                    label: const LText('More tools'),
-                  ),
-                ],
-              ),
+      final controlHeight =
+          32.0 * MediaQuery.textScalerOf(context).scale(1).clamp(1, 2);
+      final baseTheme = Theme.of(context);
+      final buttonStyle = ButtonStyle(
+        visualDensity: VisualDensity.standard,
+        shape: const WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(3)),
+          ),
+        ),
+        minimumSize: WidgetStatePropertyAll(Size(0, controlHeight)),
+        maximumSize: WidgetStatePropertyAll(
+          Size(double.infinity, controlHeight),
+        ),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: 9),
+        ),
+        textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 12)),
+        iconSize: const WidgetStatePropertyAll(16),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      );
+      final toolbar = Theme(
+        data: baseTheme.copyWith(
+          visualDensity: VisualDensity.standard,
+          outlinedButtonTheme: OutlinedButtonThemeData(style: buttonStyle),
+          filledButtonTheme: FilledButtonThemeData(style: buttonStyle),
+          textButtonTheme: TextButtonThemeData(style: buttonStyle),
+          iconButtonTheme: IconButtonThemeData(
+            style: buttonStyle.copyWith(
+              minimumSize: WidgetStatePropertyAll(Size.square(controlHeight)),
+              maximumSize: WidgetStatePropertyAll(Size.square(controlHeight)),
+              padding: const WidgetStatePropertyAll(EdgeInsets.zero),
             ),
-            if (showTools)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      IconButton(
-                        tooltip: tr('Graph map'),
-                        icon: const Icon(Icons.multiline_chart),
-                        onPressed: () => showDialog<void>(
-                          context: context,
-                          builder: (_) => GraphDialog(session: widget.session),
+          ),
+          inputDecorationTheme: baseTheme.inputDecorationTheme.copyWith(
+            isDense: true,
+            constraints: BoxConstraints(minHeight: controlHeight),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 9,
+              vertical: 4,
+            ),
+          ),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Acquisition stays above editing tools at every window width.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed:
+                          !widget.session.connected || model.editingLocked
+                          ? null
+                          : model.read,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const LText('Read map'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: model.polling
+                          ? model.stop
+                          : !widget.session.connected
+                          ? null
+                          : () => model.start(interval),
+                      icon: Icon(
+                        model.polling ? Icons.stop : Icons.play_arrow,
+                        size: 16,
+                      ),
+                      label: LText(model.polling ? 'Stop' : 'Start polling'),
+                    ),
+                    Tooltip(
+                      message: tr('Interval, ms'),
+                      child: SizedBox(
+                        key: const ValueKey('map-interval'),
+                        width: 106,
+                        height: controlHeight,
+                        child: DropdownButtonFormField<int>(
+                          initialValue: interval,
+                          isExpanded: true,
+                          iconSize: 16,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: baseTheme.colorScheme.onSurface,
+                          ),
+                          decoration: const InputDecoration(),
+                          items: [
+                            for (final value in [100, 500, 1000, 5000])
+                              DropdownMenuItem(
+                                value: value,
+                                child: Text('$value ms'),
+                              ),
+                          ],
+                          onChanged: model.polling
+                              ? null
+                              : (value) {
+                                  if (value == null) return;
+                                  setState(() {
+                                    interval = value;
+                                    widget.session.draft['map_interval'] =
+                                        value;
+                                  });
+                                },
                         ),
                       ),
-                      IconButton(
-                        tooltip: tr('Expressions'),
-                        icon: const Icon(Icons.functions),
-                        onPressed: () => showDialog<void>(
-                          context: context,
-                          builder: (_) =>
-                              ExpressionsDialog(session: widget.session),
-                        ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed:
+                          model.editingLocked ||
+                              model.rows.length >= maxRegisterRows
+                          ? null
+                          : edit,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const LText('Add row'),
+                    ),
+                    IconButton(
+                      tooltip: tr('Select all / clear'),
+                      onPressed: () => batch('all'),
+                      icon: const Icon(Icons.select_all, size: 16),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => setState(() => showTools = !showTools),
+                      icon: Icon(
+                        showTools ? Icons.expand_less : Icons.expand_more,
+                        size: 16,
                       ),
-                      PopupMenuButton<String>(
-                        tooltip: tr('CSV'),
-                        enabled: !model.editingLocked,
-                        onSelected: (action) =>
-                            action == 'import' ? csvImport() : csvExport(),
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(
-                            value: 'import',
-                            child: LText('Import CSV'),
-                          ),
-                          PopupMenuItem(
-                            value: 'export',
-                            child: LText('Export CSV'),
-                          ),
-                        ],
-                        child: toolbarMenuLabel(
-                          Icons.table_view_outlined,
-                          'CSV',
-                          enabled: !model.editingLocked,
-                        ),
-                      ),
-                      PopupMenuButton<String>(
-                        tooltip: tr('Snapshot'),
-                        onSelected: (action) {
-                          if (action == 'capture') {
-                            snapshot();
-                          } else if (action == 'import' || action == 'export') {
-                            snapshotFile(action == 'export');
-                          } else {
-                            final name = action.substring('compare:'.length);
-                            final differences = model.diff(name).join('\n');
-                            showText(
-                              context,
-                              trf('Snapshot {name} differences', {
-                                'name': name,
-                              }),
-                              differences.isEmpty
-                                  ? 'No differences'
-                                  : differences,
-                            );
-                          }
-                        },
-                        itemBuilder: (_) => [
-                          PopupMenuItem(
-                            value: 'capture',
-                            child: const LText('Capture snapshot'),
-                          ),
-                          const PopupMenuItem(
-                            value: 'import',
-                            child: LText('Import snapshots'),
-                          ),
-                          const PopupMenuItem(
-                            value: 'export',
-                            child: LText('Export snapshots'),
-                          ),
-                          const PopupMenuDivider(),
-                          const PopupMenuItem(
-                            enabled: false,
-                            child: LText('Compare snapshot'),
-                          ),
-                          for (final name in widget.session.snapshots.keys)
-                            PopupMenuItem(
-                              value: 'compare:$name',
-                              child: Text(name),
-                            ),
-                        ],
-                        child: toolbarMenuLabel(
-                          Icons.photo_camera_outlined,
-                          'Snapshot',
-                        ),
-                      ),
-                    ],
-                  ),
+                      label: const LText('More tools'),
+                    ),
+                  ],
                 ),
               ),
-            SizedBox(
-              height: 4,
-              child: model.reading && !model.polling
-                  ? const LinearProgressIndicator()
-                  : null,
-            ),
-            if (message != null) LText(message!),
-            if (widget.session.error != null)
-              LText(widget.session.error!, maxLines: 2),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: filterBar(visible.length),
-            ),
-            const SizedBox(height: 8),
-          ],
+              if (showTools)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        IconButton(
+                          tooltip: tr('Graph map'),
+                          icon: const Icon(Icons.multiline_chart),
+                          onPressed: () => showDialog<void>(
+                            context: context,
+                            builder: (_) =>
+                                GraphDialog(session: widget.session),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: tr('Expressions'),
+                          icon: const Icon(Icons.functions),
+                          onPressed: () => showDialog<void>(
+                            context: context,
+                            builder: (_) =>
+                                ExpressionsDialog(session: widget.session),
+                          ),
+                        ),
+                        PopupMenuButton<String>(
+                          tooltip: tr('CSV'),
+                          enabled: !model.editingLocked,
+                          onSelected: (action) =>
+                              action == 'import' ? csvImport() : csvExport(),
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'import',
+                              child: LText('Import CSV'),
+                            ),
+                            PopupMenuItem(
+                              value: 'export',
+                              child: LText('Export CSV'),
+                            ),
+                          ],
+                          child: toolbarMenuLabel(
+                            Icons.table_view_outlined,
+                            'CSV',
+                            enabled: !model.editingLocked,
+                          ),
+                        ),
+                        PopupMenuButton<String>(
+                          tooltip: tr('Snapshot'),
+                          onSelected: (action) {
+                            if (action == 'capture') {
+                              snapshot();
+                            } else if (action == 'import' ||
+                                action == 'export') {
+                              snapshotFile(action == 'export');
+                            } else {
+                              final name = action.substring('compare:'.length);
+                              final differences = model.diff(name).join('\n');
+                              showText(
+                                context,
+                                trf('Snapshot {name} differences', {
+                                  'name': name,
+                                }),
+                                differences.isEmpty
+                                    ? 'No differences'
+                                    : differences,
+                              );
+                            }
+                          },
+                          itemBuilder: (_) => [
+                            PopupMenuItem(
+                              value: 'capture',
+                              child: const LText('Capture snapshot'),
+                            ),
+                            const PopupMenuItem(
+                              value: 'import',
+                              child: LText('Import snapshots'),
+                            ),
+                            const PopupMenuItem(
+                              value: 'export',
+                              child: LText('Export snapshots'),
+                            ),
+                            const PopupMenuDivider(),
+                            const PopupMenuItem(
+                              enabled: false,
+                              child: LText('Compare snapshot'),
+                            ),
+                            for (final name in widget.session.snapshots.keys)
+                              PopupMenuItem(
+                                value: 'compare:$name',
+                                child: Text(name),
+                              ),
+                          ],
+                          child: toolbarMenuLabel(
+                            Icons.photo_camera_outlined,
+                            'Snapshot',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              SizedBox(
+                height: 4,
+                child: model.reading && !model.polling
+                    ? const LinearProgressIndicator()
+                    : null,
+              ),
+              if (message != null) LText(message!),
+              if (widget.session.error != null)
+                LText(widget.session.error!, maxLines: 2),
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: filterBar(visible.length),
+              ),
+              const SizedBox(height: 6),
+            ],
+          ),
         ),
       );
       final table = DesktopTable(

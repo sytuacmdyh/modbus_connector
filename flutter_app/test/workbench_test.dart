@@ -136,6 +136,27 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final session = SessionController(FakeBridge());
     await tester.pumpWidget(ModbusApp(controller: session));
+    final controls = [
+      find.widgetWithText(OutlinedButton, 'Read map'),
+      find.widgetWithText(FilledButton, 'Start polling'),
+      find.byKey(const ValueKey('map-interval')),
+      find.widgetWithText(OutlinedButton, 'Add row'),
+      find.byKey(const ValueKey('map-filter-name')),
+      find.byKey(const ValueKey('map-filter-address')),
+      find.byKey(const ValueKey('map-filter-polling')),
+      find.byKey(const ValueKey('map-filter-area')),
+    ];
+    for (final control in controls) {
+      expect(tester.getSize(control).height, 32, reason: '$control');
+    }
+    expect(
+      tester.getTopLeft(controls[0]).dy,
+      tester.getTopLeft(controls[2]).dy,
+    );
+    expect(
+      tester.getTopLeft(controls[4]).dy,
+      tester.getTopLeft(controls[6]).dy,
+    );
     final height = tester.getSize(find.byType(DesktopTable)).height;
     expect(find.byTooltip('CSV'), findsNothing);
     expect(find.byTooltip('Snapshot'), findsNothing);
