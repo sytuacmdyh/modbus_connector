@@ -64,7 +64,7 @@ Master acquisition and UI invariants:
   Session close waits for graph viewers and backend cleanup. File chooser dialogs
   use editable-path fallback. Workspace import stages disconnected tabs before
   replacing sessions and never writes the original legacy file.
-- Preserve compact 48 px defaults with Area/Count/Unit hidden, saved column
+- Preserve compact 34 px master-map defaults (48 px comfortable rows) with Area/Count/Unit hidden, saved column
   overrides and Reset columns. Settings autosave-off requires explicit Save.
 
 `src/modbus_connector/__init__.py` remains the release version source for the

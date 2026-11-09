@@ -52,6 +52,9 @@ class DesktopTable extends StatefulWidget {
     this.onToggleRows,
     this.shrinkWrap = false,
     this.compactByDefault = false,
+    this.compactRowHeight = 48,
+    this.comfortableRowHeight = 56,
+    this.headerHeight = 40,
     this.bottomPadding = 14,
   });
   final List<TableColumnSpec> columns;
@@ -67,6 +70,9 @@ class DesktopTable extends StatefulWidget {
   /// Size short tables to their rows; cap the scrolling body for long maps.
   final bool shrinkWrap;
   final bool compactByDefault;
+  final double compactRowHeight;
+  final double comfortableRowHeight;
+  final double headerHeight;
   final double bottomPadding;
   @override
   State<DesktopTable> createState() => _DesktopTableState();
@@ -351,7 +357,7 @@ class _DesktopTableState extends State<DesktopTable> {
                 ),
               ),
             ),
-            const SizedBox(width: 10, height: 40),
+            SizedBox(width: 10, height: widget.headerHeight),
           ],
         ),
       ),
@@ -399,7 +405,7 @@ class _DesktopTableState extends State<DesktopTable> {
     final keys = visible;
     final total = keys.fold<double>(0, (sum, key) => sum + width(key));
     final rowHeight =
-        (compact ? 48.0 : 56.0) *
+        (compact ? widget.compactRowHeight : widget.comfortableRowHeight) *
         MediaQuery.textScalerOf(context).scale(1).clamp(1, 2);
     _rowHeight = rowHeight;
     final body = Scrollbar(

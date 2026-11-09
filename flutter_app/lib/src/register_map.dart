@@ -950,6 +950,9 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
       final table = DesktopTable(
         shrinkWrap: widget.shrinkWrap,
         compactByDefault: true,
+        compactRowHeight: 34,
+        comfortableRowHeight: 48,
+        headerHeight: 30,
         bottomPadding: hasSelection ? 66 : 14,
         columns: const [
           TableColumnSpec('select', 'Select', 40),
@@ -992,7 +995,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                 ? const Text('—')
                 : SizedBox(
                     width: double.infinity,
-                    height: 28,
+                    height: 20,
                     child: CustomPaint(
                       painter: MultiSeriesPainter(
                         [points],
@@ -1805,6 +1808,7 @@ Widget inlineEnumEditor(
   return SizedBox(
     width: 135,
     child: DropdownButton<int>(
+      isDense: true,
       isExpanded: true,
       value: keys.contains(current) ? current : null,
       hint: const LText('Set value'),

@@ -145,7 +145,8 @@ stays fixed during sweep selection. Map and sniffer column widths/order persist;
 headers or their edges, or use the header movement/reset menu. That menu also
 hides/restores columns and switches compact row height, with all preferences
 persisted per session.
-The master map defaults to 48 px compact rows with Area, Count and Unit hidden.
+The master map defaults to 34 px compact rows with Area, Count and Unit hidden.
+Turn off Compact rows in the column menu for 48 px comfortable rows.
 Address, format, engineering value and raw hexadecimal words are grouped in a
 compact grid; clicking a writable engineering value opens its write dialog.
 Saved visibility and density preferences take precedence; Reset columns restores

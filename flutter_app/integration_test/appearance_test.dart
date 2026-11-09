@@ -91,7 +91,7 @@ void main() {
           expect(trends, findsNWidgets(2));
           for (final trend in trends.evaluate()) {
             expect(trend.size!.width, greaterThanOrEqualTo(60));
-            expect(trend.size!.height, 28);
+            expect(trend.size!.height, 20);
           }
           if (scene.name == 'light') {
             final table = tester.getRect(find.byType(DesktopTable));

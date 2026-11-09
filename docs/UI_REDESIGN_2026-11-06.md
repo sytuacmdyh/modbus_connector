@@ -203,3 +203,17 @@ edge-click and overflow-menu write checks. The 17-case workbench/localization
 recheck passes after updating the displayed type-label expectation. The native
 appearance recheck passes light/dark/minimum-window writes with the target
 scrolled into view. No new performance acceptance is claimed.
+
+
+## Compact density adjustment (2026-11-09)
+
+Following direct review of the running app, the requested register-map default
+is now 34 px, with a 30 px header and 20 px trend preview. Turning off Compact
+rows selects 48 px comfortable rows. Text scaling still increases row height;
+saved compact/comfortable choices remain effective. Other tables retain their
+existing defaults. This supersedes the earlier 48 px master-map default.
+
+The running local debug app was hot reloaded and visually checked. Analyzer and
+19 workbench/table tests pass, including selection sweep and edge auto-scroll.
+A density regression also verifies 34 → 48 → 34 row spacing through the column
+menu and usable trend width after minimum-window resizing.

@@ -30,6 +30,13 @@ void main() {
       'format': 'u16',
       'trend_enabled': true,
     });
+    session.registers.add({
+      'name': 'Second signal',
+      'kind': 'input_registers',
+      'address': 1,
+      'count': 1,
+      'format': 'u16',
+    });
     final now = DateTime.now();
     session.histories['1/input_registers/0/Signal'] = Queue<Sample>.from([
       Sample(now.subtract(const Duration(seconds: 2)), 10),
@@ -41,8 +48,22 @@ void main() {
       (widget) => widget is CustomPaint && widget.painter is MultiSeriesPainter,
     );
     expect(trend, findsOneWidget);
+    double rowSpacing() =>
+        tester.getTopLeft(find.text('Second signal')).dy -
+        tester.getTopLeft(find.text('Signal')).dy;
+    expect(rowSpacing(), 34);
+    await tester.tap(find.text('Name'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Compact rows'));
+    await tester.pumpAndSettle();
+    expect(rowSpacing(), 48);
+    await tester.tap(find.text('Name'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Compact rows'));
+    await tester.pumpAndSettle();
+    expect(rowSpacing(), 34);
     expect(tester.getSize(trend).width, greaterThanOrEqualTo(60));
-    expect(tester.getSize(trend).height, 28);
+    expect(tester.getSize(trend).height, 20);
     tester.view.physicalSize = const Size(900, 650);
     await tester.pumpAndSettle();
     expect(tester.getSize(trend).width, greaterThanOrEqualTo(60));
