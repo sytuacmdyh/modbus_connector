@@ -322,7 +322,13 @@ void main() {
       MaterialApp(home: RegisterMapDialog(session: session)),
     );
     await tester.pumpAndSettle();
-    expect(find.byType(DropdownButton<int>), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('map-value-0')),
+        matching: find.byType(DropdownButton<int>),
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     session.dispose();

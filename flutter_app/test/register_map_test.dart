@@ -232,7 +232,12 @@ void main() {
     }
     expect(
       tester
-          .widget<DropdownButton<int>>(find.byType(DropdownButton<int>))
+          .widget<DropdownButton<int>>(
+            find.descendant(
+              of: find.byKey(const ValueKey('map-value-1')),
+              matching: find.byType(DropdownButton<int>),
+            ),
+          )
           .onChanged,
       isNull,
     );
@@ -636,9 +641,13 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(home: RegisterMapDialog(session: session)),
       );
-      await tester.ensureVisible(find.byType(DropdownButton<int>));
+      final enumEditor = find.descendant(
+        of: find.byKey(const ValueKey('map-value-0')),
+        matching: find.byType(DropdownButton<int>),
+      );
+      await tester.ensureVisible(enumEditor);
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(DropdownButton<int>));
+      await tester.tap(enumEditor);
       await tester.pumpAndSettle();
       await tester.tap(find.text('1 = On').last);
       await tester.pumpAndSettle();
