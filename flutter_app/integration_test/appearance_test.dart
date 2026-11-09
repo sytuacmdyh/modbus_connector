@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:modbus_desktop/src/desktop_table.dart';
+import 'package:modbus_desktop/src/graph_dialog.dart';
 import 'package:modbus_desktop/src/translations.dart';
 import 'package:modbus_desktop/src/workbench_theme.dart';
 import 'package:modbus_desktop/src/workspace.dart';
@@ -83,6 +84,15 @@ void main() {
           expect(session.registerMap.polling, isTrue);
           expect(session.registerResults, hasLength(6));
           expect(find.byType(DesktopTable), findsOneWidget);
+          final trends = find.byWidgetPredicate(
+            (widget) =>
+                widget is CustomPaint && widget.painter is MultiSeriesPainter,
+          );
+          expect(trends, findsNWidgets(2));
+          for (final trend in trends.evaluate()) {
+            expect(trend.size!.width, greaterThanOrEqualTo(60));
+            expect(trend.size!.height, 28);
+          }
           if (scene.name == 'light') {
             final table = tester.getRect(find.byType(DesktopTable));
             await tester.tap(find.byTooltip(tr('Hide activity')));

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,10 +9,48 @@ import 'package:modbus_desktop/src/session_controller.dart';
 import 'package:modbus_desktop/src/bridge_client.dart';
 import 'package:modbus_desktop/src/desktop_table.dart';
 import 'package:modbus_desktop/src/register_map.dart';
+import 'package:modbus_desktop/src/graph_dialog.dart';
 
 import 'fake_bridge.dart';
 
 void main() {
+  testWidgets('populated map trends retain drawing width in compact cells', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final session = SessionController(FakeBridge());
+    session.registers.add({
+      'name': 'Signal',
+      'kind': 'input_registers',
+      'address': 0,
+      'count': 1,
+      'format': 'u16',
+      'trend_enabled': true,
+    });
+    final now = DateTime.now();
+    session.histories['1/input_registers/0/Signal'] = Queue<Sample>.from([
+      Sample(now.subtract(const Duration(seconds: 2)), 10),
+      Sample(now.subtract(const Duration(seconds: 1)), 20),
+      Sample(now, 15),
+    ]);
+    await tester.pumpWidget(ModbusApp(controller: session));
+    final trend = find.byWidgetPredicate(
+      (widget) => widget is CustomPaint && widget.painter is MultiSeriesPainter,
+    );
+    expect(trend, findsOneWidget);
+    expect(tester.getSize(trend).width, greaterThanOrEqualTo(60));
+    expect(tester.getSize(trend).height, 28);
+    tester.view.physicalSize = const Size(900, 650);
+    await tester.pumpAndSettle();
+    expect(tester.getSize(trend).width, greaterThanOrEqualTo(60));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    session.dispose();
+  });
+
   testWidgets(
     'engineering value cell opens write dialog while polling and raw HEX stays visible',
     (tester) async {

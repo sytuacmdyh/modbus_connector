@@ -153,3 +153,25 @@ visual checks and actual UI writes above come from the real native Profile app.
 No Apple Silicon hardware, physical serial or new Windows physical-device
 acceptance is claimed. CI includes Windows/Linux native loopback tests and
 Windows installer validation; the macOS GUI artifact is built locally.
+
+## Unlocked Release inspection follow-up (2026-11-09)
+
+After the host was unlocked, the isolated 0.16.12 Release app was inspected
+manually. The local demo accepted a temperature write of 26.5 °C (raw `0109`)
+while polling, retained it across a session switch, and continued acquiring with
+zero reported errors. Activity collapse/restore and dark appearance worked;
+disconnect returned the session to the disconnected state.
+
+This inspection found that populated inline trends appeared as vertical lines.
+The compact table's cell alignment supplies loose constraints, and the
+height-only trend box allowed its childless painter to choose zero width.
+The trend box now fills the available column width. A regression with three
+distinct samples reproduced width 0 before the fix and checks usable drawing
+width at both 1280×900 and 900×650. Native appearance acceptance also checks both
+demo trend painters in the light, dark and minimum-window scenes.
+
+Validation: analyzer clean; all 10 workbench tests and 9 table tests pass.
+The native appearance driver passes with both trend width assertions and live
+write/readback in all three scenes. Its captured light screenshot now shows
+two distinct curves spanning the preview cells. The earlier full-history
+performance budget failure remains applicable; this is a drawing-layout fix.

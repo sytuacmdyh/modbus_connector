@@ -962,6 +962,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
             return row['trend_enabled'] != true || points.isEmpty
                 ? const Text('—')
                 : SizedBox(
+                    width: double.infinity,
                     height: 28,
                     child: CustomPaint(
                       painter: MultiSeriesPainter(
