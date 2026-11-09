@@ -1,7 +1,7 @@
 name: modbus_desktop
 description: A native Dart Modbus desktop workbench with Flutter and libserialport.
 publish_to: none
-version: 0.16.12+12
+version: 0.16.13+13
 
 environment:
   sdk: ^3.13.0
