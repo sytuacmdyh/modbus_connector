@@ -36,6 +36,11 @@ List<int> tcpFrame(int id, int unit, List<int> pdu) => [
 String hexBytes(List<int> b) =>
     b.map((v) => v.toRadixString(16).padLeft(2, '0').toUpperCase()).join(' ');
 
+class ReadTimeout extends TimeoutException {
+  ReadTimeout(this.context) : super('Modbus read timed out');
+  final Json context;
+}
+
 class ModbusError implements Exception {
   ModbusError(this.code);
   final int code;
@@ -479,11 +484,28 @@ class ModbusClient {
       throw const FormatException('Invalid read range');
     }
     final fc = kinds.indexOf(kind) + 1;
-    final r = await request(unit, [
-      fc,
-      ...word(address),
-      ...word(count),
-    ], cancellation: cancellation);
+    final p = params;
+    late final List<int> r;
+    try {
+      r = await request(unit, [
+        fc,
+        ...word(address),
+        ...word(count),
+      ], cancellation: cancellation);
+    } on TimeoutException {
+      if (p == null) rethrow;
+      throw ReadTimeout({
+        'transport': p['transport'],
+        'endpoint': p['transport'] == 'rtu'
+            ? p['port']
+            : '${p['host']}:${p['port']}',
+        'unit': unit,
+        'function': fc,
+        'address': address,
+        'count': count,
+        'timeout_ms': ((p['timeout'] as num) * 1000).round(),
+      });
+    }
     final n = bitKind(kind) ? (count + 7) ~/ 8 : count * 2;
     if (r.length != n + 2 || r[1] != n) {
       throw const FormatException('Invalid read response length');

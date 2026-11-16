@@ -46,7 +46,7 @@ class SessionController extends ChangeNotifier {
     bridge.onTraffic = (frames, statistics) {
       if (_disposed || _closing) return;
       traffic.addAll(frames);
-      while (traffic.length > 500) {
+      while (traffic.length > 10000) {
         traffic.removeFirst();
       }
       busStatistics = statistics;
@@ -138,6 +138,8 @@ class SessionController extends ChangeNotifier {
   }
 
   final Queue<LogEntry> logs = Queue();
+  DateTime? _lastReadTimeoutLog;
+  int _suppressedReadTimeouts = 0;
   Completer<void>? _operation;
   int _epoch = 0;
   bool _disposed = false;
@@ -271,7 +273,28 @@ class SessionController extends ChangeNotifier {
 
   void _setError(Object value) {
     error = value.toString();
-    _log(error!, isError: true);
+    final context = value is BridgeException ? value.readTimeout : null;
+    if (context != null) {
+      error =
+          'Read timeout: ${context['transport']} ${context['endpoint']} · '
+          'Unit ${context['unit']} · FC ${context['function'].toString().padLeft(2, '0')} · '
+          'Address ${context['address']} · Count ${context['count']} · '
+          'Timeout ${context['timeout_ms']} ms';
+      final now = _clock();
+      if (_lastReadTimeoutLog == null ||
+          now.difference(_lastReadTimeoutLog!) >= const Duration(seconds: 5)) {
+        _log(
+          '$error · ${_suppressedReadTimeouts + 1} timeout(s) since previous log; latest request shown',
+          isError: true,
+        );
+        _lastReadTimeoutLog = now;
+        _suppressedReadTimeouts = 0;
+      } else {
+        ++_suppressedReadTimeouts;
+      }
+    } else {
+      _log(error!, isError: true);
+    }
     if (value is BridgeException && value.connected == false) {
       connected = false;
       description = 'Disconnected';
@@ -293,6 +316,8 @@ class SessionController extends ChangeNotifier {
 
   void clearLog() {
     logs.clear();
+    _lastReadTimeoutLog = null;
+    _suppressedReadTimeouts = 0;
     notifyListeners();
   }
 
@@ -574,6 +599,8 @@ class SessionController extends ChangeNotifier {
         registerMap.stop();
         registerResults.clear();
         connectionConfig = Map.of(config);
+        _lastReadTimeoutLog = null;
+        _suppressedReadTimeouts = 0;
         timeoutSeconds = (config['timeout'] as num).toDouble();
         _log('Connecting…');
         final reply = await bridge.request({

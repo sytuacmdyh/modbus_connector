@@ -111,6 +111,7 @@ class NativeService {
         'error': {
           'type': e.runtimeType.toString(),
           'message': e is FormatException ? e.message : '$e',
+          if (e is ReadTimeout) 'read_timeout': e.context,
           if (e is ModbusError) 'exception_code': e.code,
         },
       };

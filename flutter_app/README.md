@@ -218,6 +218,12 @@ validation inventory, including hardware and UI gaps.
 Map polling: **Start polling** keeps value, enum and bit writes available while
 reading. Writes wait for the current read request and run serially; recoverable read
 or write errors are logged without stopping polling. Disconnecting stops polling.
+Read timeout activity entries include the transport/endpoint, unit, function code,
+zero-based address, count and configured timeout. Each session logs the first
+timeout immediately, then at most once every five seconds across all read ranges.
+The next timeout entry summarizes additional timeouts since the previous entry
+and shows the latest failed request (including an individual grouped-read fallback).
+Successful reads do not reset this limit; clearing activity or reconnecting does.
 The progress animation is hidden during polling. Row trends default to disabled;
 use **Enable trend** on selected rows to collect and show history.
 

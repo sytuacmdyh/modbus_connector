@@ -12,9 +12,10 @@ class BridgeReply {
 }
 
 class BridgeException implements Exception {
-  const BridgeException(this.message, {this.connected});
+  const BridgeException(this.message, {this.connected, this.readTimeout});
   final String message;
   final bool? connected;
+  final Map<String, dynamic>? readTimeout;
   @override
   String toString() => message;
 }
@@ -164,6 +165,11 @@ class NativeBridge extends BridgeTransport {
       throw BridgeException(
         response['error']['message'],
         connected: response['connected'] == true,
+        readTimeout: response['error']['read_timeout'] == null
+            ? null
+            : Map<String, dynamic>.from(
+                response['error']['read_timeout'] as Map,
+              ),
       );
     }
     return BridgeReply(

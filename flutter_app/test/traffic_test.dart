@@ -17,13 +17,15 @@ void main() {
       final session = SessionController(bridge);
       bridge.onTraffic!(
         [
-          for (var i = 0; i < 510; i++)
+          for (var i = 0; i < 10010; i++)
             {'time': '$i', 'direction': 'tx', 'hex': '01 03 AA'},
           {'time': 'rx', 'direction': 'rx', 'hex': '01 03 BB'},
         ],
         {'operations': 20},
       );
-      expect(session.traffic.length, 500);
+      expect(session.traffic.length, 10000);
+      expect(session.traffic.first['time'], '11');
+      expect(session.traffic.last['time'], 'rx');
       await tester.pumpWidget(
         MaterialApp(home: TrafficDialog(session: session)),
       );

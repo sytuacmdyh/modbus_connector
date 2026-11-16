@@ -73,6 +73,8 @@ String trf(String key, Map<String, Object?> values) {
 }
 
 const flutterChinese = <String, String>{
+  'Read timeout: {transport} {endpoint} · Unit {unit} · FC {function} · Address {address} · Count {count} · Timeout {timeout} ms': '读取超时：{transport} {endpoint} · 站号 {unit} · 功能码 {function} · 地址 {address} · 数量 {count} · 超时 {timeout} ms',
+  'Read timeout: {transport} {endpoint} · Unit {unit} · FC {function} · Address {address} · Count {count} · Timeout {timeout} ms · {total} timeout(s) since previous log; latest request shown': '读取超时：{transport} {endpoint} · 站号 {unit} · 功能码 {function} · 地址 {address} · 数量 {count} · 超时 {timeout} ms · 本次汇总 {total} 次超时，显示最近一次请求',
   'Row actions': '行操作',
   'Data type': '数据类型',
   'Engineering value': '工程值',

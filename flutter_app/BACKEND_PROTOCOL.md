@@ -6,13 +6,16 @@ there is no desktop pipe protocol or Python child. The internal names
 fake transports in widget tests. Each request has a `command`; each service reply
 has `ok`, `connected`, and either `result` or `error` (`type`, `message`, optional
 Modbus `exception_code`). Calls validate ranges before bus I/O.
+Read timeout errors also carry `read_timeout` with `transport`, `endpoint`, `unit`,
+`function`, `address`, `count` and `timeout_ms` for the actual failed request.
+The bridge preserves this context for activity log formatting and rate limiting.
 
 Responses also contain `traffic` (up to 256 captured master TX/RX chunks from the
 request) and cumulative `statistics`. Each frame has `direction`, ISO `time`,
 original byte `length` and uppercase space-separated `hex` (at most 4096 bytes).
 Statistics include `tx_bytes`, `rx_bytes`, `operations`, `errors`, `average_ms`.
 An operation is a service request that exchanged master traffic, including failed
-requests; grouped reads count as one operation. Flutter retains the latest 500
+requests; grouped reads count as one operation. Flutter retains the latest 10,000
 chunks. Display pause/filtering never pauses capture or bus I/O.
 
 ```json
