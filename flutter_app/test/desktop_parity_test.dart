@@ -325,7 +325,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('map-value-0')),
-        matching: find.byType(DropdownButton<int>),
+        matching: find.text('—'),
       ),
       findsOneWidget,
     );

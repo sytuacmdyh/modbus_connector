@@ -312,8 +312,16 @@ Json render(Json r, List<dynamic> raw) {
           if (v & (1 << i) != 0) names['$i'] ?? 'b$i',
       ];
       display = labels.isEmpty ? grouped : '${labels.join(', ')} ($grouped)';
-    } else if (names.containsKey('${values[0]}')) {
-      display = '${names['${values[0]}']} (${values[0]})';
+    } else {
+      // Signed names describe the decoded word before scale/offset. Keep
+      // accepting unsigned raw keys from older templates as a fallback.
+      final namedValue = fmt == 's16' && values[0] >= 32768
+          ? values[0] - 65536
+          : values[0];
+      final key = names.containsKey('$namedValue')
+          ? '$namedValue'
+          : '${values[0]}';
+      if (names.containsKey(key)) display = '${names[key]} ($key)';
     }
   }
   return {

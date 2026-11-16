@@ -171,6 +171,11 @@ Enable polling / Disable polling buttons to change polling for the selected rows
 disabled rows show a pause marker beside their names. Existing polling flags are
 preserved when opening an older workspace; its removed polling column is ignored.
 
+The Engineering value column always shows the formatted read result, including
+the configured data type, byte order, scaling and value/bit names. Unread rows show
+an em dash. Click a writable value to open its numeric, enum or bit editor; enum
+choices write raw values without applying engineering scaling.
+
 Template/register rows can set `writable: false` for device fields that are read
 through FC03 but cannot be written. Their area remains `holding_registers`.
 The row editor's **Allow writes** checkbox is editable while disconnected;

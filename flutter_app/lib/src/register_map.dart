@@ -490,9 +490,6 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
     }
   }
 
-  Future<void> writeRaw(int i, List<dynamic> values) =>
-      model.writeRow(i, values: values);
-
   Future<void> write(int i, {bool bits = false}) async {
     if (!model.canWrite) return;
     final row = model.rows[i];
@@ -1311,34 +1308,24 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
                   child: InkWell(
                     onTap: writable && model.canWrite ? () => write(i) : null,
                     child: SizedBox.expand(
-                      child: hasInlineEnum(row)
-                          ? DropdownButtonHideUnderline(
-                              child: inlineEnumEditor(
-                                row,
-                                result?['values'] as List? ?? [],
-                                writable && model.canWrite
-                                    ? (v) => writeRaw(i, [v])
-                                    : null,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Flexible(child: cell),
+                          if (hasUnit) ...[
+                            const SizedBox(width: 6),
+                            Text(
+                              unit,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                               ),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Flexible(child: cell),
-                                if (hasUnit) ...[
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    unit,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ],
                             ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 )

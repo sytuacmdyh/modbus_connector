@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:modbus_desktop/src/bridge_client.dart';
+import 'package:modbus_desktop/src/backend/registers.dart' as registers;
 import 'package:modbus_desktop/src/desktop_table.dart';
 import 'package:modbus_desktop/src/register_map.dart';
 import 'package:modbus_desktop/src/session_controller.dart';
@@ -51,6 +52,42 @@ class ExpressionMapBridge extends MapBridge {
 }
 
 void main() {
+  testWidgets('engineering cells display decoded values for enum rows', (
+    tester,
+  ) async {
+    final session = SessionController(MapBridge());
+    final row = registers.row({
+      'name': '吸气温度',
+      'address': 721,
+      'format': 's16',
+      'scale': 0.1,
+      'unit': '℃',
+      'value_names': {'-32768': '异常（0x8000）'},
+      'writable': false,
+    });
+    session.registers.add(row);
+    session.registerResults.add(registers.render(row, [253]));
+    await tester.pumpWidget(
+      MaterialApp(home: RegisterMapDialog(session: session)),
+    );
+    final cell = find.byKey(const ValueKey('map-value-0'));
+    expect(find.descendant(of: cell, matching: find.text('25.3')), findsOneWidget);
+    expect(find.descendant(of: cell, matching: find.text('℃')), findsOneWidget);
+    expect(
+      find.descendant(of: cell, matching: find.byType(DropdownButton<int>)),
+      findsNothing,
+    );
+    session.registerMap.changed();
+    await tester.pump();
+    expect(find.descendant(of: cell, matching: find.text('—')), findsOneWidget);
+    expect(
+      find.descendant(of: cell, matching: find.text('Set value')),
+      findsNothing,
+    );
+    await tester.pumpWidget(const SizedBox());
+    session.dispose();
+  });
+
   testWidgets(
     'runtime flags preserve active reads and update subsequent polls',
     (tester) async {
@@ -230,17 +267,17 @@ void main() {
         expect(button.onPressed, isNull);
       }
     }
-    expect(
-      tester
-          .widget<DropdownButton<int>>(
-            find.descendant(
-              of: find.byKey(const ValueKey('map-value-1')),
-              matching: find.byType(DropdownButton<int>),
-            ),
-          )
-          .onChanged,
-      isNull,
-    );
+    for (var i = 0; i < 3; i++) {
+      final valueCell = find.byKey(ValueKey('map-value-$i'));
+      expect(
+        tester
+            .widget<InkWell>(
+              find.descendant(of: valueCell, matching: find.byType(InkWell)),
+            )
+            .onTap,
+        isNull,
+      );
+    }
     await tester.tap(find.text('readonly 0'), buttons: kSecondaryMouseButton);
     await tester.pumpAndSettle();
     for (final label in [
@@ -624,7 +661,7 @@ void main() {
   });
 
   testWidgets(
-    'inline enum writes raw values without applying engineering scale',
+    'engineering cell opens enum choices and writes raw values without scaling',
     (tester) async {
       final bridge = MapBridge();
       final session = SessionController(bridge);
@@ -641,15 +678,16 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(home: RegisterMapDialog(session: session)),
       );
-      final enumEditor = find.descendant(
-        of: find.byKey(const ValueKey('map-value-0')),
-        matching: find.byType(DropdownButton<int>),
+      final valueCell = find.byKey(const ValueKey('map-value-0'));
+      expect(
+        find.descendant(of: valueCell, matching: find.text('—')),
+        findsOneWidget,
       );
-      await tester.ensureVisible(enumEditor);
+      await tester.ensureVisible(valueCell);
       await tester.pumpAndSettle();
-      await tester.tap(enumEditor);
+      await tester.tap(valueCell);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('1 = On').last);
+      await tester.tap(find.text('1 = On'));
       await tester.pumpAndSettle();
       expect(
         bridge.calls.firstWhere((c) => c['command'] == 'write_row')['values'],
