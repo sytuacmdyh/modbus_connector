@@ -24,8 +24,16 @@ class NativeService {
       devices = NativeDevices(),
       logger = NativeLogger();
   final traffic = <Json>[];
+  void Function(List<Json> frames, Json statistics)? onTraffic;
   int txBytes = 0, rxBytes = 0, operations = 0, errors = 0;
   double totalMs = 0;
+  Json get statistics => {
+    'tx_bytes': txBytes,
+    'rx_bytes': rxBytes,
+    'operations': operations,
+    'errors': errors,
+    'average_ms': operations == 0 ? 0 : totalMs / operations,
+  };
   ModbusServer? demo;
   DataStore? demoStore;
   final demoClock = Stopwatch();
@@ -37,12 +45,15 @@ class NativeService {
       rxBytes += packet.length;
     }
     if (traffic.length >= 256) traffic.removeAt(0);
-    traffic.add({
+    final frame = <String, dynamic>{
       'direction': direction,
       'hex': hexBytes(packet.take(4096).toList()),
       'length': packet.length,
       'time': DateTime.now().toIso8601String(),
-    });
+    };
+    traffic.add(frame);
+    // Stream independently of command completion, including late/idle RX.
+    onTraffic?.call([frame], statistics);
   }
 
   void advanceDemo() {
@@ -127,14 +138,10 @@ class NativeService {
     return {
       ...response,
       'connected': connected,
-      'traffic': List<Json>.from(traffic),
-      'statistics': {
-        'tx_bytes': txBytes,
-        'rx_bytes': rxBytes,
-        'operations': operations,
-        'errors': errors,
-        'average_ms': operations == 0 ? 0 : totalMs / operations,
-      },
+      // Direct-service consumers can use the bounded reply snapshot. Streaming
+      // consumers already received every chunk, so do not send them twice.
+      'traffic': onTraffic == null ? List<Json>.from(traffic) : const <Json>[],
+      'statistics': statistics,
     };
   }
 

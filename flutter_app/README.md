@@ -134,10 +134,21 @@ Desktop file operations use native choosers with editable-path fallback on
 unsupported hosts. The master map fills the height below a compact connection
 summary. Connection settings opens a dialog for transport, serial/network parameters,
 unit and timeout; Apply validates and saves, Cancel discards edits. Connect uses the
-saved parameters and opens settings when required values are missing. Activity lives
-in a collapsible bottom console, initially folded on shorter windows. The status
+saved parameters and opens settings when required values are missing. The collapsible
+bottom console groups Activity (first, selected by default) and Bus traffic (second)
+in tabs, initially folded on shorter windows. Switching tabs keeps the map viewport
+unchanged and preserves each tab’s filters and the traffic display pause. Bus traffic
+provides TX/RX and hex filtering, pause/resume, copy, export, clear and bus statistics;
+capture continues while either tab is hidden, retaining the latest 10,000 chunks.
+TX/RX chunks stream immediately from the backend, including while waiting for
+responses or timeouts. Flutter coalesces painting on render frames without waiting
+for command completion. Traffic refreshes independently of register-map cycle publication and follows the
+latest frames when at the bottom; scrolling back preserves the history position.
+Traffic tools and filters occupy one compact row at the right of the console title.
+Drag the divider above the console to resize it; tabs and collapse/expand preserve
+the chosen height for this window, with bounds that leave map space available. The status
 strip shows live connection/polling state and bus counters without resizing when
-values change. Session tools contains traffic, logging, scanning, diagnostics and appearance.
+values change. Session tools contains logging, scanning, diagnostics and appearance.
 Read/Poll map, interval, Add row and filtering remain visible. More tools expands
 grouping, graphs, expressions, CSV and snapshots. Selected-row actions appear in a
 floating bottom bar, with room to scroll the last row clear of it; the table viewport
@@ -198,7 +209,7 @@ preferences. Scanner results restore with the workspace. Graphs export PNG and C
 hover selects the nearest timestamp and click pins the cursor. Graph selection,
 normalization and time window persist. Open separate window creates an owned
 native graph viewer without another bus connection; closing the session closes
-its viewers. The master toolbar opens raw TX/RX traffic with direction/hex
+its viewers. The bottom Bus traffic tab displays raw TX/RX traffic with direction/hex
 filters, display pause, copy/export and cumulative communication statistics.
 Map context actions provide raw zero/one/increment/decrement/toggle and trend
 controls; Ctrl+C copies display, Ctrl+0/1/+/−/T performs the corresponding raw

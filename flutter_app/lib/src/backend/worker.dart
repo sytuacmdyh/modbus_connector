@@ -17,6 +17,11 @@ void nativeWorker(List<dynamic> arguments) {
         ? null
         : NativeCatalog(directory: Directory(directory)),
   );
+  service.onTraffic = (frames, statistics) => output.send({
+    'event': 'traffic',
+    'traffic': frames,
+    'statistics': statistics,
+  });
   final input = ReceivePort();
   var tail = Future<void>.value();
   int? activeId;

@@ -35,7 +35,9 @@ abstract class BridgeTransport {
 /// An owned Dart isolate keeps communication independent of Flutter rendering.
 /// Tests may inject a local service to inspect state without crossing isolates.
 class NativeBridge extends BridgeTransport {
-  NativeBridge({NativeService? service, this.directory}) : _local = service;
+  NativeBridge({NativeService? service, this.directory}) : _local = service {
+    _local?.onTraffic = _deliverTraffic;
+  }
   final NativeService? _local;
   final String? directory;
   NativeService get service =>
@@ -50,6 +52,13 @@ class NativeBridge extends BridgeTransport {
   Future<void>? _closeTask;
   int _nextRequestId = 0;
   int? _activeReadId, _cancelledReadId;
+
+  void _deliverTraffic(
+    List<Map<String, dynamic>> frames,
+    Map<String, dynamic> statistics,
+  ) {
+    if (!_closing && !_dead) onTraffic?.call(frames, statistics);
+  }
 
   @override
   void cancelPendingRead() {
@@ -89,6 +98,11 @@ class NativeBridge extends BridgeTransport {
       } else if (message is Map && message['closed'] == true) {
         _dead = true;
         if (_closed != null && !_closed!.isCompleted) _closed!.complete();
+      } else if (message is Map && message['event'] == 'traffic') {
+        _deliverTraffic(
+          (message['traffic'] as List).cast<Map<String, dynamic>>(),
+          Map<String, dynamic>.from(message['statistics'] as Map),
+        );
       } else if (_response != null && !_response!.isCompleted) {
         _response!.complete(Map<String, dynamic>.from(message as Map));
       }
@@ -157,8 +171,10 @@ class NativeBridge extends BridgeTransport {
         if (identical(_response, waiting)) _response = null;
       }
     }
-    onTraffic?.call(
-      (response['traffic'] as List).cast<Map<String, dynamic>>(),
+    // Frames have already arrived on the independent event channel. Only
+    // operations/errors/average require the completed command's statistics.
+    _deliverTraffic(
+      const [],
       Map<String, dynamic>.from(response['statistics'] as Map),
     );
     if (response['ok'] != true) {
@@ -197,6 +213,7 @@ class NativeBridge extends BridgeTransport {
     }
     if (_local != null) {
       await _local.close();
+      _local.onTraffic = null;
     } else if (_commands != null && !_dead) {
       _closed = Completer<void>();
       _commands!.send({'command': '_close_worker'});

@@ -277,7 +277,7 @@ void main() {
       await tester.tap(find.byTooltip('Clear log'));
       await tester.pumpAndSettle();
       expect(session.logs, isEmpty);
-      await tester.tap(find.byTooltip('Hide activity'));
+      await tester.tap(find.byTooltip('Hide console'));
       await tester.pumpAndSettle();
       expect(find.text('Activity'), findsOneWidget);
       expect(find.byKey(const ValueKey('activity-list')), findsNothing);
@@ -286,7 +286,7 @@ void main() {
         tester.getSize(find.byType(RegisterMapPanel)).height,
         greaterThan(map.height),
       );
-      await tester.tap(find.byTooltip('Show activity'));
+      await tester.tap(find.byTooltip('Show console'));
       await tester.pumpAndSettle();
       expect(find.text('Activity'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -330,7 +330,7 @@ void main() {
         tester.getSize(find.byType(DesktopTable)).height,
         greaterThan(120),
       );
-      await tester.tap(find.byTooltip('Show activity'));
+      await tester.tap(find.byTooltip('Show console'));
       await tester.pumpAndSettle();
       expect(find.text('Activity'), findsOneWidget);
       expect(find.byType(Drawer), findsNothing);
@@ -338,7 +338,7 @@ void main() {
         tester.getRect(find.byKey(const ValueKey('activity-console'))).top,
         greaterThan(tester.getRect(find.byType(DesktopTable)).bottom - 1),
       );
-      await tester.tap(find.byTooltip('Hide activity'));
+      await tester.tap(find.byTooltip('Hide console'));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Dismiss error'));
       await tester.pumpAndSettle();

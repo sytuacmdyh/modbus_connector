@@ -10,8 +10,17 @@ Read timeout errors also carry `read_timeout` with `transport`, `endpoint`, `uni
 `function`, `address`, `count` and `timeout_ms` for the actual failed request.
 The bridge preserves this context for activity log formatting and rate limiting.
 
-Responses also contain `traffic` (up to 256 captured master TX/RX chunks from the
-request) and cumulative `statistics`. Each frame has `direction`, ISO `time`,
+The desktop worker pushes independent `{event: "traffic", traffic: [...],
+statistics: {...}}` messages as master TX/RX chunks are captured, including while
+a command is waiting for a response and for late/unsolicited RX between commands.
+The bridge routes these messages separately from command replies; completing a
+command updates the final statistics without replaying the captured chunks.
+The active traffic view repaints on Flutter frames, with no polling timer or
+command-completion delay. Hidden views and display pause do not stop capture.
+
+Without a stream subscriber, service responses retain `traffic` (up to 256 captured master TX/RX
+chunks from the request) and cumulative `statistics` for direct-service consumers.
+That snapshot limit does not limit desktop streaming. Each frame has `direction`, ISO `time`,
 original byte `length` and uppercase space-separated `hex` (at most 4096 bytes).
 Statistics include `tx_bytes`, `rx_bytes`, `operations`, `errors`, `average_ms`.
 An operation is a service request that exchanged master traffic, including failed

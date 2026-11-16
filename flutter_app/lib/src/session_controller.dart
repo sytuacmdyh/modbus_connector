@@ -50,6 +50,7 @@ class SessionController extends ChangeNotifier {
         traffic.removeFirst();
       }
       busStatistics = statistics;
+      trafficUpdates.notifyListeners();
     };
     bridge.onDiagnostic = (line) {
       if (_disposed) return;
@@ -69,7 +70,13 @@ class SessionController extends ChangeNotifier {
   final DateTime Function() _clock;
   final BridgeTransport bridge;
   final Queue<Map<String, dynamic>> traffic = Queue();
+  final ChangeNotifier trafficUpdates = ChangeNotifier();
   Map<String, dynamic> busStatistics = {};
+  void clearTraffic() {
+    traffic.clear();
+    trafficUpdates.notifyListeners();
+  }
+
   final List<Future<void> Function()> shutdownHooks = [];
   late final RegisterMapController registerMap;
   Map<String, dynamic> connectionConfig = {};
@@ -669,6 +676,7 @@ class SessionController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    trafficUpdates.dispose();
     registerMap.dispose();
     _cancelLogger();
     bridge.onDiagnostic = null;
