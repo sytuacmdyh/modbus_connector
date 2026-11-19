@@ -22,6 +22,20 @@ def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def overview_summary(data: dict[str, Any]) -> dict[str, Any]:
+    """Summarize already validated data; absence and intentional emptiness differ."""
+    draft = {**data.get("draft", {}),
+             **data.get("registers_options", {}).get("flutter", {}).get("draft", {})}
+    blocks = draft.get("map_overview", {}).get("blocks", [])
+    items = [item for block in blocks for item in block["items"]]
+    active_items = sum(len(block["items"]) for block in blocks if block.get("enabled", True))
+    return {"status": "missing" if "map_overview" not in draft else
+            "configured" if active_items else "empty",
+            "blocks": len(blocks), "items": len(items), "active_items": active_items,
+            "color_rules": sum(len(item.get("rules", [])) for item in items),
+            "legacy_references": sum("row" in item for item in items)}
+
+
 def validate_presentation(data: dict[str, Any]) -> list[str]:
     """Validate optional overview data without rewriting it or requiring row defaults."""
     errors: list[str] = []

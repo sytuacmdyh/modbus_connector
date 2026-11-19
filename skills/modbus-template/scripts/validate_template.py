@@ -9,6 +9,7 @@ from typing import Any
 
 _presentation = runpy.run_path(str(Path(__file__).with_name("template_presentation.py")))
 validate_presentation = _presentation["validate_presentation"]
+overview_summary = _presentation["overview_summary"]
 unique_object = _presentation["unique_object"]
 
 KINDS = {"coils", "discrete_inputs", "holding_registers", "input_registers"}
@@ -36,7 +37,7 @@ def canonical_format(value: Any) -> Any:
     return "u16" if value == "dec" else value
 
 
-def validate(data: Any) -> list[str]:
+def validate(data: Any, *, require_overview: bool = False) -> list[str]:
     errors: list[str] = []
 
     def check(ok: bool, message: str) -> None:
@@ -139,17 +140,27 @@ def validate(data: Any) -> list[str]:
         if names or row.get("bitmask") is True:
             check(count == 1 and fmt in ("u16", "s16", "hex"),
                   f"{label}: annotations require a single u16/s16/hex value")
-    return [*errors, *validate_presentation(data)]
+    errors.extend(validate_presentation(data))
+    if require_overview and not errors:
+        summary = overview_summary(data)
+        check(summary["status"] == "configured",
+              "overview requires at least one enabled, non-empty block")
+        check(summary["legacy_references"] == 0,
+              "overview requires stable row_id references instead of legacy row indices")
+    return errors
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--require-overview", action="store_true",
+                        help="Require active overview blocks and stable row_id references")
     parser.add_argument("files", type=Path, nargs="+")
+    args = parser.parse_args()
     failed = False
-    for path in parser.parse_args().files:
+    for path in args.files:
         try:
             data = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_object)
-            errors = validate(data)
+            errors = validate(data, require_overview=args.require_overview)
         except (OSError, ValueError) as exc:
             errors = [str(exc)]
         failed |= bool(errors)

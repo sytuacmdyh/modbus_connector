@@ -218,6 +218,11 @@ def test_overview_only_update_preserves_full_json_history_and_other_templates(tm
     before = len(dav_server.requests)
     preview = uploader.upload(client, selected, publish=False)
     assert preview["actions"] == {resource: "replace"}
+    assert preview["warnings"] == {}
+    assert preview["overview"][resource] == {
+        "status": "configured", "blocks": 2, "items": 2, "active_items": 2,
+        "color_rules": 2, "legacy_references": 0,
+    }
     assert all(method == "GET" for method, _ in dav_server.requests[before:])
     result = uploader.upload(client, selected, publish=True)
     assert result["published"] and result["verified"]
@@ -231,3 +236,39 @@ def test_overview_only_update_preserves_full_json_history_and_other_templates(tm
     before = len(dav_server.requests)
     assert not uploader.upload(client, selected, publish=True)["published"]
     assert all(method == "GET" for method, _ in dav_server.requests[before:])
+
+
+@pytest.mark.parametrize("draft, status, warning", [
+    ({}, "missing", "缺少概览"),
+    ({"map_overview": {"blocks": []}}, "empty", "没有启用"),
+    ({"map_overview": {"blocks": [
+        {"name": "温度", "enabled": False, "items": [{"row_id": "temperature"}]},
+    ]}}, "empty", "没有启用"),
+    ({"map_overview": {"blocks": [
+        {"name": "温度", "items": [{"row": 0}]},
+    ]}}, "configured", "旧式行下标"),
+])
+def test_preview_reports_incomplete_overview_without_rewriting(dav_server, draft, status, warning):
+    data = presentation_template()
+    data["draft"] = draft
+    selected = {"厂家/设备.json": data}
+    original = copy.deepcopy(selected)
+    result = uploader.upload(WebDavClient(dav_server.settings), selected, publish=False)
+    assert result["overview"]["厂家/设备.json"]["status"] == status
+    assert any(warning in message for message in result["warnings"]["厂家/设备.json"])
+    assert selected == original
+    assert not result["published"]
+    assert all(method in ("GET", "PROPFIND") for method, _ in dav_server.requests)
+
+
+def test_preview_respects_legacy_override_and_does_not_demand_color_thresholds(dav_server):
+    data = presentation_template()
+    data["draft"] = {"map_overview": {"blocks": []}}
+    data["registers_options"] = {"flutter": {"draft": {"map_overview": {"blocks": [
+        {"name": "温度", "items": [{"row_id": "temperature", "rules": []}]},
+    ]}}}}
+    result = uploader.upload(WebDavClient(dav_server.settings), {"厂家/设备.json": data},
+                             publish=False)
+    assert result["warnings"] == {}
+    assert result["overview"]["厂家/设备.json"]["status"] == "configured"
+    assert result["overview"]["厂家/设备.json"]["color_rules"] == 0

@@ -16,6 +16,7 @@ from modbus_connector.cloud_sync import CloudSyncError, WebDavClient, WebDavSett
 
 _presentation = runpy.run_path(str(Path(__file__).with_name("template_presentation.py")))
 validate_presentation = _presentation["validate_presentation"]
+overview_summary = _presentation["overview_summary"]
 unique_object = _presentation["unique_object"]
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
@@ -132,6 +133,18 @@ def remote_templates(client: WebDavClient) -> dict[str, Any]:
 
 def upload(client: WebDavClient, selected: dict[str, Any], *, publish: bool) -> dict[str, Any]:
     validate_selected(selected)
+    overview = {key: overview_summary(template) for key, template in selected.items()}
+    warnings = {}
+    for key, summary in overview.items():
+        notes = []
+        if summary["status"] == "missing":
+            notes.append("缺少概览配置：左侧将显示默认通用区块，尚未适配功能分组。")
+        elif summary["status"] == "empty":
+            notes.append("概览配置为空或没有启用的内容：左侧不会显示寄存器值。")
+        if summary["legacy_references"]:
+            notes.append("概览使用旧式行下标引用；增删、重排行序需维护引用，建议使用稳定 row_id。")
+        if notes:
+            warnings[key] = notes
     remote = remote_templates(client)
     actions = {key: ("unchanged" if remote.get(key) == value else
                      "replace" if key in remote else "add") for key, value in selected.items()}
@@ -139,7 +152,7 @@ def upload(client: WebDavClient, selected: dict[str, Any], *, publish: bool) -> 
     WebDavClient._validate_templates(merged)
     client._json_bytes({"schema": 1, "version": client._version(), "templates": merged})
     result: dict[str, Any] = {"actions": actions, "total_templates": len(merged),
-                              "published": False}
+                              "published": False, "overview": overview, "warnings": warnings}
     if publish and any(action != "unchanged" for action in actions.values()):
         version = client.publish_templates(merged)
         raw = client._request("GET", f"{client.settings.templates_path}/.catalog.json")

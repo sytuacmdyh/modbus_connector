@@ -79,7 +79,7 @@ def test_example_matches_application_loaders():
     example = reference.split("```json\n", 1)[1].split("```", 1)[0]
     state = parse_template(example)
     assert state is not None
-    assert not validator.validate(state)
+    assert not validator.validate(state, require_overview=True)
     loaded = flutter_state(state)
     assert len(loaded["registers"]) == 3
     assert loaded["registers"][0]["scale"] == 0.1
@@ -99,7 +99,7 @@ def test_installed_validator_checks_overview_without_application(tmp_path):
     ]}}
     path = tmp_path / "overview.json"
     path.write_text(json.dumps(data), encoding="utf-8-sig")
-    command = [sys.executable, "-I", str(installed / SCRIPT.name), str(path)]
+    command = [sys.executable, "-I", str(installed / SCRIPT.name), "--require-overview", str(path)]
     rejected = subprocess.run(command, cwd=tmp_path, capture_output=True, text=True)
     assert rejected.returncode == 1
     assert "existing overview_id" in rejected.stdout
@@ -107,6 +107,30 @@ def test_installed_validator_checks_overview_without_application(tmp_path):
     path.write_text(json.dumps(data), encoding="utf-8-sig")
     accepted = subprocess.run(command, cwd=tmp_path, capture_output=True, text=True)
     assert accepted.returncode == 0, accepted.stderr + accepted.stdout
+    del data["draft"]["map_overview"]
+    path.write_text(json.dumps(data), encoding="utf-8")
+    missing = subprocess.run(command, cwd=tmp_path, capture_output=True, text=True)
+    assert missing.returncode == 1
+    assert "enabled, non-empty block" in missing.stdout
+
+
+@pytest.mark.parametrize("overview", [None, {"blocks": []}, {"blocks": [
+    {"name": "温度", "enabled": False, "items": [{"row_id": "temperature"}]},
+]}, {"blocks": [{"name": "温度", "items": [{"row": 0}]}]}])
+def test_generation_requires_active_overview_and_stable_references(overview):
+    data = template(overview_id="temperature")
+    if overview is not None:
+        data["draft"] = {"map_overview": overview}
+    assert validator.validate(data) == []  # Existing templates remain compatible.
+    assert validator.validate(data, require_overview=True)
+
+
+def test_generation_accepts_legacy_extension_with_stable_refs_without_invented_colors():
+    data = template(overview_id="temperature")
+    data["registers_options"] = {"flutter": {"draft": {"map_overview": {"blocks": [
+        {"name": "温度", "items": [{"row_id": "temperature"}]},
+    ]}}}}
+    assert validator.validate(data, require_overview=True) == []
 
 
 def test_bundled_public_templates_not_shipped():
