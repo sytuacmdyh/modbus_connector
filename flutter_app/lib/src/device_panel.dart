@@ -7,7 +7,8 @@ import 'file_paths.dart';
 import 'translations.dart';
 
 import 'dart:async';
-import 'dart:io';
+
+import 'document_file.dart';
 
 import 'package:flutter/material.dart';
 
@@ -436,7 +437,7 @@ class _DevicePanelState extends State<DevicePanel> {
 
   Future<void> templates() async {
     final service = SessionController(
-      (widget.utilityBridgeFactory ?? NativeBridge.new)(),
+      (widget.utilityBridgeFactory ?? createBridge)(),
     );
     List<Map<String, dynamic>>? incoming;
     try {
@@ -727,7 +728,8 @@ class _DevicePanelState extends State<DevicePanel> {
         'include_values': true,
       });
       if (result != null) {
-        await File(path).writeAsString(result['text'] as String, flush: true);
+        await DocumentFile(path)
+            .writeAsString(result['text'] as String, flush: true);
       }
     } catch (e) {
       if (mounted) setState(() => localError = userError(e));

@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'catalog.dart';
 import '../diagnostics.dart';
 import 'service.dart';
+import 'files.dart';
 
 // Pure Dart worker: native ports, protocol timers and servers never share the
 // Flutter UI event loop. It runs inside the app process, without an interpreter.
@@ -13,6 +14,9 @@ void nativeWorker(List<dynamic> arguments) {
   final directory = arguments[1] as String?;
   Diagnostics.initialize(role: 'worker', directory: directory);
   final service = NativeService(
+    logger: NativeLogger(
+      maxBytes: arguments.length > 2 ? arguments[2] as int? : null,
+    ),
     catalog: directory == null
         ? null
         : NativeCatalog(directory: Directory(directory)),

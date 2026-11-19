@@ -187,7 +187,7 @@ class _OverviewValue extends StatelessWidget {
               : colors.error
         : colors.primary;
     final name = tr('${item['label'] ?? row['name'] ?? ''}');
-    final text = valid ? '${result['display'] ?? '—'}' : '—';
+    final text = valid ? registers.displayValue(result) : '—';
     final unit = '${row['unit'] ?? ''}';
     final hasUnit = unit.isNotEmpty && text.endsWith(' $unit');
     final value = hasUnit

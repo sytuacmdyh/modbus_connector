@@ -2,7 +2,8 @@ import 'file_paths.dart';
 import 'desktop_table.dart';
 import 'translations.dart';
 
-import 'dart:io';
+import 'document_file.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -191,7 +192,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
     if (action == 'copy') {
       if (i < model.results.length) {
         Clipboard.setData(
-          ClipboardData(text: '${model.results[i]['display'] ?? ''}'),
+          ClipboardData(text: displayValue(model.results[i])),
         );
       }
     } else {
@@ -418,7 +419,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
     );
     if (path == null || path.isEmpty || !mounted) return;
     try {
-      final content = await File(path).readAsString();
+      final content = await DocumentFile(path).readAsString();
       final preview = await widget.session.command({
         'command': 'csv_parse',
         'text': content,
@@ -509,7 +510,8 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
         'columns': [...csvColumns, 'value'].where(columns.contains).toList(),
       });
       if (result == null) return;
-      await File(path).writeAsString(result['text'] as String, flush: true);
+      await DocumentFile(path)
+          .writeAsString(result['text'] as String, flush: true);
       if (mounted) setState(() => message = 'Saved $path');
     } catch (e) {
       if (mounted) setState(() => message = userError(e));
@@ -563,12 +565,12 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
     if (path == null || path.isEmpty) return;
     try {
       if (save) {
-        await File(path).writeAsString(
+        await DocumentFile(path).writeAsString(
           jsonEncode({'schema': 1, 'snapshots': widget.session.snapshots}),
           flush: true,
         );
       } else {
-        final data = jsonDecode(await File(path).readAsString());
+        final data = jsonDecode(await DocumentFile(path).readAsString());
         if (data is! Map || data['schema'] != 1 || data['snapshots'] is! Map) {
           throw const FormatException('Invalid snapshots file');
         }
@@ -1316,7 +1318,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
             );
           }
           final text = key == 'value'
-              ? (result?['display'] ?? '—')
+              ? (result == null ? '—' : displayValue(result))
               : key == 'raw'
               ? ((result?['values'] as List?)
                         ?.map(

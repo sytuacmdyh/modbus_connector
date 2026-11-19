@@ -1,6 +1,6 @@
+import 'package:modbus_desktop/src/backend/serial_channel_native.dart';
 import 'package:flutter_libserialport/flutter_libserialport.dart';
 import 'package:test/test.dart';
-import 'package:modbus_desktop/src/backend/wire.dart';
 
 class Config implements SerialPortConfig {
   int frees = 0;

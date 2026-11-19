@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'expression.dart';
+import 'wide_integer.dart';
 
 typedef Json = Map<String, dynamic>;
 const kinds = [
@@ -139,7 +140,7 @@ List<num> decode(List<dynamic> raw, String fmt, [String order = 'ABCD']) {
       'u32' => b.getUint32(0),
       's32' => b.getInt32(0),
       'u64' => bytesToUnsigned(b.buffer.asUint8List()),
-      's64' => b.getInt64(0),
+      's64' => wideFromBytes(b.buffer.asUint8List(), signed: true).toInt(),
       'f32' => b.getFloat32(0),
       'f64' => b.getFloat64(0),
       _ => throw const FormatException('Not a numeric format'),
@@ -191,7 +192,7 @@ num bytesToUnsigned(Uint8List bytes) {
   for (final b in bytes) {
     n = (n << 8) | BigInt.from(b);
   }
-  return n <= BigInt.from(0x7fffffffffffffff) ? n.toInt() : n.toDouble();
+  return n <= ((BigInt.one << 63) - BigInt.one) ? n.toInt() : n.toDouble();
 }
 
 String numberText(num value, [int precision = 6]) {
@@ -203,7 +204,7 @@ String numberText(num value, [int precision = 6]) {
         : 'inf';
   }
   if (value == 0) return value.isNegative ? '-0' : '0';
-  var exponent = (math.log(value.abs()) / math.ln10).floor();
+  var exponent = (math.log(value.toDouble().abs()) / math.ln10).floor();
   var scale = math.pow(10, precision - 1 - exponent).toDouble();
   var rounded = value.toDouble();
   if (scale.isFinite && scale != 0 && (rounded * scale).abs() < 9e15) {
@@ -293,11 +294,36 @@ Json render(Json r, List<dynamic> raw) {
   } else {
     final nums = decode(raw, fmt, r['order']);
     final scaled = nums
-        .map((v) => v * (r['scale'] as num) + (r['offset'] as num))
+        .map(
+          (v) =>
+              (fmt == 'u64' || fmt == 's64' ? v.toDouble() : v) *
+                  (r['scale'] as num) +
+              (r['offset'] as num),
+        )
         .toList();
     primary = scaled.first;
     display = scaled.map((v) => numberText(v, 4)).join(', ');
     if (r['unit'] != '') display += ' ${r['unit']}';
+  }
+  String? exactDisplay;
+  if ((fmt == 'u64' || fmt == 's64') && values.length % 4 == 0) {
+    final scale = ExactDecimal.parse('${r['scale']}');
+    final offset = ExactDecimal.parse('${r['offset']}');
+    final texts = <String>[];
+    for (var i = 0; i < values.length; i += 4) {
+      final bytes = [
+        for (final v in values.sublist(i, i + 4)) ...[v >> 8, v & 255],
+      ];
+      final ordered = [
+        for (final j in permutation(r['order'] ?? 'ABCD', 8)) bytes[j],
+      ];
+      final value = wideFromBytes(ordered, signed: fmt == 's64');
+      texts.add(
+        (ExactDecimal(value, BigInt.one) * scale + offset).decimalText(),
+      );
+    }
+    exactDisplay = texts.join(', ');
+    if (r['unit'] != '') exactDisplay += ' ${r['unit']}';
   }
   final names = Map<String, dynamic>.from(r['value_names'] as Map? ?? {});
   if (values.length == 1 && (bit || ['u16', 's16', 'hex'].contains(fmt))) {
@@ -327,6 +353,7 @@ Json render(Json r, List<dynamic> raw) {
   return {
     'values': raw,
     'display': display,
+    'exact_display': ?exactDisplay,
     'numeric': primary?.isFinite == true ? primary : null,
     'alarm': alarm(primary, r['alarms']),
   };
@@ -379,6 +406,21 @@ List<dynamic> encodeValues(Json data) {
     return result;
   }
   if (r['scale'] == 0) throw const FormatException('Cannot invert zero scale');
+  if (fmt == 'u64' || fmt == 's64') {
+    if (tokens.length * 4 != count) {
+      throw FormatException('Enter ${count ~/ 4} values');
+    }
+    final scale = ExactDecimal.parse('${r['scale']}');
+    final offset = ExactDecimal.parse('${r['offset']}');
+    return [
+      for (final token in tokens)
+        ..._encodeWide(
+          ((ExactDecimal.parse(token) - offset) / scale).roundEven(),
+          fmt,
+          r['order'],
+        ),
+    ];
+  }
   final result = [
     for (final t in tokens)
       ...encodeNumber(
@@ -459,3 +501,13 @@ Json _evaluate(Json r, Map<String, num> values) {
     return {'numeric': null, 'display': '—', 'error': '$e', 'alarm': null};
   }
 }
+
+List<int> _encodeWide(BigInt value, String format, String order) {
+  final bytes = wideToBytes(value, signed: format == 's64');
+  final ordered = [for (final i in permutation(order, 8)) bytes[i]];
+  return [for (var i = 0; i < 8; i += 2) (ordered[i] << 8) | ordered[i + 1]];
+}
+
+/// Prefer exact engineering text when a wide integer was rendered.
+String displayValue(Json result) =>
+    '${result['exact_display'] ?? result['display'] ?? '—'}';

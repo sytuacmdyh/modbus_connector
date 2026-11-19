@@ -1,0 +1,288 @@
+import 'dart:convert';
+import 'dart:math' as math;
+
+import 'datastore.dart';
+import 'registers.dart';
+import 'wire.dart';
+
+/// Shared register operations for native and browser sessions.
+class RegisterOperations {
+  RegisterOperations(this.client, {this.beforeRead, this.cancellation});
+  final ModbusClient client;
+  final void Function()? beforeRead;
+  final ReadCancellation? cancellation;
+
+  Future<Json> dispatch(Json d) async {
+    final command = d['command'];
+    if (command == 'write_row') {
+      final r = row(d['row'], bounded(d['unit'] ?? 1, 'unit', 1, 247));
+      if (!rowWritable(r)) {
+        throw const FormatException('Register row is read-only');
+      }
+      final values = d['values'];
+      if (values is! List || values.isEmpty || values.length > r['count']) {
+        throw const FormatException(
+          'Write values exceed the register row range',
+        );
+      }
+      await client.write(r['unit_id'], r['kind'], r['address'], values);
+      return {};
+    }
+    if (['render_rows', 'read_rows', 'plan_reads'].contains(command)) {
+      final raw = d['rows'];
+      if (raw is! List || raw.isEmpty || raw.length > 4096) {
+        throw const FormatException('rows must contain 1..4096 rows');
+      }
+      final unit = bounded(d['unit'] ?? 1, 'unit', 1, 247);
+      final rows = raw.map((r) => row(r, unit)).toList();
+      if (command == 'plan_reads') return {'groups': plan(rows)};
+      if (command == 'render_rows') {
+        return {
+          'rows': [for (final r in rows) render(r, _validated(r))],
+        };
+      }
+      beforeRead?.call();
+      final clock = Stopwatch()..start(),
+          results = List<List<dynamic>>.generate(rows.length, (_) => []);
+      final groups = d['grouped'] == true
+          ? plan(rows)
+          : List.generate(rows.length, (i) => [i]);
+      final cancellation = this.cancellation;
+      for (final group in groups) {
+        cancellation?.check();
+        final first = rows[group[0]];
+        final start = group
+                .map((i) => rows[i]['address'] as int)
+                .reduce(math.min),
+            end = group
+                .map(
+                  (i) =>
+                      (rows[i]['address'] as int) + (rows[i]['count'] as int),
+                )
+                .reduce(math.max);
+        try {
+          final values = await client.read(
+            first['unit_id'],
+            first['kind'],
+            start,
+            end - start,
+            cancellation: cancellation,
+          );
+          for (final i in group) {
+            final offset = (rows[i]['address'] as int) - start;
+            results[i] = values.sublist(
+              offset,
+              offset + (rows[i]['count'] as int),
+            );
+          }
+        } catch (_) {
+          cancellation?.check();
+          if (group.length == 1) rethrow;
+          for (final i in group) {
+            final r = rows[i];
+            results[i] = await client.read(
+              r['unit_id'],
+              r['kind'],
+              r['address'],
+              r['count'],
+              cancellation: cancellation,
+            );
+          }
+        }
+      }
+      return {
+        'rows': [
+          for (var i = 0; i < rows.length; i++) render(rows[i], results[i]),
+        ],
+        'elapsed_ms': clock.elapsedMicroseconds / 1000,
+      };
+    }
+    final unit = bounded(d['unit'] ?? 1, 'unit', 1, 247);
+    if (command == 'mask_write') {
+      final a = bounded(d['address'] ?? 0, 'address', 0, 65535),
+          and = bounded(d['and_mask'] ?? 65535, 'and_mask', 0, 65535),
+          or = bounded(d['or_mask'] ?? 0, 'or_mask', 0, 65535);
+      final p = [22, ...word(a), ...word(and), ...word(or)],
+          r = await client.request(unit, p);
+      if (p.join() != r.join()) {
+        throw const FormatException('Invalid mask write response');
+      }
+      return {};
+    }
+    if (command == 'read_write') {
+      final a = bounded(d['read_address'] ?? 0, 'read_address', 0, 65535),
+          n = bounded(d['read_count'] ?? 1, 'read_count', 1, 125),
+          wa = bounded(d['write_address'] ?? 0, 'write_address', 0, 65535);
+      final values = (d['values'] as List)
+          .map((v) => bounded(v, 'value', 0, 65535))
+          .toList();
+      bounded(values.length, 'count', 1, 121);
+      if (a + n > 65536 || wa + values.length > 65536) {
+        throw const FormatException('Address range exceeds 65535');
+      }
+      final r = await client.request(unit, [
+        23,
+        ...word(a),
+        ...word(n),
+        ...word(wa),
+        ...word(values.length),
+        values.length * 2,
+        for (final v in values) ...word(v),
+      ]);
+      if (r.length != n * 2 + 2 || r[1] != n * 2) {
+        throw const FormatException('Invalid read/write response');
+      }
+      return {'values': List.generate(n, (i) => u16(r, 2 + i * 2))};
+    }
+    if (command == 'diagnostics') {
+      final action = d['action'] ?? 'loopback';
+      if (action == 'loopback') {
+        final value = bounded(d['data'] ?? 0xA5A5, 'data', 0, 65535),
+            r = await client.request(unit, [8, 0, 0, ...word(value)]);
+        return {'loopback': u16(r, 3) == value};
+      }
+      if (action == 'clear') {
+        await client.request(unit, [8, 0, 10, 0, 0]);
+        return {};
+      }
+      if (action == 'counters') {
+        final counters = <String, int>{};
+        for (final entry in const {
+          11: 'bus_message_count',
+          12: 'bus_communication_error_count',
+          13: 'bus_exception_error_count',
+          14: 'slave_message_count',
+          15: 'slave_no_response_count',
+          16: 'slave_nak_count',
+          17: 'slave_busy_count',
+          18: 'bus_character_overrun_count',
+        }.entries) {
+          try {
+            final r = await client.request(unit, [8, ...word(entry.key), 0, 0]);
+            counters[entry.value] = u16(r, 3);
+          } on ModbusError {
+            continue;
+          }
+        }
+        return {'counters': counters};
+      }
+      throw const FormatException('Unknown diagnostic action');
+    }
+    if (command == 'device_id') {
+      final objects = <String, String>{};
+      var next = 0;
+      final seen = <int>{};
+      while (seen.add(next)) {
+        final r = await client.request(unit, [43, 14, 1, next]);
+        if (r.length < 7 || r[1] != 14) {
+          throw const FormatException('Invalid device identification');
+        }
+        var offset = 7;
+        for (var i = 0; i < r[6]; i++) {
+          if (offset + 2 > r.length) {
+            throw const FormatException('Truncated identification');
+          }
+          final id = r[offset], len = r[offset + 1];
+          offset += 2;
+          if (offset + len > r.length) {
+            throw const FormatException('Truncated identification');
+          }
+          objects['$id'] = utf8.decode(
+            r.sublist(offset, offset + len),
+            allowMalformed: true,
+          );
+          offset += len;
+        }
+        if (r[4] == 0) break;
+        next = r[5];
+      }
+      return {'objects': objects};
+    }
+    if (command == 'scan_unit') {
+      final probes = d['probes'];
+      if (probes is! List || probes.isEmpty || probes.length > 32) {
+        throw const FormatException('probes must contain 1..32 probe objects');
+      }
+      final parsed = [for (final p in probes) row(p, unit)];
+      final hits = <int>[];
+      for (var i = 0; i < parsed.length; i++) {
+        final r = parsed[i];
+        try {
+          await client.read(unit, r['kind'], r['address'], r['count']);
+          hits.add(i);
+        } catch (_) {
+          continue;
+        }
+      }
+      return {'unit': unit, 'hits': hits};
+    }
+    final kind = d['kind'] ?? 'holding_registers',
+        address = bounded(d['address'] ?? 0, 'address', 0, 65535);
+    if (!kinds.contains(kind)) {
+      throw const FormatException('Unknown register area');
+    }
+    if (command == 'scan_address') {
+      List<dynamic> values = [];
+      try {
+        values = await client.read(
+          unit,
+          kind,
+          address,
+          bitKind(kind) || address == 65535 ? 1 : 2,
+        );
+      } catch (_) {
+        if (!bitKind(kind)) {
+          try {
+            values = await client.read(unit, kind, address, 1);
+          } catch (_) {}
+        }
+      }
+      return {
+        'address': address,
+        'values': values,
+        'formats': {
+          if (values.isNotEmpty && !bitKind(kind))
+            for (final fmt in [
+              'u16',
+              'hex',
+              's16',
+              'u32',
+              's32',
+              'f32',
+              'ascii',
+            ])
+              fmt: render(
+                row({
+                  'kind': kind,
+                  'address': address,
+                  'count': values.length,
+                  'format': width(fmt) > values.length ? 'u16' : fmt,
+                }),
+                values,
+              )['display'],
+        },
+      };
+    }
+    if (command == 'read') {
+      beforeRead?.call();
+      return {
+        'values': await client.read(
+          unit,
+          kind,
+          address,
+          bounded(d['count'] ?? 1, 'count', 1, bitKind(kind) ? 2000 : 125),
+        ),
+      };
+    }
+    if (command == 'write') {
+      await client.write(unit, kind, address, d['values'] as List);
+      return {};
+    }
+    throw FormatException('Unknown command: $command');
+  }
+
+  List<dynamic> _validated(Json r) {
+    validateRaw(r, r['values']);
+    return r['values'];
+  }
+}

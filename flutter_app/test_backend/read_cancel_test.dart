@@ -1,3 +1,5 @@
+import 'package:modbus_desktop/src/backend/serial_channel_native.dart';
+
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';

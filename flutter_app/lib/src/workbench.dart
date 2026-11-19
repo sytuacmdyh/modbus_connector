@@ -1,7 +1,9 @@
 import 'translations.dart';
 
 import 'dart:async';
-import 'dart:io';
+
+import 'document_file.dart';
+
 import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/material.dart';
@@ -18,6 +20,7 @@ import 'advanced_dialog.dart';
 import 'session_controller.dart';
 import 'traffic_panel.dart';
 import 'serial_ports.dart';
+import 'bridge_transport.dart';
 
 const _consoleHeaderHeight = 40.0;
 
@@ -29,9 +32,11 @@ class Workbench extends StatefulWidget {
     required this.onThemeChanged,
     this.manageLifecycle = true,
     this.onOpenDemo,
+    this.utilityBridgeFactory,
   });
   final bool manageLifecycle;
   final VoidCallback? onOpenDemo;
+  final BridgeTransport Function()? utilityBridgeFactory;
   final SessionController controller;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeChanged;
@@ -226,7 +231,8 @@ class _WorkbenchState extends State<Workbench> {
     bool integer(TextEditingController field, int min, int max) =>
         _integer(field.text, min, max) == null;
     final timeout = double.tryParse(_timeout.text);
-    return integer(_unit, 1, 247) &&
+    return session.bridge.transports.contains(_transport) &&
+        integer(_unit, 1, 247) &&
         timeout != null &&
         timeout >= 0.1 &&
         timeout <= 60 &&
@@ -343,12 +349,17 @@ class _WorkbenchState extends State<Workbench> {
           _dropdown<String>(
             'Transport',
             _transport,
-            const {
-              'rtu': 'Serial RTU',
-              'tcp': 'TCP',
-              'rtu_tcp': 'RTU over TCP',
-              'rtu_udp': 'RTU over UDP',
-              'demo': 'Local demo',
+            {
+              for (final entry in const {
+                'rtu': 'Serial RTU',
+                'tcp': 'TCP',
+                'rtu_tcp': 'RTU over TCP',
+                'rtu_udp': 'RTU over UDP',
+                'demo': 'Local demo',
+              }.entries)
+                if (session.bridge.transports.contains(entry.key) ||
+                    entry.key == _transport)
+                  entry.key: entry.value,
             },
             locked
                 ? null
@@ -742,7 +753,8 @@ class _WorkbenchState extends State<Workbench> {
                             );
                             if (path == null) return;
                             try {
-                              await File(path).writeAsString(text, flush: true);
+                              await DocumentFile(path)
+                                  .writeAsString(text, flush: true);
                             } catch (e) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -959,7 +971,21 @@ class _WorkbenchState extends State<Workbench> {
     listenable: session,
     builder: (context, _) {
       if (session.mode != 'master') {
-        return DevicePanel(key: ValueKey(session.mode), session: session);
+        if (!session.bridge.supportsDeviceModes) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: LText(
+                'This device mode requires the optional Dart service. Its configuration is preserved. Enable the service in Settings or switch to Master mode.',
+              ),
+            ),
+          );
+        }
+        return DevicePanel(
+          key: ValueKey(session.mode),
+          session: session,
+          utilityBridgeFactory: widget.utilityBridgeFactory,
+        );
       }
       final colors = Theme.of(context).colorScheme;
       final connection = Padding(

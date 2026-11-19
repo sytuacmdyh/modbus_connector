@@ -1,10 +1,14 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import 'file_paths.dart';
 import 'tool_widgets.dart';
 import 'translations.dart';
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+
+import 'document_file.dart';
+
 import 'dart:ui' show AppExitResponse, AppExitType;
 
 import 'package:flutter/material.dart';
@@ -18,11 +22,12 @@ import 'templates_dialog.dart';
 import 'help_dialog.dart';
 import 'online_dialogs.dart';
 import 'demo.dart';
-import 'backend/update.dart';
+import 'backend/update.dart'
+    if (dart.library.js_interop) 'backend/update_web.dart';
+import 'remote/configuration.dart';
 
 class WorkspaceController extends ChangeNotifier {
-  WorkspaceController({BridgeTransport Function()? bridgeFactory, this.store})
-    : bridgeFactory = bridgeFactory ?? NativeBridge.new {
+  WorkspaceController({this._bridgeFactory, this.store}) {
     add();
     if (store != null) {
       loading = true;
@@ -38,7 +43,24 @@ class WorkspaceController extends ChangeNotifier {
       });
     }
   }
-  final BridgeTransport Function() bridgeFactory;
+  final BridgeTransport Function()? _bridgeFactory;
+  ServiceConfiguration? serviceConfiguration;
+  BridgeTransport bridgeFactory() =>
+      _bridgeFactory?.call() ??
+      createBridge(configuration: serviceConfiguration);
+
+  Future<void> configureService(ServiceConfiguration? configuration) async {
+    final previous = serviceConfiguration;
+    serviceConfiguration = configuration;
+    try {
+      await load(imported: exportState());
+      if (stateError != null) throw StateError(stateError!);
+    } catch (_) {
+      serviceConfiguration = previous;
+      rethrow;
+    }
+  }
+
   final List<SessionController> sessions = [];
   final List<SessionController> tools = [];
   final SettingsStore? store;
@@ -272,7 +294,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
         return AppExitResponse.exit;
       },
     );
-    if (widget.controller == null) {
+    if (widget.controller == null && !kIsWeb) {
       startupUpdate = Timer(const Duration(seconds: 3), () async {
         while (mounted && workspace.loading) {
           await Future<void>.delayed(const Duration(milliseconds: 100));
@@ -294,7 +316,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
   }
 
   Future<void> updates({bool automatic = false}) async {
-    if (updateDialogOpen || workspace.closing) return;
+    if (kIsWeb || updateDialogOpen || workspace.closing) return;
     updateDialogOpen = true;
     final tool = SessionController(workspace.bridgeFactory());
     workspace.tools.add(tool);
@@ -353,7 +375,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
     } else if (action == 'import_qt') {
       final bridge = workspace.bridgeFactory();
       try {
-        final source = File(path);
+        final source = DocumentFile(path);
         if (await source.length() > 2000000) {
           throw const FormatException('Configuration file is too large');
         }
@@ -370,6 +392,118 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
       }
     } else {
       await workspace.load(path: path);
+    }
+  }
+
+  Future<void> serviceSettings() async {
+    final url = TextEditingController(
+      text:
+          workspace.serviceConfiguration?.endpoint ?? 'ws://127.0.0.1:18766/ws',
+    );
+    final token = TextEditingController(
+      text: workspace.serviceConfiguration?.token ?? '',
+    );
+    var enabled = workspace.serviceConfiguration != null;
+    var busy = false;
+    String? error;
+    try {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, update) => AlertDialog(
+            title: const LText('Optional Dart service'),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SwitchListTile(
+                      title: const LText('Use Dart service'),
+                      value: enabled,
+                      onChanged: busy
+                          ? null
+                          : (value) => update(() => enabled = value),
+                    ),
+                    const LText(
+                      'Default mode runs in this page. The optional service adds TCP/UDP and remote serial devices. URL and token are kept only until this page closes.',
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: url,
+                      enabled: enabled && !busy,
+                      decoration: InputDecoration(
+                        labelText: tr('Service WebSocket URL'),
+                      ),
+                    ),
+                    TextField(
+                      controller: token,
+                      enabled: enabled && !busy,
+                      obscureText: true,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      decoration: InputDecoration(
+                        labelText: tr('Access token'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const LText(
+                      'Applying disconnects sessions and stops logging. Download log segments first. Workspace configuration is preserved.',
+                    ),
+                    if (error != null) LText(error!),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: busy ? null : () => Navigator.pop(dialogContext),
+                child: const LText('Cancel'),
+              ),
+              FilledButton(
+                onPressed: busy
+                    ? null
+                    : () async {
+                        update(() {
+                          busy = true;
+                          error = null;
+                        });
+                        BridgeTransport? probe;
+                        try {
+                          final configuration = enabled
+                              ? ServiceConfiguration(url.text, token.text)
+                              : null;
+                          if (configuration != null) {
+                            probe = createBridge(configuration: configuration);
+                            await probe.request({
+                              'command': 'hello',
+                            }, timeout: const Duration(seconds: 8));
+                            await probe.close();
+                            probe = null;
+                          }
+                          await workspace.configureService(configuration);
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                          }
+                        } catch (e) {
+                          if (dialogContext.mounted) {
+                            update(() => error = userError(e));
+                          }
+                        } finally {
+                          await probe?.close();
+                          if (dialogContext.mounted) update(() => busy = false);
+                        }
+                      },
+                child: const LText('Test and apply'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } finally {
+      url.dispose();
+      token.dispose();
     }
   }
 
@@ -394,15 +528,16 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const LText('Check for updates on startup'),
-                  value: workspace.autoCheckUpdates,
-                  onChanged: (v) {
-                    workspace.autoCheckUpdates = v;
-                    workspace.notifyListeners();
-                  },
-                ),
+                if (!kIsWeb)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const LText('Check for updates on startup'),
+                    value: workspace.autoCheckUpdates,
+                    onChanged: (v) {
+                      workspace.autoCheckUpdates = v;
+                      workspace.notifyListeners();
+                    },
+                  ),
                 DropdownButtonFormField<String>(
                   initialValue: appLanguage.value,
                   decoration: InputDecoration(labelText: tr('Language')),
@@ -415,6 +550,12 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                   },
                 ),
                 const SizedBox(height: 16),
+                if (kIsWeb)
+                  TextButton.icon(
+                    icon: const Icon(Icons.dns_outlined),
+                    label: const LText('Optional Dart service'),
+                    onPressed: serviceSettings,
+                  ),
                 const LText('Workspace'),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -676,17 +817,19 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                     }
                     await workspaceFile(v);
                   },
-                  itemBuilder: (_) => const [
+                  itemBuilder: (_) => [
                     PopupMenuItem(value: 'demo', child: LText('Local demo')),
                     PopupMenuItem(
                       value: 'templates',
                       child: LText('Templates / history'),
                     ),
-                    PopupMenuItem(value: 'cloud', child: LText('Cloud sync')),
-                    PopupMenuItem(
-                      value: 'updates',
-                      child: LText('Check for updates'),
-                    ),
+                    if (!kIsWeb)
+                      PopupMenuItem(value: 'cloud', child: LText('Cloud sync')),
+                    if (!kIsWeb)
+                      PopupMenuItem(
+                        value: 'updates',
+                        child: LText('Check for updates'),
+                      ),
                     PopupMenuItem(
                       value: 'save',
                       child: LText('Save workspace'),
@@ -708,7 +851,12 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                     workspace.sessions[workspace.selected].changeMode(v),
                   ),
                   itemBuilder: (_) =>
-                      ['master', 'simulator', 'sniffer', 'gateway']
+                      (workspace
+                                  .sessions[workspace.selected]
+                                  .bridge
+                                  .supportsDeviceModes
+                              ? ['master', 'simulator', 'sniffer', 'gateway']
+                              : ['master'])
                           .map((m) => PopupMenuItem(value: m, child: LText(m)))
                           .toList(),
                 ),
@@ -748,6 +896,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                                   workspace.sessions[workspace.selected],
                                 ),
                                 child: Workbench(
+                                  utilityBridgeFactory: workspace.bridgeFactory,
                                   controller: session,
                                   manageLifecycle: false,
                                   onOpenDemo: () => unawaited(openDemo()),

@@ -63,7 +63,7 @@ class SessionController extends ChangeNotifier {
       registerMap.stop();
       _cancelLogger();
       description = 'Disconnected';
-      _setError('Native backend stopped. Reconnect to recover.');
+      _setError('Backend stopped. Reconnect to recover.');
       notifyListeners();
     };
   }
@@ -325,6 +325,13 @@ class SessionController extends ChangeNotifier {
     logs.clear();
     _lastReadTimeoutLog = null;
     _suppressedReadTimeouts = 0;
+    notifyListeners();
+  }
+
+  void reportAcquisitionGap(Duration gap) {
+    _log(
+      'Acquisition gap: ${(gap.inMilliseconds / 1000).toStringAsFixed(1)} s · Browser was suspended or busy; missed polls were skipped.',
+    );
     notifyListeners();
   }
 

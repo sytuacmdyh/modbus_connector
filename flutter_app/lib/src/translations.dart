@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'file_error.dart';
 
 import 'package:flutter/material.dart';
 
@@ -54,11 +54,9 @@ String _translate(String value, int depth) {
 }
 
 String userError(Object error) {
-  if (error is FileSystemException) {
-    return trf('File operation failed: {path} (OS error {code})', {
-      'path': error.path ?? '',
-      'code': error.osError?.errorCode ?? '—',
-    });
+  final details = fileErrorDetails(error);
+  if (details != null) {
+    return trf('File operation failed: {path} (OS error {code})', details);
   }
   if (error is FormatException) return tr(error.message);
   return tr(error.toString());
@@ -73,6 +71,38 @@ String trf(String key, Map<String, Object?> values) {
 }
 
 const flutterChinese = <String, String>{
+  'Optional Dart service': '可选 Dart 服务',
+  'Use Dart service': '使用 Dart 服务',
+  'This device mode requires the optional Dart service. Its configuration is preserved. Enable the service in Settings or switch to Master mode.':
+      '此设备模式需要可选 Dart 服务，原有配置已保留。请在设置中启用服务，或切换到主站模式。',
+  'Service WebSocket URL': '服务 WebSocket 地址',
+  'Access token': '访问令牌',
+  'Test and apply': '测试并应用',
+  'Download log': '下载日志',
+  'Download filename': '下载文件名',
+  'Acquisition gap': '采集间断',
+  'Acquisition gap: {seconds} s · Browser was suspended or busy; missed polls were skipped.':
+      '采集间断：{seconds} 秒 · 浏览器暂停或繁忙，已跳过错过的采集周期。',
+  'Browser was suspended or busy; missed polls were skipped.':
+      '浏览器暂停或繁忙，已跳过错过的采集周期。',
+  'Backend stopped. Reconnect to recover.': '后端已停止，请重新连接。',
+  'Default mode runs in this page. The optional service adds TCP/UDP and remote serial devices. URL and token are kept only until this page closes.':
+      '默认模式直接在网页运行。可选服务提供 TCP/UDP 和远程串口设备；地址和令牌仅在当前页面内保存。',
+  'Applying disconnects sessions and stops logging. Download log segments first. Workspace configuration is preserved.':
+      '应用后会断开会话并停止记录，请先下载日志。工作区配置将保留。',
+  'Logs stay in this page (4 MiB maximum). Download before closing or starting a new segment.':
+      '日志保存在当前页面（上限 4 MiB），关闭页面或开始新段前请先下载。',
+  'Log capacity reached. Download the segment and start a new file.':
+      '日志已满，请下载当前段后开始新文件。',
+  'No log segment to download': '没有可下载的日志段',
+  'No service log to download': '没有可下载的服务日志',
+  'Enter the Dart service access token in Settings': '请在设置中输入 Dart 服务访问令牌',
+  'Dart service authentication rejected': 'Dart 服务鉴权失败',
+  'Select and authorize a browser serial port': '请选择并授权浏览器串口',
+  'Browser serial requires a supported browser and HTTPS or localhost':
+      '浏览器串口需要受支持的浏览器，并使用 HTTPS 或 localhost',
+  'Use ws://host:port/ws or wss://host/ws without credentials or query parameters':
+      '请输入 ws://主机:端口/ws 或 wss://主机/ws，不要附带凭据或查询参数',
   'Register map changed; reopen configuration.': '寄存器映射已变更，请重新打开配置。',
   'Add a block to select registers.': '添加区块后选择寄存器。',
   'Value color rules · first match wins': '数值颜色规则 · 首个匹配生效',

@@ -282,3 +282,76 @@ For RTU transports, restarting waits out the abandoned request's remaining
 response deadline before sending another request, so a late reply cannot be
 mistaken for the next response. Stop also interrupts this wait. Cancellation
 does not count as a communication error and never targets an active value write.
+## Browser build
+
+The browser edition uses the shared Flutter workbench. It can run as static files
+without a Dart or Python service. Local demo acquisition runs in memory; serial
+RTU uses Web Serial after the user selects and authorizes a port. The page must
+be served from HTTPS or localhost and the browser must support Web Serial.
+
+```sh
+flutter pub get
+flutter build web --release --no-web-resources-cdn
+```
+
+Deploy the complete `build/web/` directory on a static web host (including local CanvasKit assets). For a subdirectory, pass the matching
+`--base-href /your-path/`. During local testing, use any static HTTP server with
+that directory as its root. No device connection occurs merely by opening or
+restoring a workspace.
+
+Workspace settings and custom template history are stored per browser origin;
+changing host, port or browser profile changes the storage location. File import
+uses the browser chooser; exports download a file. Browser storage is not a
+backup, so export workspaces that need to be retained independently.
+
+Browser logs use a 4 MiB in-memory segment. Stop and **Download log** before
+closing the page or replacing a segment. Capacity errors preserve the old data.
+UINT64/INT64 text display, engineering writes and CSV/log export preserve all
+64 bits; graph, expression and numeric alarm calculations use floating point.
+
+### Optional Dart service
+
+The default deployment needs no service. To enable TCP, RTU over TCP/UDP, remote
+serial ports, simulator, sniffer and gateway, run the standalone host near those
+devices. In the web UI choose **Settings → Optional Dart service**, enter its
+WebSocket URL and access token, then **Test and apply**. This disconnects existing
+sessions while retaining their configuration. Endpoint and token are memory-only;
+reload returns to browser mode. The service's template catalog is separate from
+the browser catalog. The token grants access to devices reachable by that host.
+
+```sh
+# From flutter_app/, with a matching native libserialport library:
+export LIBSERIALPORT_PATH=/absolute/path/to/libserialport
+# Optional: export MODBUS_SERVICE_TOKEN=<at-least-24-characters>
+dart run bin/modbus_service.dart --origin http://localhost:8080
+```
+
+The default endpoint is `ws://127.0.0.1:18766/ws`. Without an environment token,
+the CLI prints a generated token for that run. Repeat `--origin` for each exact
+allowed browser origin (no trailing slash). The server binds loopback by default;
+`--bind`, `--port` and `--data-dir` are explicit overrides. An HTTPS frontend
+should use `wss://` through a TLS reverse proxy, forwarding WebSocket upgrades
+and the original Origin. Browser local-network policies still apply. Never put
+the token in the URL. Native clients authenticate too; they may omit Origin.
+
+Each WebSocket owns one isolated backend. A disconnected or silent browser loses
+its session and resources (45-second lease). Commands and uncertain writes are
+never replayed. Service log files are confined to the session directory, stop at
+20 MiB, and can be downloaded while that WebSocket remains open; cleanup removes
+them when the session closes. Use filenames without directories. Installer,
+cloud and internal worker commands are not exposed.
+
+For a standalone executable without the Dart SDK on the destination:
+
+```sh
+dart run tool/package_service.dart /absolute/path/to/matching/libserialport
+build/dart-service/start-service.sh --check-serial
+build/dart-service/start-service.sh --origin http://localhost:8080
+# Windows: build\dart-service\start-service.cmd
+```
+
+Distribute the complete `build/dart-service/` folder, including its native library
+and LGPL notices. Build on the destination OS/architecture and provide matching
+libserialport dependencies. macOS packaging/loading was verified locally;
+Windows/Linux executable distribution and real hardware require separate checks.
+See [adaptation details and acceptance](../docs/WEB_ADAPTATION.md).

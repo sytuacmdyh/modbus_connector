@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'document_file.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -156,7 +156,7 @@ class TrafficToolbar extends StatelessWidget {
             );
             if (path == null) return;
             try {
-              await File(path).writeAsString(content, flush: true);
+              await DocumentFile(path).writeAsString(content, flush: true);
             } catch (error) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context)

@@ -18,6 +18,7 @@ class RegisterMapController extends ChangeNotifier {
   bool _disposed = false;
   int _generation = 0;
   Timer? _timer;
+  DateTime? _lastPollTick;
   List<Map<String, dynamic>> get rows => session.registers;
   List<Map<String, dynamic>> get results => session.registerResults;
 
@@ -187,6 +188,24 @@ class RegisterMapController extends ChangeNotifier {
   Future<void> quickValue(int index, String action) =>
       writeRow(index, action: action);
 
+  /// Queue a utility action at a read boundary, preserving the polling timer.
+  Future<T> betweenReads<T>(Future<T> Function() action) async {
+    final previous = _writeTail;
+    final done = Completer<void>();
+    _writeTail = done.future;
+    ++_pendingWrites;
+    try {
+      if (previous != null) await previous;
+      await _readDone?.future;
+      await session.waitForIdle();
+      return await action();
+    } finally {
+      --_pendingWrites;
+      done.complete();
+      if (identical(_writeTail, done.future)) _writeTail = null;
+    }
+  }
+
   Future<void> read({bool dueOnly = false, Set<int>? onlyIndices}) async {
     if (reading ||
         _pendingWrites > 0 ||
@@ -297,10 +316,18 @@ class RegisterMapController extends ChangeNotifier {
     _interval = interval;
     _lastRead.clear();
     polling = true;
-    _timer = Timer.periodic(
-      const Duration(milliseconds: 100),
-      (_) => unawaited(read(dueOnly: true)),
-    );
+    _lastPollTick = clock();
+    _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      final now = clock();
+      final gap = now.difference(_lastPollTick ?? now);
+      _lastPollTick = now;
+      if (kIsWeb &&
+          gap.inMilliseconds > 5000 &&
+          gap.inMilliseconds > _interval * 5) {
+        session.reportAcquisitionGap(gap);
+      }
+      unawaited(read(dueOnly: true));
+    });
     unawaited(read());
     notifyListeners();
   }

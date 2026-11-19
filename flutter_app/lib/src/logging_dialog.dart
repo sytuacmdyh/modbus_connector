@@ -1,4 +1,5 @@
 import 'file_paths.dart';
+import 'document_file.dart';
 import 'translations.dart';
 
 import 'package:flutter/material.dart';
@@ -75,6 +76,7 @@ class _LoggingDialogState extends State<LoggingDialog> {
   @override
   void initState() {
     super.initState();
+    if (widget.session.bridge.bufferedLogging) append = false;
     selected.addAll(List.generate(widget.session.registers.length, (i) => i));
   }
 
@@ -138,13 +140,18 @@ class _LoggingDialogState extends State<LoggingDialog> {
                 ),
               ],
             ),
-            CheckboxListTile(
-              title: const LText('Append to existing file'),
-              value: append,
-              onChanged: widget.session.logging
-                  ? null
-                  : (v) => setState(() => append = v!),
-            ),
+            if (widget.session.bridge.bufferedLogging)
+              const LText(
+                'Logs stay in this page (4 MiB maximum). Download before closing or starting a new segment.',
+              ),
+            if (!widget.session.bridge.bufferedLogging)
+              CheckboxListTile(
+                title: const LText('Append to existing file'),
+                value: append,
+                onChanged: widget.session.logging
+                    ? null
+                    : (v) => setState(() => append = v!),
+              ),
             if (format == 'jsonl')
               Wrap(
                 children: [
@@ -232,6 +239,37 @@ class _LoggingDialogState extends State<LoggingDialog> {
         ),
       ),
       actions: [
+        if (widget.session.bridge.downloadableLogs)
+          TextButton(
+            onPressed: widget.session.busy
+                ? null
+                : () async {
+                    try {
+                      final chosen = await chooseFilePath(
+                        context,
+                        save: true,
+                        title: 'Download log',
+                        extension: format,
+                        suggestedName: path.text,
+                      );
+                      if (chosen == null) return;
+                      final result = await widget.session.registerMap
+                          .betweenReads(() async {
+                            await widget.session.stopLogging();
+                            return widget.session.command({
+                              'command': 'logger_export',
+                            });
+                          });
+                      if (result != null) {
+                        await DocumentFile(chosen)
+                            .writeAsString(result['text'] as String);
+                      }
+                    } catch (e) {
+                      if (mounted) setState(() => error = userError(e));
+                    }
+                  },
+            child: const LText('Download log'),
+          ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const LText('Close'),

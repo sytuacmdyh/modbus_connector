@@ -1,3 +1,6 @@
+import 'update_contract.dart';
+export 'update_contract.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -270,11 +273,6 @@ try {
     exit 1
 }
 ''';
-
-abstract class UpdateHandoff {
-  Future<void> commit();
-  Future<void> abort();
-}
 
 class ProcessUpdateHandoff implements UpdateHandoff {
   ProcessUpdateHandoff(this.directory, this.process) {

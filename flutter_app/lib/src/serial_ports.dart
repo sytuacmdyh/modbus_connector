@@ -144,6 +144,53 @@ class _SerialPortPickerState extends State<SerialPortPicker> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.enabled && !refreshing && !widget.session.busy;
+    if (widget.session.bridge.browserSerial) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: widget.width,
+            child: TextFormField(
+              controller: widget.controller,
+              readOnly: true,
+              enabled: enabled,
+              validator: widget.validator,
+              decoration: InputDecoration(labelText: tr('Serial port')),
+            ),
+          ),
+          IconButton(
+            tooltip: tr('Select browser serial port'),
+            onPressed: !enabled
+                ? null
+                : () async {
+                    // Invoke requestPort synchronously within the click handler so
+                    // the browser's transient user activation is still present.
+                    final selecting = widget.session.bridge.selectSerialPort();
+                    setState(() => refreshing = true);
+                    widget.onRefreshingChanged?.call(true);
+                    try {
+                      final selected = await selecting;
+                      if (mounted && selected != null) {
+                        widget.controller.text = selected['port'] as String;
+                      }
+                    } catch (error) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(userError(error))),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() => refreshing = false);
+                        widget.onRefreshingChanged?.call(false);
+                      }
+                    }
+                  },
+            icon: const Icon(Icons.usb),
+          ),
+        ],
+      );
+    }
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'session_controller.dart';
-import 'backend/update.dart';
+import 'backend/update.dart'
+    if (dart.library.js_interop) 'backend/update_web.dart';
 import 'tool_widgets.dart';
 import 'translations.dart';
 

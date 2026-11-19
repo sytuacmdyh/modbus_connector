@@ -1,7 +1,8 @@
 import 'file_paths.dart';
 import 'translations.dart';
 
-import 'dart:io';
+import 'document_file.dart';
+
 import 'dart:ui' as ui;
 import 'dart:math' as math;
 
@@ -99,7 +100,8 @@ class _GraphDialogState extends State<GraphDialog> {
       final image = await boundary.toImage(pixelRatio: 2);
       try {
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        await File(path).writeAsBytes(bytes!.buffer.asUint8List(), flush: true);
+        await DocumentFile(path)
+            .writeAsBytes(bytes!.buffer.asUint8List(), flush: true);
       } finally {
         image.dispose();
       }
@@ -174,7 +176,7 @@ class _GraphDialogState extends State<GraphDialog> {
           );
         }
       }
-      await File(path).writeAsString(buffer.toString(), flush: true);
+      await DocumentFile(path).writeAsString(buffer.toString(), flush: true);
       if (mounted) setState(() => message = '${tr('Saved')} $path');
     } catch (e) {
       if (mounted) setState(() => message = userError(e));
@@ -249,7 +251,7 @@ class _GraphDialogState extends State<GraphDialog> {
                     }),
                     child: const LText('Reset zoom'),
                   ),
-                  if (!widget.detached)
+                  if (!widget.detached && GraphWindowHost.supported)
                     TextButton(
                       onPressed: () async {
                         try {
@@ -472,7 +474,7 @@ class _GraphDialogState extends State<GraphDialog> {
           TextButton(
             onPressed: () {
               if (widget.detached) {
-                exit(0);
+                GraphWindowHost.exitViewer();
               } else {
                 Navigator.pop(context);
               }
