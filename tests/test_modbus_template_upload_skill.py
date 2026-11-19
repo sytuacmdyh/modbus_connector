@@ -1,6 +1,9 @@
+import copy
 import importlib.util
 import json
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -142,3 +145,89 @@ def test_local_resource_validation(tmp_path):
     assert uploader.local_templates([path], "厂家/设备.json") == {"厂家/设备.json": TEMPLATE}
     with pytest.raises(CloudSyncError):
         uploader.local_templates([path], "../设备.json")
+
+
+def presentation_template():
+    return {**TEMPLATE, "registers": [{"name": "温度", "overview_id": "temperature"}],
+            "draft": {"map_split_ratio": .42, "map_overview": {"blocks": [
+                {"name": "温度", "enabled": True, "items": [
+                    {"row_id": "temperature", "rules": [
+                        {"condition": "ge", "value": 80, "color": "red"},
+                        {"condition": "in_range", "value": 60, "value2": 80, "color": "yellow"},
+                    ]},
+                ]},
+                {"name": "重复展示", "items": [{"row_id": "temperature", "rules": []}]},
+            ]}}}
+
+
+def test_invalid_overview_rejected_before_any_remote_io(tmp_path, dav_server):
+    data = presentation_template()
+    data["draft"]["map_overview"]["blocks"][0]["items"][0]["row_id"] = "missing"
+    path = tmp_path / "template.json"
+    path.write_text(json.dumps(data), encoding="utf-8-sig")
+    with pytest.raises(ValueError, match="existing overview_id"):
+        uploader.local_templates([path], "厂家/设备.json")
+    for publish in (False, True):
+        with pytest.raises(ValueError, match="existing overview_id"):
+            uploader.upload(WebDavClient(dav_server.settings), {"厂家/设备.json": data},
+                            publish=publish)
+    assert dav_server.requests == []
+
+
+def test_duplicate_keys_rejected_on_upload(tmp_path):
+    path = tmp_path / "duplicate.json"
+    path.write_text('{"name":"first","name":"second"}', encoding="utf-8")
+    with pytest.raises(ValueError, match="duplicate JSON key"):
+        uploader.local_templates([path], "厂家/设备.json")
+
+
+def test_installed_upload_cli_checks_local_data_before_network(tmp_path, dav_server, monkeypatch):
+    installed = tmp_path / "installed" / "scripts"
+    shutil.copytree(SCRIPT.parent, installed)
+    config_dir = tmp_path / "config"
+    monkeypatch.setenv("MODBUS_TEMPLATE_UPLOAD_HOME", str(config_dir))
+    uploader.configure(dav_server.settings.url + "/templates")
+    data = presentation_template()
+    data["draft"]["map_overview"]["blocks"][0]["items"][0]["rules"][0]["color"] = "green"
+    path = tmp_path / "template.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, "-I", str(installed / SCRIPT.name), "upload", str(path),
+         "--resource", "厂家/设备.json", "--publish"],
+        cwd=tmp_path, env={"MODBUS_TEMPLATE_UPLOAD_HOME": str(config_dir)},
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 1
+    assert "color must be red or yellow" in result.stderr
+    assert dav_server.requests == []
+
+
+def test_overview_only_update_preserves_full_json_history_and_other_templates(tmp_path, dav_server):
+    client = WebDavClient(dav_server.settings)
+    data = presentation_template()
+    resource = "厂家/设备.json"
+    # A newly stricter presentation check must not reject or rewrite unrelated remote data.
+    other = {**TEMPLATE, "draft": {"map_overview": {"blocks": "legacy-invalid"}}}
+    version = client.publish_templates({resource: data, "厂家/保留.json": other})
+    changed = copy.deepcopy(data)
+    changed["draft"]["map_overview"]["blocks"].reverse()
+    changed["draft"]["map_overview"]["blocks"][1]["items"][0]["rules"][0]["value"] = 90
+    path = tmp_path / "template.json"
+    path.write_text(json.dumps(changed), encoding="utf-8-sig")
+    selected = uploader.local_templates([path], resource)
+    before = len(dav_server.requests)
+    preview = uploader.upload(client, selected, publish=False)
+    assert preview["actions"] == {resource: "replace"}
+    assert all(method == "GET" for method, _ in dav_server.requests[before:])
+    result = uploader.upload(client, selected, publish=True)
+    assert result["published"] and result["verified"]
+    assert uploader.remote_templates(client) == {resource: changed, "厂家/保留.json": other}
+    history = json.loads(dav_server.files[f"/dav/templates/.versions/{version}.json"])
+    assert history["templates"][resource] == data
+    current = json.loads(dav_server.files[
+        f"/dav/templates/.versions/{result['version']}.json"
+    ])
+    assert current["templates"][resource] == changed
+    before = len(dav_server.requests)
+    assert not uploader.upload(client, selected, publish=True)["published"]
+    assert all(method == "GET" for method, _ in dav_server.requests[before:])

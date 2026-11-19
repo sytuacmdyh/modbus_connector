@@ -4,6 +4,7 @@ import argparse
 import getpass
 import json
 import os
+import runpy
 import sys
 import tempfile
 from dataclasses import replace
@@ -12,6 +13,10 @@ from typing import Any
 from urllib.parse import unquote, urlsplit, urlunsplit
 
 from modbus_connector.cloud_sync import CloudSyncError, WebDavClient, WebDavSettings, atomic_json
+
+_presentation = runpy.run_path(str(Path(__file__).with_name("template_presentation.py")))
+validate_presentation = _presentation["validate_presentation"]
+unique_object = _presentation["unique_object"]
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
 
@@ -93,9 +98,18 @@ def local_templates(paths: list[Path], resource: str | None = None) -> dict[str,
         key = resource or f"{path.parent.name}/{path.name}"
         if key in catalog:
             raise ValueError(f"Duplicate resource: {key}")
-        catalog[key] = json.loads(path.read_text(encoding="utf-8-sig"))
-    WebDavClient._validate_templates(catalog)
+        catalog[key] = json.loads(path.read_text(encoding="utf-8-sig"),
+                                 object_pairs_hook=unique_object)
+    validate_selected(catalog)
     return catalog
+
+
+def validate_selected(selected: dict[str, Any]) -> None:
+    WebDavClient._validate_templates(selected)
+    for resource, template in selected.items():
+        errors = validate_presentation(template)
+        if errors:
+            raise ValueError(f"{resource}: " + "; ".join(errors))
 
 
 def remote_templates(client: WebDavClient) -> dict[str, Any]:
@@ -117,7 +131,7 @@ def remote_templates(client: WebDavClient) -> dict[str, Any]:
 
 
 def upload(client: WebDavClient, selected: dict[str, Any], *, publish: bool) -> dict[str, Any]:
-    WebDavClient._validate_templates(selected)
+    validate_selected(selected)
     remote = remote_templates(client)
     actions = {key: ("unchanged" if remote.get(key) == value else
                      "replace" if key in remote else "add") for key, value in selected.items()}

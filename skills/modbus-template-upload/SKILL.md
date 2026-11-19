@@ -51,6 +51,16 @@ python <script> configure --url '<用户输入的模板目录URL>' --username '<
 只有一个文件且目录结构不符时，用 `--resource 'Manufacturer/Device.json'` 明确资源键。
 若同名资源已经存在，上传将替换这个模板，预览会标为 replace。
 
+脚本在任何远端读取前校验所选文件中的可选概览：`overview_id` 唯一性、区块引用、
+旧式 row 下标、宽度比例和数值颜色规则；重复 JSON 键也会拒绝。引用无效时先修复本地文件，
+不靠发布后客户端忽略错误。支持顶层 `draft` 及旧式 `registers_options.flutter.draft`，
+后者浅合并覆盖前者。生成或修改配置时按目标版本的加载实现核对；概览颜色仅支持 red/yellow。
+
+上传完整保留寄存器 ID、区块和内容顺序、颜色规则以及已有表格偏好，不重建 ID、不迁移
+draft、不补默认布局字段；缺失的概览、`rules` 和隐藏列配置保持缺失，显式空数组保持为空。
+只改概览也属于模板替换，版本快照和回读均核对完整 JSON。对其他远端模板只做原有目录格式
+检查，保留其内容，不因新增概览规范擅自改写或阻止发布无关模板。
+
 ```bash
 python <script> upload /path/Manufacturer/Device.json
 python <script> upload /path/Manufacturer/Device.json --publish

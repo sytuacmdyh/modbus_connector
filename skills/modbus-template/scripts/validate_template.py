@@ -3,8 +3,13 @@
 import argparse
 import json
 import math
+import runpy
 from pathlib import Path
 from typing import Any
+
+_presentation = runpy.run_path(str(Path(__file__).with_name("template_presentation.py")))
+validate_presentation = _presentation["validate_presentation"]
+unique_object = _presentation["unique_object"]
 
 KINDS = {"coils", "discrete_inputs", "holding_registers", "input_registers"}
 WIDTHS = {"u16": 1, "hex": 1, "s16": 1, "u32": 2, "s32": 2, "f32": 2,
@@ -134,16 +139,7 @@ def validate(data: Any) -> list[str]:
         if names or row.get("bitmask") is True:
             check(count == 1 and fmt in ("u16", "s16", "hex"),
                   f"{label}: annotations require a single u16/s16/hex value")
-    return errors
-
-
-def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError(f"duplicate JSON key: {key}")
-        result[key] = value
-    return result
+    return [*errors, *validate_presentation(data)]
 
 
 def main() -> int:
@@ -152,7 +148,7 @@ def main() -> int:
     failed = False
     for path in parser.parse_args().files:
         try:
-            data = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_object)
+            data = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_object)
             errors = validate(data)
         except (OSError, ValueError) as exc:
             errors = [str(exc)]

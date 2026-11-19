@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -83,6 +84,29 @@ def test_example_matches_application_loaders():
     assert len(loaded["registers"]) == 3
     assert loaded["registers"][0]["scale"] == 0.1
     assert loaded["registers"][2]["value_names"]["3"] == "高压保护"
+    assert loaded["draft"]["map_overview"] == state["draft"]["map_overview"]
+    assert [r["overview_id"] for r in loaded["registers"]] == [
+        r["overview_id"] for r in state["registers"]
+    ]
+
+
+def test_installed_validator_checks_overview_without_application(tmp_path):
+    installed = tmp_path / "installed" / "scripts"
+    shutil.copytree(SCRIPT.parent, installed)
+    data = template(overview_id="temperature")
+    data["draft"] = {"map_overview": {"blocks": [
+        {"name": "温度", "items": [{"row_id": "missing"}]},
+    ]}}
+    path = tmp_path / "overview.json"
+    path.write_text(json.dumps(data), encoding="utf-8-sig")
+    command = [sys.executable, "-I", str(installed / SCRIPT.name), str(path)]
+    rejected = subprocess.run(command, cwd=tmp_path, capture_output=True, text=True)
+    assert rejected.returncode == 1
+    assert "existing overview_id" in rejected.stdout
+    data["draft"]["map_overview"]["blocks"][0]["items"][0]["row_id"] = "temperature"
+    path.write_text(json.dumps(data), encoding="utf-8-sig")
+    accepted = subprocess.run(command, cwd=tmp_path, capture_output=True, text=True)
+    assert accepted.returncode == 0, accepted.stderr + accepted.stdout
 
 
 def test_bundled_public_templates_not_shipped():
