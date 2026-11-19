@@ -1,0 +1,17 @@
+# Build the static site first; see flutter_app/README.md#docker-image.
+FROM nginx:1.30.7-alpine
+
+LABEL org.opencontainers.image.title="Modbus Connector Web" \
+      org.opencontainers.image.description="Static Flutter Modbus workbench; Dart service is optional" \
+      org.opencontainers.image.source="https://github.com/sytuacmdyh/modbus_connector"
+
+COPY packaging/web/nginx.conf /etc/nginx/nginx.conf
+COPY flutter_app/build/web/ /usr/share/nginx/html/
+
+USER nginx
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1
+
+ENTRYPOINT ["nginx"]
+CMD ["-g", "daemon off;"]

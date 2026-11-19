@@ -1,0 +1,10 @@
+# Only the static release output and server configuration enter the image context.
+**
+!Dockerfile.web
+!packaging/
+!packaging/web/
+!packaging/web/nginx.conf
+!flutter_app/
+!flutter_app/build/
+!flutter_app/build/web/
+!flutter_app/build/web/**

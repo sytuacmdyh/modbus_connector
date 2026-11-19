@@ -18,6 +18,20 @@ See the [desktop guide](flutter_app/README.md) for setup, controls, packaging
 and native integration tests, and [verification history](docs/FLUTTER_STATUS.md)
 for platform/device acceptance limits.
 
+## Web container
+
+Run the static browser edition from GitHub Container Registry (amd64/arm64):
+
+```bash
+docker run -d --name modbus-connector-web --restart unless-stopped \
+  -p 8080:8080 ghcr.io/sytuacmdyh/modbus_connector-web:latest
+```
+
+Open `http://localhost:8080/`. No Dart/Python service is required. TCP/UDP,
+remote serial and listening modes can use the optional Dart service configured
+in Settings. See the [web and Docker guide](flutter_app/README.md#docker-image)
+for HTTPS, local builds and image tags.
+
 ## Run from source
 
 Install Flutter 3.47.8 and the platform's native desktop toolchain. Python is

@@ -309,6 +309,50 @@ closing the page or replacing a segment. Capacity errors preserve the old data.
 UINT64/INT64 text display, engineering writes and CSV/log export preserve all
 64 bits; graph, expression and numeric alarm calculations use floating point.
 
+### Docker image
+
+The static web image is published to GitHub Container Registry:
+`ghcr.io/sytuacmdyh/modbus_connector-web:latest` (Linux amd64 and arm64).
+It contains Nginx and the compiled site, including CanvasKit. No Dart service,
+Flutter SDK or Python runtime is required in the running container.
+
+```sh
+docker run -d --name modbus-connector-web --restart unless-stopped \
+  -p 8080:8080 ghcr.io/sytuacmdyh/modbus_connector-web:latest
+```
+
+Open `http://localhost:8080/`. For other machines, put an HTTPS reverse proxy in
+front of port 8080 when using Web Serial. The optional service is configured in
+the browser Settings; its URL must be reachable from the user's browser. This
+container does not start the service or access host serial devices.
+
+The image runs as a non-root user and exposes `/healthz`. A read-only root
+filesystem is supported by adding `--read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m`.
+Nginx revalidates assets after upgrades and returns the correct WebAssembly MIME
+type. Workspaces and templates remain in each browser's storage; no data volume
+is required for the static server.
+
+To build locally, first compile the site with Flutter 3.47.8, then run Docker
+from the repository root:
+
+```sh
+cd flutter_app
+flutter pub get
+flutter build web --release --no-web-resources-cdn
+cd ..
+docker build -f Dockerfile.web -t modbus-connector-web:local .
+```
+
+The **Web image** workflow builds and tests the site and verifies HTTP responses
+from the container before publishing. Changes to web sources on `main` publish
+`latest`, `main` and `sha-<commit>` tags. `v*` release tags also publish the matching
+semantic version and major/minor tags; prereleases do not replace `latest`.
+Pull requests only validate. The workflow can also be run manually. Publishing
+uses the repository's `GITHUB_TOKEN` with `packages: write`; no extra registry
+secret is needed. For a new repository/fork, make its GHCR package public in the
+package settings to allow anonymous pulls; source repository visibility alone
+does not make a new package public.
+
 ### Optional Dart service
 
 The default deployment needs no service. To enable TCP, RTU over TCP/UDP, remote

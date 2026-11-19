@@ -46,6 +46,11 @@
 在 `flutter_app/` 运行 `flutter build web --release --no-web-resources-cdn`，部署完整 `build/web/`（包括 CanvasKit）到静态站点。
 子目录部署指定 `--base-href /your-path/`。直接打开 `file://` 不是支持的部署方式。
 
+静态容器使用 `ghcr.io/sytuacmdyh/modbus_connector-web:latest`，映射容器的 8080 端口。
+镜像包含本站 CanvasKit，运行时无 Dart 服务依赖；支持 Linux amd64/arm64。
+构建、标签与运行命令见 [`flutter_app/README.md`](../flutter_app/README.md#docker-image)。
+`.github/workflows/web-image.yml` 在浏览器测试和容器 HTTP 验证通过后发布到 GHCR。
+
 Web Serial 需要受支持的浏览器、HTTPS/localhost 和一次用户选择授权。
 不支持的浏览器仍可离线编辑、演示或连接可选服务。刷新后的旧串口标识不会授权设备，
 必须重新选择；失败的连接不会静默切换到另一种传输。

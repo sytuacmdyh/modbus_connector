@@ -1,0 +1,112 @@
+name: Web image
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - flutter_app/**
+      - packaging/web/**
+      - Dockerfile.web
+      - .dockerignore
+      - .github/workflows/web-image.yml
+  pull_request:
+    paths:
+      - flutter_app/**
+      - packaging/web/**
+      - Dockerfile.web
+      - .dockerignore
+      - .github/workflows/web-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-image-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  web-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.8'
+          cache: true
+      - name: Build and test the standalone web app
+        working-directory: flutter_app
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test --platform chrome test/web_workbench_test.dart
+          dart test --platform chrome test_backend/browser_serial_test.dart test_backend/browser_storage_test.dart test_backend/portable_wire_test.dart test_backend/wide_integer_test.dart test_backend/buffered_logger_test.dart
+          flutter build web --release --no-web-resources-cdn
+      - uses: docker/setup-buildx-action@v4
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}-web
+          flavor: latest=false
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || (startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')) }}
+      - name: Build a local image for HTTP acceptance
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.web
+          load: true
+          tags: modbus-web:smoke
+          cache-from: type=gha,scope=web-image
+          cache-to: type=gha,mode=max,scope=web-image
+      - name: Verify the container with a read-only root filesystem
+        run: |
+          docker run --detach --name modbus-web-smoke --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL \
+            --security-opt no-new-privileges -p 127.0.0.1:18080:8080 modbus-web:smoke
+          trap 'docker logs modbus-web-smoke; docker rm -f modbus-web-smoke' EXIT
+          python3 packaging/web/smoke_test.py
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish amd64 and arm64 images
+        if: github.event_name != 'pull_request'
+        id: publish
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.web
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=web-image
+          cache-to: type=gha,mode=max,scope=web-image
+      - name: Record the published image
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+          IMAGE_DIGEST: ${{ steps.publish.outputs.digest }}
+        run: |
+          {
+            echo '### Static web image'
+            echo '```text'
+            echo "$IMAGE_TAGS"
+            echo "$IMAGE_DIGEST"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
