@@ -83,7 +83,10 @@ no macOS desktop runner.
 Flutter data stays in `~/.modbus_connector/flutter/` (override:
 `MODBUS_FLUTTER_HOME`). Workspace autosave, custom template histories and cloud
 cache retain their existing locations. Cloud credentials are stored separately;
-password persistence is opt-in. Only public templates synchronize through WebDAV.
+password persistence is opt-in. Desktop and web clients only download public
+templates from WebDAV; upload/update is owned by the template-upload skill.
+Browser sync is independent of the optional Dart communication service. See the
+[read-only sync guide](flutter_app/README.md#read-only-webdav-sync-desktop-and-web).
 Legacy Qt JSON files can still be explicitly imported into disconnected Flutter
 tabs. Import does not modify the original files.
 

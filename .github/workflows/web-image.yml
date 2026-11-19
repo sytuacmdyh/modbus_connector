@@ -44,9 +44,35 @@ jobs:
         run: |
           flutter pub get
           flutter analyze
+          dart run tool/webdav_fixture.dart > "$RUNNER_TEMP/webdav-fixture.log" 2>&1 &
+          WEBDAV_FIXTURE_PID=$!
+          trap 'kill "$WEBDAV_FIXTURE_PID" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:18867/healthz > /dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:18867/healthz
           flutter test --platform chrome test/web_workbench_test.dart
-          dart test --platform chrome test_backend/browser_serial_test.dart test_backend/browser_storage_test.dart test_backend/portable_wire_test.dart test_backend/wide_integer_test.dart test_backend/buffered_logger_test.dart
+          dart test --platform chrome --concurrency=1 test_backend/browser_serial_test.dart test_backend/browser_storage_test.dart test_backend/browser_cloud_sync_test.dart test_backend/cloud_sync_test.dart test_backend/portable_wire_test.dart test_backend/wide_integer_test.dart test_backend/buffered_logger_test.dart
           flutter build web --release --no-web-resources-cdn
+      - name: Read and validate application version
+        id: version
+        run: |
+          python3 - <<'PY'
+          import ast
+          import os
+          import re
+          from pathlib import Path
+          version = re.search(r'^version: ([^+\n]+)', Path('flutter_app/pubspec.yaml').read_text(), re.M)[1]
+          assert re.fullmatch(r'\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?', version), version
+          source = ast.parse(Path('src/modbus_connector/__init__.py').read_text())
+          python_version = next(ast.literal_eval(node.value) for node in source.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '__version__' for target in node.targets))
+          assert version == python_version, (version, python_version)
+          if os.environ['GITHUB_REF'].startswith('refs/tags/'):
+              assert os.environ['GITHUB_REF_NAME'] == f'v{version}'
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'version={version}\n')
+          PY
       - uses: docker/setup-buildx-action@v4
       - name: Image metadata
         id: meta
@@ -55,12 +81,15 @@ jobs:
           images: ghcr.io/${{ github.repository }}-web
           flavor: latest=false
           tags: |
+            type=raw,value=${{ steps.version.outputs.version }},priority=800,enable=${{ github.ref == 'refs/heads/main' }}
             type=ref,event=branch
             type=ref,event=pr
             type=sha
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || (startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')) }}
+          labels: |
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
       - name: Build a local image for HTTP acceptance
         uses: docker/build-push-action@v7
         with:

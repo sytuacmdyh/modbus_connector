@@ -71,6 +71,17 @@ String trf(String key, Map<String, Object?> values) {
 }
 
 const flutterChinese = <String, String>{
+  'WebDAV sync': 'WebDAV 同步',
+  'Remember WebDAV password on this device': '在此设备上记住 WebDAV 密码',
+  'Saved locally without encryption; excluded from workspace exports.':
+      '仅在本地明文保存，不包含在工作区导出中。',
+  'Read-only sync from the server. Templates are uploaded and updated only by the template-upload skill. Local sessions and custom templates stay separate.':
+      '仅从服务器单向同步。模板仅由模板上传技能上传和更新。本地会话和自定义模板独立保留。',
+  'Synced {count} templates': '已同步 {count} 个模板',
+  'WebDAV sync is read-only. Uploads are managed by the template-upload skill.':
+      'WebDAV 同步为只读，上传和更新由模板上传技能维护。',
+  'Cannot reach WebDAV. Check HTTPS, CORS, credentials and browser network permissions.':
+      '无法访问 WebDAV，请检查 HTTPS、跨域设置、凭据和浏览器网络权限。',
   'Optional Dart service': '可选 Dart 服务',
   'Use Dart service': '使用 Dart 服务',
   'This device mode requires the optional Dart service. Its configuration is preserved. Enable the service in Settings or switch to Master mode.':

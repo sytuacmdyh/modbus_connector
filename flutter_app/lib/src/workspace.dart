@@ -49,6 +49,9 @@ class WorkspaceController extends ChangeNotifier {
       _bridgeFactory?.call() ??
       createBridge(configuration: serviceConfiguration);
 
+  BridgeTransport utilityBridgeFactory() =>
+      _bridgeFactory?.call() ?? createUtilityBridge();
+
   Future<void> configureService(ServiceConfiguration? configuration) async {
     final previous = serviceConfiguration;
     serviceConfiguration = configuration;
@@ -373,7 +376,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
     if (action == 'export') {
       await workspace.save(path: path);
     } else if (action == 'import_qt') {
-      final bridge = workspace.bridgeFactory();
+      final bridge = workspace.utilityBridgeFactory();
       try {
         final source = DocumentFile(path);
         if (await source.length() > 2000000) {
@@ -793,7 +796,9 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                     }
                     final session = workspace.sessions[workspace.selected];
                     if (['templates', 'cloud'].contains(v)) {
-                      final tool = SessionController(workspace.bridgeFactory());
+                      final tool = SessionController(
+                        workspace.utilityBridgeFactory(),
+                      );
                       workspace.tools.add(tool);
                       try {
                         await showDialog<void>(
@@ -823,8 +828,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                       value: 'templates',
                       child: LText('Templates / history'),
                     ),
-                    if (!kIsWeb)
-                      PopupMenuItem(value: 'cloud', child: LText('Cloud sync')),
+                    PopupMenuItem(value: 'cloud', child: LText('WebDAV sync')),
                     if (!kIsWeb)
                       PopupMenuItem(
                         value: 'updates',
@@ -896,7 +900,8 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                                   workspace.sessions[workspace.selected],
                                 ),
                                 child: Workbench(
-                                  utilityBridgeFactory: workspace.bridgeFactory,
+                                  utilityBridgeFactory:
+                                      workspace.utilityBridgeFactory,
                                   controller: session,
                                   manageLifecycle: false,
                                   onOpenDemo: () => unawaited(openDemo()),

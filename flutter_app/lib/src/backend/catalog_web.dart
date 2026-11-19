@@ -10,6 +10,36 @@ import 'template_schema.dart';
 /// localStorage replacements; quota/storage errors propagate to the caller.
 class BrowserCatalog {
   static const storageKey = 'modbus_connector.templates.v1';
+  static const publicStorageKey = 'modbus_connector.cloud_templates.v1';
+  static const cloudSettingsKey = 'modbus_connector.cloud_settings.v1';
+
+  Future<dynamic> loadCloudSettings() async {
+    final text = web.window.localStorage.getItem(cloudSettingsKey);
+    return text == null ? <String, dynamic>{} : jsonDecode(text);
+  }
+
+  Future<void> saveCloudSettings(Json settings) async =>
+      web.window.localStorage.setItem(cloudSettingsKey, jsonEncode(settings));
+
+  Future<void> replacePublic(Json catalog, void Function() check) async {
+    validateCatalog(catalog);
+    final text = jsonEncode(catalog);
+    check();
+    web.window.localStorage.setItem(publicStorageKey, text);
+  }
+
+  Json public() {
+    final text = web.window.localStorage.getItem(publicStorageKey);
+    if (text == null) return {};
+    try {
+      final catalog = map(jsonDecode(text));
+      validateCatalog(catalog);
+      return catalog;
+    } on FormatException {
+      return {};
+    }
+  }
+
   Json _load() {
     final text = web.window.localStorage.getItem(storageKey);
     if (text == null) return {};
@@ -43,6 +73,20 @@ class BrowserCatalog {
     }
     final catalog = _load();
     if (command == 'template_list') {
+      final published = [
+        for (final entry in public().entries)
+          {
+            'resource': entry.key,
+            'manufacturer': entry.key.split('/')[0],
+            'name': entry.value['name'],
+            'description': entry.value['description'] ?? '',
+          },
+      ];
+      published.sort(
+        (a, b) => '${a['manufacturer']}/${a['name']}'.toLowerCase().compareTo(
+          '${b['manufacturer']}/${b['name']}'.toLowerCase(),
+        ),
+      );
       final entries = [
         for (final e in catalog.entries) {'id': e.key, 'name': e.value['name']},
       ];
@@ -51,7 +95,14 @@ class BrowserCatalog {
           '${b['name']}'.toLowerCase(),
         ),
       );
-      return {'public': <Json>[], 'custom': entries};
+      return {'public': published, 'custom': entries};
+    }
+    if (command == 'template_load' && d['resource'] != null) {
+      final template = public()[d['resource']];
+      if (template == null) {
+        throw const FormatException('Public template not found');
+      }
+      return {'state': flutterState(map(template))};
     }
     final id = d['template_id'];
     if (command == 'template_save') {

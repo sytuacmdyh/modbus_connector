@@ -9,7 +9,7 @@
 | 功能 | 默认网页 | 配置 Dart 服务后 |
 | --- | --- | --- |
 | 寄存器/工作区编辑、CSV/JSON 导入导出 | 支持，文件上传/下载 | 支持 |
-| 自定义模板与版本 | 当前站点 localStorage | 独立服务目录 |
+| 自定义模板与版本 | 当前站点 localStorage | UI 仍使用当前站点 localStorage |
 | 本地演示、读写、轮询 | 内存演示，不开端口 | 服务端 TCP 演示 |
 | RTU 串口 | Web Serial，显式选择并授权 | 服务端 libserialport |
 | TCP、RTU over TCP/UDP | 浏览器不能直接使用原生套接字 | 支持 |
@@ -18,7 +18,8 @@
 | 趋势、告警、快照、报文 | 页面内共享现有逻辑 | 同样保留 |
 | 采样日志 | 内存 4 MiB，显式下载/分段 | 服务端 20 MiB/文件，显式下载 |
 | 独立图表窗口 | 改为页面内图表 | 页面内图表 |
-| 自动安装更新、WebDAV、云发布 | 首版隐藏 | 服务接口也不开放安装/云命令 |
+| WebDAV 配置同步 | 直接从服务器单向下载，与桌面共用协议 | 同步仍直接访问 WebDAV，不经 Dart 服务 |
+| 自动安装更新、配置上传/云发布 | 无应用内上传/发布；安装更新隐藏 | 服务接口也不开放安装/云命令 |
 
 ## 实现结构
 
@@ -30,7 +31,11 @@
 - `bridge_local.dart`：页面内会话；`bridge_native.dart`：原有 isolate 会话；
   `remote/bridge.dart`：可选 WebSocket 会话。
 - `settings_store`、`document_file`、图表宿主、诊断与更新通过条件导入隔离平台。
-- `catalog_web.dart`：浏览器模板版本；`data_logger.dart`：共享采样/CSV/JSONL，
+- `cloud_sync.dart`：两端共用的只读 WebDAV 消费者；`dav_http*` 隔离原生 HTTP 与
+  浏览器 Fetch，支持取消、超时、流式容量限制和拒绝重定向。应用仅执行 GET/PROPFIND，
+  由现有模板上传技能维护 `.catalog.json` 与服务器历史；旧 publisher 设置也不能写入。
+- `catalog_web.dart`：浏览器公共缓存、WebDAV 设置与个人模板版本，三者独立；
+  `data_logger.dart`：共享采样/CSV/JSONL，
   `logger_buffer.dart` 提供有界内存段，桌面原生文件适配保持原来行为。
 - `wide_integer.dart`：BigInt 与十进制有理数处理 UINT64/INT64 文本，避免 JS 的
   53 位有效整数限制。值格、复制、CSV 和采样日志使用准确文本；原始寄存器仍为
@@ -58,6 +63,13 @@ Web Serial 需要受支持的浏览器、HTTPS/localhost 和一次用户选择�
 工作区与模板按站点 origin 隔离，换域名/端口/浏览器配置会变成另一份存储。
 关闭自动保存后仍需显式 Save；重要工作区应导出备份。文件导入上限 20 MiB。
 页面关闭会终止默认模式采集并丢失未下载的日志；后台冻结、休眠不能承诺连续采样。
+
+两端均从 Workspace → WebDAV sync 下载服务器配置；同步验证全部内容后才替换
+公共模板缓存，不覆盖现有会话或个人模板。网页启用 Dart 通信服务后，配置工具仍在
+浏览器执行，保持同一份本地缓存。密码默认不持久化，显式勾选后才保存且不进入工作区。
+网页跨域访问需要 WebDAV 允许 GET/PROPFIND/OPTIONS 及 Authorization、Depth 等请求头；
+也可部署同域反向代理。完整操作与 CORS 配置见
+[`flutter_app/README.md`](../flutter_app/README.md#read-only-webdav-sync-desktop-and-web)。
 
 ## 可选服务
 
@@ -109,3 +121,22 @@ LGPL notices。目标机不需要 Dart/Flutter/Python。Windows/Linux 的发行�
 本次软件验收已完成，按用户确认将实物串口验收安排在后续。物理串口授权、设备读写与
 拔插尚未验收；Windows/Linux 原生服务发行及生产 TLS/局域网权限仍需对应环境验证。
 以上记录区分浏览器模拟、实际本机网络、macOS 原生与实物硬件结果。
+
+## 只读 WebDAV 同步验收（0.16.16，2026-11-19）
+
+- 桌面与网页共用只读同步逻辑，应用仅发出 GET/PROPFIND；旧 publisher 设置迁移后
+  也不能上传、发布或激活服务器版本。服务器配置仍由 `modbus-template-upload` 技能维护。
+- 全量 Dart 后端：453 通过、2 跳过；全量 Flutter widget：138 通过；分析无问题。
+- 共享同步逻辑与真实 Chrome 跨域 Fetch：6 通过；Flutter Chrome 界面：3 通过，
+  包含将可选 Dart 服务配置为不可达地址后，仍能同步并从本地缓存打开公共模板。
+- 覆盖技能快照、历史版本、旧目录格式、认证、CORS、重定向、16 MiB 限制、取消与关闭。
+  下载失败或校验失败保留旧缓存；密码默认不保存，显式保存也不进入工作区导出。
+- macOS 原生 Profile 界面运行 `integration_test/webdav_test.dart` 通过：采集期间测试
+  WebDAV 连接、下载、保存设置，再从缓存打开断开的新标签；原采集继续，错误计数为 0。
+- 现有 Python 上传技能与在线行为测试 24 通过，发布协议保持兼容。
+- Release Web 构建与 Wasm 兼容性 dry run 通过；实际静态网页手工完成连接测试与下载。
+  保存不含密码的设置后刷新，再停止测试 WebDAV 服务器，仍可从公共模板缓存打开配置，
+  新标签断开、寄存器内容保留；运行期间未使用 Dart 通信服务。
+
+上述同步验收使用本机只读 WebDAV 测试服务器及合成账号，不访问生产服务器。
+生产网页需按其实际域名配置 WebDAV CORS 或同域反向代理；不依赖 Dart 通信服务。

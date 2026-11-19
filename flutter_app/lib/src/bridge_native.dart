@@ -8,6 +8,8 @@ import 'backend/worker.dart';
 import 'bridge_transport.dart';
 import 'remote/configuration.dart';
 
+BridgeTransport createUtilityBridge() => NativeBridge();
+
 /// An owned Dart isolate keeps communication independent of Flutter rendering.
 /// Tests may inject a local service to inspect state without crossing isolates.
 class NativeBridge extends BridgeTransport {

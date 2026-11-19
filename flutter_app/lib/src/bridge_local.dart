@@ -161,7 +161,9 @@ class LocalBridge extends BridgeTransport {
     if (command == 'encode_values') return {'values': encodeValues(d)};
     if (command is String && command.startsWith('csv_')) return csvCommand(d);
     if (command is String &&
-        (command.startsWith('template_') || command.startsWith('logger_')) &&
+        (command.startsWith('template_') ||
+            command.startsWith('logger_') ||
+            command.startsWith('cloud_')) &&
         platformCommand != null) {
       return platformCommand!(d);
     }

@@ -27,7 +27,8 @@ class OnlineBridge extends FakeBridge {
             'password': '',
             'templates_path': 'templates',
             'timeout': 15,
-            'mode': 'consumer',
+            'mode':
+                'publisher', // Stale settings cannot restore upload controls.
             'remember_password': false,
           },
         }, false);
@@ -149,7 +150,7 @@ void main() {
     });
   }
   testWidgets(
-    'consumer hides publishing and cancelling waits for task boundary',
+    'read-only sync has no mode/upload controls and cancelling waits for task boundary',
     (tester) async {
       tester.view.physicalSize = const Size(900, 650);
       tester.view.devicePixelRatio = 1;
@@ -161,6 +162,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Publish templates'), findsNothing);
       expect(find.text('Activate version'), findsNothing);
+      expect(find.text('Mode'), findsNothing);
+      expect(find.text('WebDAV sync'), findsOneWidget);
       await tester.tap(find.text('Download current templates'));
       await tester.pump();
       expect(find.text('Cancel transfer'), findsOneWidget);

@@ -7,6 +7,8 @@ import 'package:modbus_desktop/src/backend/catalog.dart';
 import 'package:modbus_desktop/src/backend/online.dart';
 import 'package:modbus_desktop/src/backend/wire.dart';
 
+import '../tool/webdav_fixture.dart';
+
 Future<Map<String, dynamic>> finish(NativeOnline online) async {
   for (var i = 0; i < 1000; i++) {
     final status = await online.dispatch({'command': 'cloud_status'});
@@ -17,22 +19,109 @@ Future<Map<String, dynamic>> finish(NativeOnline online) async {
 }
 
 void main() {
-  test('Dart WebDAV snapshots history cache and credential isolation', () async {
+  test(
+    'native HTTP aborts an active stream and never follows a redirect',
+    () async {
+      final root = await Directory.systemTemp.createTemp('native-dav-cancel-');
+      final server = await startWebDavFixture(port: 0);
+      final catalog = NativeCatalog(directory: root);
+      final online = NativeOnline(catalog);
+      final settings = {
+        'url': 'http://127.0.0.1:${server.port}/dav',
+        'username': 'operator',
+        'password': 'test-only',
+      };
+      try {
+        await online.dispatch({
+          'command': 'cloud_start',
+          'action': 'download',
+          'settings': settings,
+        });
+        expect((await finish(online))['error'], null);
+        for (final path in ['redirect', 'slow']) {
+          await online.dispatch({
+            'command': 'cloud_start',
+            'action': 'download',
+            'settings': {
+              ...settings,
+              'url': 'http://127.0.0.1:${server.port}/$path',
+            },
+          });
+          if (path == 'slow') {
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+            await online.dispatch({'command': 'cloud_cancel'});
+          }
+          final result = await finish(online)
+              .timeout(const Duration(seconds: 3));
+          expect(
+            result['error'],
+            path == 'slow' ? contains('cancelled') : contains('302'),
+          );
+          expect(
+            await readJson(catalog.file('cloud_templates.json')),
+            fixtureCatalog,
+          );
+        }
+      } finally {
+        await online.close();
+        await server.close(force: true);
+        await root.delete(recursive: true);
+      }
+    },
+  );
+  test(
+    'cancellation before cache commit retains the old file and removes staging',
+    () async {
+      final root = await Directory.systemTemp.createTemp('native-dav-commit-');
+      final file = File('${root.path}/cloud_templates.json');
+      try {
+        await atomicJson(file, {'old': true});
+        await expectLater(
+          atomicJson(
+            file,
+            fixtureCatalog,
+            beforeCommit: () => throw const DavException('cancelled'),
+          ),
+          throwsA(isA<DavException>()),
+        );
+        expect(await readJson(file), {'old': true});
+        expect((await root.list().toList()).map((f) => f.path), [file.path]);
+      } finally {
+        await root.delete(recursive: true);
+      }
+    },
+  );
+  test('read-only WebDAV consumes skill snapshots, preserves cache and isolates credentials', () async {
     final root = await Directory.systemTemp.createTemp('native-dav-'),
         server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    final files = <String, String>{};
+    const version = '20261119T000000000001Z-deadbeef';
+    final fixture = {
+      'Acme/测试.json': {
+        'name': '测试',
+        'connection': {'type': 'RTU'},
+        'registers': [
+          {'address': 0, 'writable': false},
+        ],
+      },
+    };
+    final snapshot = jsonEncode({
+      'schema': 1,
+      'version': version,
+      'templates': fixture,
+    });
+    final files = <String, String>{
+      '/dav/templates/.catalog.json': snapshot,
+      '/dav/templates/.versions/$version.json': snapshot,
+    };
     final requests = <String>[];
+    final authorization = <String?>[];
     final subscription = server.listen((request) async {
       try {
         final path = Uri.decodeComponent(request.uri.path)
             .replaceFirst(RegExp(r'/+$'), '');
         requests.add('${request.method} $path');
-        if (request.method == 'PUT') {
-          files[path] = await utf8.decoder.bind(request).join();
-          request.response.statusCode = 201;
-        } else if (request.method == 'MKCOL') {
-          request.response.statusCode = 201;
-        } else if (request.method == 'GET') {
+        authorization.add(request.headers.value('authorization'));
+        if (request.method == 'GET') {
           if (files.containsKey(path)) {
             request.response.write(files[path]);
           } else {
@@ -69,80 +158,94 @@ void main() {
         online = NativeOnline(NativeCatalog(directory: root));
     final settings = {
       'url': 'http://127.0.0.1:${server.port}/dav',
-      'username': 'operator',
-      'password': 'secret',
-      'mode': 'publisher',
-    };
-    final fixture = {
-      'Acme/测试.json': {
-        'name': '测试',
-        'connection': {'type': 'RTU'},
-        'registers': [
-          {'address': 0},
-        ],
-      },
+      'username': 'operator', 'password': 'secret',
+      'mode': 'publisher', // A legacy setting must never re-enable writes.
     };
     try {
-      await atomicJson(catalog.file('cloud_templates.json'), fixture);
       await online.dispatch({
         'command': 'cloud_settings_save',
         'settings': settings,
       });
-      expect(
-        (await readJson(catalog.file('cloud.json')) as Map).containsKey(
-          'password',
-        ),
-        false,
-      );
-      await online.dispatch({
-        'command': 'cloud_start',
-        'action': 'publish',
-        'settings': settings,
-      });
-      final published = await finish(online);
-      expect(published['error'], isNull, reason: '$published');
-      final version = published['result']['version'];
-      expect(files.keys, contains('/dav/templates/.versions/$version.json'));
-      expect(files.keys, contains('/dav/templates/.catalog.json'));
-      await online.dispatch({
-        'command': 'cloud_start',
-        'action': 'versions',
-        'settings': settings,
-      });
-      expect((await finish(online))['result']['versions'], [version]);
-      final consumer = {...settings, 'mode': 'consumer'},
-          before = requests.length;
-      await expectLater(
-        online.dispatch({
+      final saved = await readJson(catalog.file('cloud.json')) as Map;
+      expect(saved.containsKey('password'), false);
+      expect(saved.containsKey('mode'), false);
+      for (final action in ['publish', 'activate', 'upload', 'delete']) {
+        await expectLater(
+          online.dispatch({
+            'command': 'cloud_start',
+            'action': action,
+            'version': version,
+            'settings': settings,
+          }),
+          throwsA(isA<DavException>()),
+        );
+      }
+      expect(requests, isEmpty);
+      for (final method in ['PUT', 'MKCOL', 'DELETE', 'MOVE', 'POST']) {
+        await expectLater(
+          online.cloud.request(settings, method, 'templates/test.json'),
+          throwsA(isA<DavException>()),
+        );
+      }
+      expect(requests, isEmpty);
+      for (final action in ['test', 'versions', 'download']) {
+        await online.dispatch({
           'command': 'cloud_start',
-          'action': 'publish',
-          'settings': consumer,
-        }),
-        throwsA(isA<DavException>()),
-      );
-      expect(requests.length, before);
-      await online.dispatch({
-        'command': 'cloud_start',
-        'action': 'download',
-        'settings': consumer,
-      });
-      expect((await finish(online))['error'], isNull);
+          'action': action,
+          'settings': settings,
+        });
+        final result = await finish(online);
+        expect(result['error'], isNull, reason: '$result');
+        if (action == 'versions') {
+          expect(result['result']['versions'], [version]);
+        }
+      }
       expect(await readJson(catalog.file('cloud_templates.json')), fixture);
+      final loaded = await catalog.dispatch({
+        'command': 'template_load',
+        'resource': 'Acme/测试.json',
+      });
+      expect(loaded['state']['registers'][0]['writable'], false);
       files['/dav/templates/.catalog.json'] = '{broken';
       await online.dispatch({
         'command': 'cloud_start',
         'action': 'download',
-        'settings': consumer,
+        'settings': settings,
       });
       expect((await finish(online))['error'], isNotNull);
       expect(await readJson(catalog.file('cloud_templates.json')), fixture);
       await online.dispatch({
         'command': 'cloud_start',
-        'action': 'activate',
+        'action': 'download',
         'version': version,
         'settings': settings,
       });
       expect((await finish(online))['error'], isNull);
+      expect(await readJson(catalog.file('cloud_templates.json')), fixture);
+      expect(
+        requests.every(
+          (r) => r.startsWith('GET ') || r.startsWith('PROPFIND '),
+        ),
+        true,
+      );
+      expect(
+        authorization,
+        everyElement('Basic ${base64Encode(utf8.encode('operator:secret'))}'),
+      );
+      expect(
+        files['/dav/templates/.catalog.json'],
+        '{broken',
+      ); // No server mutation.
+      await online.dispatch({
+        'command': 'cloud_settings_save',
+        'settings': {...settings, 'remember_password': true},
+      });
+      expect(
+        (await online.dispatch({
+          'command': 'cloud_settings_load',
+        }))['settings']['password'],
+        'secret',
+      );
     } finally {
       await online.close();
       await subscription.cancel();

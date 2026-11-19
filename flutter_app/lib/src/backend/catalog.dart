@@ -13,7 +13,11 @@ String randomId() => List.generate(
 ).join();
 Future<dynamic> readJson(File f) async =>
     jsonDecode((await f.readAsString()).replaceFirst('\ufeff', ''));
-Future<void> atomicJson(File f, dynamic data) async {
+Future<void> atomicJson(
+  File f,
+  dynamic data, {
+  void Function()? beforeCommit,
+}) async {
   await f.parent.create(recursive: true);
   final temp = File('${f.path}.${randomId()}.tmp');
   try {
@@ -21,6 +25,7 @@ Future<void> atomicJson(File f, dynamic data) async {
       const JsonEncoder.withIndent('  ').convert(data),
       flush: true,
     );
+    beforeCommit?.call();
     await temp.rename(f.path);
   } finally {
     if (await temp.exists()) await temp.delete();

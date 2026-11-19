@@ -21,7 +21,6 @@ class _CloudDialogState extends State<CloudDialog> {
   final password = TextEditingController();
   final directory = TextEditingController(text: 'templates');
   final timeout = TextEditingController(text: '15');
-  String mode = 'consumer';
   bool remember = false;
   bool busy = false;
   bool running = false;
@@ -47,7 +46,6 @@ class _CloudDialogState extends State<CloudDialog> {
     'templates_path': directory.text.trim(),
     'timeout': int.tryParse(timeout.text) ?? -1,
     'remember_password': remember,
-    'mode': mode,
   };
   Future<void> load() async {
     setState(() => busy = true);
@@ -65,7 +63,6 @@ class _CloudDialogState extends State<CloudDialog> {
         directory.text = s['templates_path'] as String;
         timeout.text = '${s['timeout']}';
         remember = s['remember_password'] == true;
-        mode = s['mode'] as String;
       }
     });
   }
@@ -81,7 +78,11 @@ class _CloudDialogState extends State<CloudDialog> {
       final result = status['result'] as Map?;
       message =
           status['error'] as String? ??
-          (result == null ? 'Finished' : '${result['message'] ?? result}');
+          (result?['downloaded'] is int
+              ? 'Synced ${result!['downloaded']} templates'
+              : result == null
+              ? 'Finished'
+              : '${result['message'] ?? result}');
       if (result?['versions'] is List) {
         versions = (result!['versions'] as List).cast<String>();
         selected = null;
@@ -89,41 +90,14 @@ class _CloudDialogState extends State<CloudDialog> {
     });
   }
 
-  Future<bool> confirm(String title) => showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: LText(title),
-      content: const LText(
-        'Publish only the visible public template catalog; personal templates and sessions are excluded.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const LText('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, true),
-          child: const LText('Continue'),
-        ),
-      ],
-    ),
-  ).then((v) => v == true);
   Future<void> action(String action) async {
-    if (action == 'publish' && !await confirm('Publish public templates?')) {
-      return;
-    }
-    if (action == 'activate' &&
-        !await confirm('Activate selected template version?')) {
-      return;
-    }
     if (!mounted) return;
     setState(() => busy = true);
     final reply = await widget.session.command({
       'command': 'cloud_start',
       'action': action,
       'settings': settings(),
-      if (action == 'activate' || action == 'download' && selected != null)
-        'version': selected,
+      if (action == 'download' && selected != null) 'version': selected,
     });
     if (mounted) {
       setState(() {
@@ -147,7 +121,7 @@ class _CloudDialogState extends State<CloudDialog> {
   Widget build(BuildContext context) => PopScope(
     canPop: !running && !busy,
     child: AlertDialog(
-      title: const LText('Cloud sync'),
+      title: const LText('WebDAV sync'),
       content: SizedBox(
         width: 760,
         height: 480,
@@ -162,13 +136,6 @@ class _CloudDialogState extends State<CloudDialog> {
                   url,
                   width: 440,
                   enabled: !running && !busy,
-                ),
-                toolChoice(
-                  'Mode',
-                  mode,
-                  ['consumer', 'publisher'],
-                  running || busy ? null : (v) => setState(() => mode = v),
-                  width: 200,
                 ),
                 toolField(
                   'Username',
@@ -199,7 +166,10 @@ class _CloudDialogState extends State<CloudDialog> {
             ),
             CheckboxListTile(
               dense: true,
-              title: const LText('Save password as plaintext on this computer'),
+              title: const LText('Remember WebDAV password on this device'),
+              subtitle: const LText(
+                'Saved locally without encryption; excluded from workspace exports.',
+              ),
               value: remember,
               onChanged: running || busy
                   ? null
@@ -242,18 +212,6 @@ class _CloudDialogState extends State<CloudDialog> {
                   onPressed: running || busy ? null : () => action('versions'),
                   child: const LText('Template history'),
                 ),
-                if (mode == 'publisher') ...[
-                  OutlinedButton(
-                    onPressed: running || busy ? null : () => action('publish'),
-                    child: const LText('Publish templates'),
-                  ),
-                  OutlinedButton(
-                    onPressed: running || busy || selected == null
-                        ? null
-                        : () => action('activate'),
-                    child: const LText('Activate version'),
-                  ),
-                ],
               ],
             ),
             if (running || busy) const LinearProgressIndicator(),
@@ -287,7 +245,7 @@ class _CloudDialogState extends State<CloudDialog> {
                 child: const LText('Use current catalog'),
               ),
             const LText(
-              'Only public templates are synced. Downloads replace the Flutter cache; sessions and custom templates stay separate.',
+              'Read-only sync from the server. Templates are uploaded and updated only by the template-upload skill. Local sessions and custom templates stay separate.',
             ),
           ],
         ),

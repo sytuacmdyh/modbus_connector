@@ -206,20 +206,23 @@ and validates every converted session before replacing any live tabs.
 Cloud/update commands:
 
 - `cloud_settings_load` → `{settings}`; `cloud_settings_save`: `{settings}`.
-  Settings are URL/username/password/templates_path/timeout/mode/remember_password.
-  Separate `flutter/cloud.json`; plaintext password is omitted unless opted in.
+  Settings are URL/username/password/templates_path/timeout/remember_password.
+  Separate `flutter/cloud.json` (browser: per-origin localStorage); plaintext
+  password is omitted unless opted in. Legacy `mode` is discarded.
 - `cloud_start`: `{action,settings,version?}` starts a background task; actions
-  test/download/versions/publish/activate. Publisher writes fail before network in
-  consumer mode; activation requires a selected version. Publication snapshots
-  only public templates, never sessions or personal templates. Returns started.
+  test/download/versions only. All clients are read-only; upload/publication and
+  server activation fail before network access, even with legacy publisher
+  settings. The template-upload skill remains the server publisher. Returns started.
 - `cloud_status`: `{running,action,error,result}`; result contains message,
-  downloaded count, versions, or new version as appropriate. `cloud_cancel` sets
-  cancellation immediately; current bounded HTTP completes before final status.
-  Download/cache replacement and publication checkpoints use backend cancellation.
+  downloaded count or versions as appropriate. `cloud_cancel` sets cancellation
+  immediately and aborts HTTP; the owned task finishes before final status.
+  Download/cache replacement checkpoints suppress late results after cancellation.
   UI waits for completion before closing. EOF cancels the task.
 - Downloads validate the complete catalog before replacing
-  `flutter/cloud_templates.json`; template-list/load overlays that cache. History
-  download changes only local cache; activation appends a remote immutable version.
+  `flutter/cloud_templates.json` (browser: per-origin public-catalog cache);
+  template-list/load overlays that cache. History download changes only local
+  cache. Sessions and personal templates remain separate. Browser utilities
+  perform direct HTTP even when device sessions use a remote Dart service.
 - `update_check` queries the latest stable GitHub release; returns current,
   release (tag/notes/installer metadata) or null, URL, newer, install_supported and
   install_reason. Network/rate-limit/invalid responses remain explicit errors.

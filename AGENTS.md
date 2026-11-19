@@ -25,7 +25,11 @@ All validation precedes external I/O; session close waits for owned resources.
 
 Flutter state/custom history/cache stay under `~/.modbus_connector/flutter`
 (`MODBUS_FLUTTER_HOME` override). Cloud password persistence is opt-in. Public
-catalog publication requires publisher mode; local consumer checks precede HTTP.
+catalog clients (desktop and browser) are read-only WebDAV consumers. Only the
+template-upload skill publishes or updates server catalogs; reject app upload,
+publish and activation commands before HTTP, even with legacy publisher settings.
+WebDAV and catalog utilities run locally and never require the optional Dart
+communication service. Share the read-only sync protocol across platforms.
 Qt JSON import only reads original files and creates disconnected Flutter tabs.
 
 Desktop build: `cd flutter_app && flutter build linux --release` (or windows).

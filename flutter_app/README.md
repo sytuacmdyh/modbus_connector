@@ -309,6 +309,62 @@ closing the page or replacing a segment. Capacity errors preserve the old data.
 UINT64/INT64 text display, engineering writes and CSV/log export preserve all
 64 bits; graph, expression and numeric alarm calculations use floating point.
 
+### Read-only WebDAV sync (desktop and web)
+
+Choose **Workspace → WebDAV sync**. Both editions use the same read-only
+protocol and consume the `.catalog.json` / `.versions/` snapshots published by
+the `modbus-template-upload` skill. The application has no publisher mode,
+upload button or server-version activation command. Old publisher settings
+automatically behave as read-only settings. Local custom templates remain local.
+
+Enter the WebDAV base URL, username/password if required, and **Templates path**.
+For a skill upload target `https://example.com/dav/templates`, enter base URL
+`https://example.com/dav` and path `templates`. **Test connection** checks WebDAV;
+**Download current templates** validates the complete server catalog before
+replacing the local public-template cache. Open downloaded configurations from
+**Templates / history → Public (read-only)**; new tabs stay disconnected. History
+downloads change the local cache only. Invalid data, authentication/network errors
+and cancelled downloads preserve the previous cache. Legacy manufacturer/file
+directories are still readable when the server has no `.catalog.json`.
+
+Settings and cache use the existing Flutter data directory on desktop and
+per-origin localStorage in the browser. **Save connection settings** stores the
+password only when **Remember WebDAV password on this device** is enabled;
+passwords stay separate from workspace exports. Downloaded templates remain
+available after reload and while offline. Sync never replaces active sessions,
+their current configuration or personal template histories.
+
+The browser contacts WebDAV directly: no Dart communication service is needed.
+Enabling or disabling that service does not change the UI's local catalog or
+WebDAV settings. A remotely hosted HTTPS page needs an HTTPS WebDAV endpoint.
+Cross-origin WebDAV must handle unauthenticated OPTIONS preflights and return
+these headers on success **and error** responses (replace the example origin):
+
+```text
+Access-Control-Allow-Origin: https://modbus.example.com
+Access-Control-Allow-Methods: GET, PROPFIND, OPTIONS
+Access-Control-Allow-Headers: Authorization, Cache-Control, Content-Type, Depth
+Vary: Origin
+```
+
+Alternatively, serve a WebDAV reverse proxy under the same origin as the page.
+Use the canonical URL: redirects are rejected; DAV directory hrefs must match the
+public URL and stay within the requested directory. Authentication errors and
+CORS/TLS failures are shown in the dialog; the app does not fall back to a Dart
+proxy. The static container continues to require no writable volume.
+
+For local browser acceptance, start the synthetic read-only fixture in another
+terminal with `dart run tool/webdav_fixture.dart`, then run:
+
+```sh
+flutter test --platform chrome test/web_workbench_test.dart
+dart test --platform chrome --concurrency=1 test_backend/cloud_sync_test.dart test_backend/browser_cloud_sync_test.dart
+```
+
+The fixture uses only test data and a test account; it does not read skill
+configuration or access a real WebDAV server. Native GUI acceptance can run
+`integration_test/webdav_test.dart` independently using the existing driver.
+
 ### Docker image
 
 The static web image is published to GitHub Container Registry:
@@ -345,7 +401,8 @@ docker build -f Dockerfile.web -t modbus-connector-web:local .
 
 The **Web image** workflow builds and tests the site and verifies HTTP responses
 from the container before publishing. Changes to web sources on `main` publish
-`latest`, `main` and `sha-<commit>` tags. `v*` release tags also publish the matching
+`latest`, `main`, the application version (for example `0.16.16`) and `sha-<commit>`
+tags. `v*` release tags also publish the matching
 semantic version and major/minor tags; prereleases do not replace `latest`.
 Pull requests only validate. The workflow can also be run manually. Publishing
 uses the repository's `GITHUB_TOKEN` with `packages: write`; no extra registry
@@ -360,8 +417,10 @@ serial ports, simulator, sniffer and gateway, run the standalone host near those
 devices. In the web UI choose **Settings → Optional Dart service**, enter its
 WebSocket URL and access token, then **Test and apply**. This disconnects existing
 sessions while retaining their configuration. Endpoint and token are memory-only;
-reload returns to browser mode. The service's template catalog is separate from
-the browser catalog. The token grants access to devices reachable by that host.
+reload returns to browser mode. Template and WebDAV UI operations always use the
+client's local catalog, independently of this service. Existing service-side
+templates remain in their separate service directory. The token grants access
+to devices reachable by that host.
 
 ```sh
 # From flutter_app/, with a matching native libserialport library:
