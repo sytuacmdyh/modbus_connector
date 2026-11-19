@@ -110,6 +110,7 @@ dart test test_backend
 # Each integration file starts a native desktop window; run separately:
 flutter drive --driver=test_driver/native_driver.dart --target=integration_test/desktop_test.dart -d linux --profile
 flutter drive --driver=test_driver/native_driver.dart --target=integration_test/parity_test.dart -d linux --profile
+flutter drive --driver=test_driver/native_driver.dart --target=integration_test/register_workspace_test.dart -d linux --profile
 # macOS: replace -d linux with -d macos; run each file separately.
 # Headless Linux: prefix each command with xvfb-run -a
 ```
@@ -150,20 +151,28 @@ the chosen height for this window, with bounds that leave map space available. T
 strip shows live connection/polling state and bus counters without resizing when
 values change. Session tools contains logging, scanning, diagnostics and appearance.
 Read/Poll map, interval, Add row and filtering remain visible. More tools expands
-grouping, graphs, expressions, CSV and snapshots. Selected-row actions appear in a
+graphs, expressions, CSV and snapshots. Selected-row actions appear in a
 floating bottom bar, with room to scroll the last row clear of it; the table viewport
 stays fixed during sweep selection. Map and sniffer column widths/order persist; drag
 headers or their edges, or use the header movement/reset menu. That menu also
-hides/restores columns and switches compact row height, with all preferences
-persisted per session.
-The master map defaults to 34 px compact rows with Area, Count and Unit hidden.
-Turn off Compact rows in the column menu for 48 px comfortable rows.
-Address, format, engineering value and raw hexadecimal words are grouped in a
-compact grid; clicking a writable engineering value opens its write dialog.
-Saved visibility and density preferences take precedence; Reset columns restores
-these defaults, and the header menu can show any hidden column again.
-The filter bar combines case-insensitive name matching, a zero-based address or
-start-count range (decimal or `0x` hex; `100-20` covers 100–119), polling status and function area. Address
+hides/restores columns, with preferences persisted per session.
+The master workspace has a read-only overview on the left and the editable map
+on the right. Drag the divider to resize; the split is saved per session. Narrow
+windows stack the panes. Configure display adds, renames, orders and hides blocks,
+selects registers and sets ordered numeric range colors. Blocks have no icons;
+values and engineering units share compact rows. The overview consumes the same
+published results as the table and never starts acquisition. Its display colors do
+not trigger logging or sound. Configuration travels with workspaces and custom
+templates; stable row IDs preserve references when rows are moved or edited.
+The master map defaults to 34 px rows and only Select, Address, Name, Engineering
+value (with unit) and Actions columns. Columns and header menus restore optional
+columns and Reset columns restores defaults. Saved column and 48 px comfortable
+row preferences still take precedence; the master map offers no row-height toggle.
+Clicking a writable engineering value opens its write dialog.
+The compact filter bar combines case-insensitive name matching, a zero-based address
+or start-count range (decimal or `0x` hex; `100-20` covers 100–119), access
+(Writable / All access / Read-only, default Writable) and polling status. There is
+no function-area filter. Address
 filters include rows whose register spans overlap the range. The address field's
 arrow opens shortcuts derived from the current map: each occupied 100-address
 page is trimmed to its actual covered span (e.g. 1000–1099 becomes `1001-66`

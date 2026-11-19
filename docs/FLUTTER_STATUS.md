@@ -1,3 +1,39 @@
+# Compact register workspace (2026-11-19)
+
+The master register area now splits into a configurable read-only overview and
+an editable virtualized table. The divider persists its width ratio. Icon-free
+blocks show compact name/value/unit pairs and ordered numeric color rules;
+configuration and stable register references survive workspace/custom-template
+round trips. The overview consumes published map results and owns no I/O or
+sampling timer; its colors do not trigger alarm logs or sounds.
+
+The right pane defaults to writable registers and essential columns. Name,
+address/span/preset, writable/all/read-only and polling filters share a compact
+row; the function-area filter and visible row-height control are removed.
+Acquisition, add/select, More tools, CSV/snapshots/graphs and column controls remain
+available. Saved column and density overrides still apply. Source-row selection,
+view-only filters and floating selection controls preserve acquisition semantics.
+
+Validation: `flutter analyze` is clean; 138 Flutter tests pass, including overview
+configuration cancellation, color rules, stable references, template restore,
+split persistence, source-row filtering, viewport stability and a lazy 4096-row
+overview. Legacy templates without explicit column preferences now use the compact
+defaults; saved visibility overrides remain intact. 422 Dart backend tests pass (two platform-specific skips). The native
+macOS profile register-workspace integration passes against a loopback TCP
+simulator through independent NativeBridge isolates: read-only overview values,
+default writable/all filters, split drag, configuration, writes during polling,
+Chinese labels, custom-template and on-disk workspace round trips. The existing
+macOS desktop demo integration also passes separately, covering independent tabs,
+read-only writes, engineering writes, graphs and reconnects. This is host
+and loopback acceptance; no physical serial-device or Windows-install claim.
+
+The local macOS release build passes `tool/build_macos.sh`, including arm64/x86_64
+verification of five Mach-O files and deep/strict signature validation. Manual
+inspection of the release window with isolated demo data confirms Chinese labels,
+icon-free blocks, live range colors, writable/read-only quick filters, overview
+and color configuration, More tools and Columns without a row-height switch.
+The release window remains open with polling stopped after acceptance.
+
 # Register write permissions (2026-11-06)
 
 Template/map rows now accept optional boolean `writable`. False keeps FC03/FC01

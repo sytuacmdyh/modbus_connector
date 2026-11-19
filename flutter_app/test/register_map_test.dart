@@ -70,8 +70,15 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: RegisterMapDialog(session: session)),
     );
+    await tester.tap(find.byKey(const ValueKey('map-filter-access')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All access').last);
+    await tester.pumpAndSettle();
     final cell = find.byKey(const ValueKey('map-value-0'));
-    expect(find.descendant(of: cell, matching: find.text('25.3')), findsOneWidget);
+    expect(
+      find.descendant(of: cell, matching: find.text('25.3')),
+      findsOneWidget,
+    );
     expect(find.descendant(of: cell, matching: find.text('℃')), findsOneWidget);
     expect(
       find.descendant(of: cell, matching: find.byType(DropdownButton<int>)),
@@ -255,9 +262,15 @@ void main() {
     await session.connect({'timeout': 0.1}, 1);
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(body: RegisterMapPanel(session: session)),
+        home: Scaffold(
+          body: RegisterMapPanel(showOverview: false, session: session),
+        ),
       ),
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('map-filter-access')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Read-only').last);
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.lock_outline), findsNWidgets(3));
     for (final button in tester.widgetList<IconButton>(

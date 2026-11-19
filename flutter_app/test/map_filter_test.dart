@@ -34,7 +34,13 @@ Future<void> mountMap(WidgetTester tester, SessionController session) async {
   });
   await tester.pumpWidget(
     MaterialApp(
-      home: Scaffold(body: RegisterMapPanel(session: session, autofocus: true)),
+      home: Scaffold(
+        body: RegisterMapPanel(
+          showOverview: false,
+          session: session,
+          autofocus: true,
+        ),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -112,8 +118,8 @@ void main() {
       expect(find.text('Showing 3 / 5'), findsOneWidget);
       await chooseFilter(tester, 'map-filter-polling', 'Enabled only');
       expect(find.text('Showing 2 / 5'), findsOneWidget);
-      await chooseFilter(tester, 'map-filter-area', 'Holding registers · 03');
-      expect(find.text('Showing 1 / 5'), findsOneWidget);
+      await chooseFilter(tester, 'map-filter-access', 'All access');
+      expect(find.text('Showing 2 / 5'), findsOneWidget);
       expect(find.text('Temperature inlet'), findsOneWidget);
       expect(find.text('Pressure'), findsNothing);
       bridge.calls.clear();
@@ -296,12 +302,13 @@ void main() {
       expect(find.text('Last'), findsOneWidget);
       expect(find.text('Invalid address range'), findsNothing);
       await chooseFilter(tester, 'map-filter-polling', 'Disabled only');
-      await chooseFilter(tester, 'map-filter-area', 'Coils · 01');
+      await chooseFilter(tester, 'map-filter-access', 'Read-only');
       await tester.tap(find.byTooltip('Clear filters'));
       await tester.pumpAndSettle();
       expect(find.text('Showing 2 / 2'), findsOneWidget);
       expect(find.text('All rows'), findsOneWidget);
-      expect(find.text('All areas'), findsOneWidget);
+      expect(find.text('All access'), findsOneWidget);
+      expect(find.byKey(const ValueKey('map-filter-area')), findsNothing);
       expect(session.registers.map((r) => r['address']), [0, 65535]);
       expect(
         session.registers.every((r) => !r.containsKey('poll_enabled')),

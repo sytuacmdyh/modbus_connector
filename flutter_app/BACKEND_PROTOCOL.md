@@ -342,3 +342,16 @@ It restores the previous application on replacement/launch failure and retains
 the previous bundle in `.modbus-update-*` for recovery. A successful launch request
 does not establish continued application health; installed GUI acceptance remains
 separate from helper tests.
+
+### Register overview presentation state
+
+`state.draft.map_split_ratio` stores the overview width fraction (default 0.42).
+`state.draft.map_overview.blocks` is an ordered list of `{name, enabled, items}`.
+Each item references a register's optional stable `overview_id` using `row_id`,
+with optional ordered `rules` using the existing numeric alarm condition/color
+syntax. These rules affect display only, with no logging or sound. An absent
+overview configuration displays all map registers in a single block. Registers
+retain their IDs through row editing, movement, workspace and template restore;
+duplicating a register removes the copied ID. Overview configuration creates no
+backend connection, timer or write command. Map access/name/address/poll filters
+affect the right pane only; all acquisition and export commands keep source rows.

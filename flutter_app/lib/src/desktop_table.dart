@@ -56,6 +56,7 @@ class DesktopTable extends StatefulWidget {
     this.comfortableRowHeight = 56,
     this.headerHeight = 40,
     this.bottomPadding = 14,
+    this.showDensityControl = true,
   });
   final List<TableColumnSpec> columns;
   final Map<String, dynamic> layout;
@@ -74,6 +75,7 @@ class DesktopTable extends StatefulWidget {
   final double comfortableRowHeight;
   final double headerHeight;
   final double bottomPadding;
+  final bool showDensityControl;
   @override
   State<DesktopTable> createState() => _DesktopTableState();
 }
@@ -332,11 +334,12 @@ class _DesktopTableState extends State<DesktopTable> {
                         child: LText(column.label),
                       ),
                     const PopupMenuDivider(),
-                    CheckedPopupMenuItem(
-                      value: 'compact',
-                      checked: compact,
-                      child: const LText('Compact rows'),
-                    ),
+                    if (widget.showDensityControl)
+                      CheckedPopupMenuItem(
+                        value: 'compact',
+                        checked: compact,
+                        child: const LText('Compact rows'),
+                      ),
                     const PopupMenuItem(
                       value: 'reset',
                       child: LText('Reset columns'),

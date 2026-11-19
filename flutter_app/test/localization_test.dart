@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:modbus_desktop/src/desktop_table.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:modbus_desktop/main.dart';
 import 'package:modbus_desktop/src/help_dialog.dart';
@@ -93,8 +94,18 @@ void main() {
     expect(session.registers.single['name'], '寄存器');
     expect(session.registers.single['format'], 'u16');
     expect(session.registers.single['kind'], 'holding_registers');
+    await tester.tap(find.byKey(const ValueKey('map-columns')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('数据类型').last);
+    await tester.tap(find.text('数据类型').last);
+    await tester.pumpAndSettle();
     expect(find.text('UINT16'), findsOneWidget);
-    await tester.tap(find.text('寄存器'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(DesktopTable),
+        matching: find.text('寄存器'),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, '名称'), 'Voltage');
     await tester.tap(find.text('应用'));

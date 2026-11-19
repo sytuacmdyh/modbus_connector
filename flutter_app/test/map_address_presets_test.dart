@@ -84,7 +84,9 @@ void main() {
       await session.connect({'timeout': .1}, 1);
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: RegisterMapPanel(session: session)),
+          home: Scaffold(
+            body: RegisterMapPanel(showOverview: false, session: session),
+          ),
         ),
       );
       await tester.pumpAndSettle();

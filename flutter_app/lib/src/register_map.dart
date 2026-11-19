@@ -15,6 +15,22 @@ import 'tool_widgets.dart';
 import 'logging_dialog.dart';
 import 'graph_dialog.dart';
 import 'expression_dialog.dart';
+import 'register_overview.dart';
+
+const masterMapColumns = [
+  TableColumnSpec('select', 'Select', 32),
+  TableColumnSpec('address', 'Address', 56),
+  TableColumnSpec('name', 'Name', 172),
+  TableColumnSpec('kind', 'Area', 160, hiddenByDefault: true),
+  TableColumnSpec('format', 'Data type', 80, hiddenByDefault: true),
+  TableColumnSpec('value', 'Engineering value', 128),
+  TableColumnSpec('raw', 'Raw HEX', 124, hiddenByDefault: true),
+  TableColumnSpec('count', 'Count', 80, hiddenByDefault: true),
+  TableColumnSpec('unit_id', 'Unit', 80, hiddenByDefault: true),
+  TableColumnSpec('trend', 'Trend', 88, hiddenByDefault: true),
+  TableColumnSpec('status', 'Status', 80, hiddenByDefault: true),
+  TableColumnSpec('actions', 'Actions', 40),
+];
 
 const displayFormats = [
   'u16',
@@ -52,7 +68,11 @@ class RegisterMapDialog extends StatelessWidget {
     content: SizedBox(
       width: 1000,
       height: 470,
-      child: RegisterMapPanel(session: session, autofocus: true),
+      child: RegisterMapPanel(
+        session: session,
+        autofocus: true,
+        showOverview: false,
+      ),
     ),
     actions: [
       TextButton(
@@ -70,9 +90,11 @@ class RegisterMapPanel extends StatefulWidget {
     required this.session,
     this.autofocus = false,
     this.shrinkWrap = false,
+    this.showOverview = true,
   });
   final SessionController session;
   final bool shrinkWrap;
+  final bool showOverview;
   @override
   State<RegisterMapPanel> createState() => _RegisterMapPanelState();
 }
@@ -93,7 +115,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
   final addressFilter = TextEditingController();
   final filterFocus = FocusNode();
   String pollingFilter = 'all';
-  String areaFilter = 'all';
+  String accessFilter = 'writable';
   String? message;
   bool showTools = false;
 
@@ -126,7 +148,10 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
           !tr(rowName).toLowerCase().contains(name)) {
         continue;
       }
-      if (areaFilter != 'all' && row['kind'] != areaFilter) continue;
+      if (accessFilter == 'writable' && !rowWritable(row) ||
+          accessFilter == 'readonly' && rowWritable(row)) {
+        continue;
+      }
       final enabled = row['poll_enabled'] != false;
       if (pollingFilter == 'enabled' && !enabled ||
           pollingFilter == 'disabled' && enabled) {
@@ -229,6 +254,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
           final copy =
               jsonDecode(jsonEncode(model.rows[i])) as Map<String, dynamic>;
           copy['name'] = '${copy['name']} ${tr('copy')}';
+          copy.remove(overviewRowIdKey);
           model.rows.add(copy);
         }
       } else if (action == 'up' || action == 'down') {
@@ -585,178 +611,276 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
     }
   }
 
-  Widget filterBar(int shown) => Theme(
-    data: Theme.of(context).copyWith(
-      visualDensity: VisualDensity.standard,
-      inputDecorationTheme: Theme.of(context).inputDecorationTheme.copyWith(
-        isDense: true,
-        constraints: BoxConstraints(
-          minHeight: 32 * MediaQuery.textScalerOf(context).scale(1).clamp(1, 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      ),
-    ),
-    child: Focus(
-      focusNode: filterFocus,
-      onFocusChange: (_) {
-        if (mounted) setState(() {});
-      },
-      child: Wrap(
-        spacing: 6,
-        runSpacing: 6,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          SizedBox(
-            width: 176,
-            child: TextField(
-              key: const ValueKey('map-filter-name'),
-              controller: nameFilter,
-              style: const TextStyle(fontSize: 12),
-              decoration: InputDecoration(
-                hintText: tr('Filter by name'),
-                prefixIcon: const Icon(Icons.search, size: 16),
-                prefixIconConstraints: BoxConstraints(
-                  minWidth: 30,
-                  minHeight:
-                      32 *
-                      MediaQuery.textScalerOf(context).scale(1).clamp(1, 2),
-                ),
-              ),
-              onChanged: (_) => changeFilters(() {}),
-            ),
+  Widget filterBar(int shown) => Focus(
+    focusNode: filterFocus,
+    onFocusChange: (_) {
+      if (mounted) setState(() {});
+    },
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        Widget choice(
+          String key,
+          String value,
+          Map<String, String> choices,
+          ValueChanged<String> changed,
+        ) => DropdownButtonFormField<String>(
+          key: ValueKey(key),
+          initialValue: value,
+          isExpanded: true,
+          iconSize: 16,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
-          SizedBox(
-            width: 150,
-            child: TextField(
-              key: const ValueKey('map-filter-address'),
-              controller: addressFilter,
-              style: const TextStyle(fontSize: 12),
-              decoration: InputDecoration(
-                hintText: tr('Address / start-count'),
-                suffixIconConstraints: BoxConstraints.tightFor(
-                  width: 28,
-                  height:
-                      32 *
-                      MediaQuery.textScalerOf(context).scale(1).clamp(1, 2),
-                ),
-                suffixIcon: PopupMenuButton<String>(
-                  key: const ValueKey('map-address-presets'),
-                  tooltip: tr('Address range presets'),
-                  enabled:
-                      model.rows.isNotEmpty || addressFilter.text.isNotEmpty,
-                  padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.arrow_drop_down, size: 20),
-                  onSelected: (value) => changeFilters(() {
-                    addressFilter.text = value;
-                  }),
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: '',
-                      child: LText('All addresses'),
-                    ),
-                    const PopupMenuDivider(),
-                    for (final preset in model.addressPresets)
-                      PopupMenuItem(
-                        value: '${preset.start}-${preset.count}',
-                        child: Text(
-                          '${preset.pageStart}–${(preset.pageStart + 99).clamp(0, 65535)} · ${preset.start}-${preset.count}',
-                        ),
+          decoration: const InputDecoration(
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+            constraints: BoxConstraints.tightFor(height: 32),
+          ),
+          items: [
+            for (final entry in choices.entries)
+              DropdownMenuItem(
+                value: entry.key,
+                child: LText(entry.value, overflow: TextOverflow.ellipsis),
+              ),
+          ],
+          onChanged: (v) {
+            if (v != null) changeFilters(() => changed(v));
+          },
+        );
+        final fields = <Widget>[
+          TextField(
+            key: const ValueKey('map-filter-name'),
+            controller: nameFilter,
+            style: const TextStyle(fontSize: 12),
+            decoration: InputDecoration(
+              hintText: tr('Filter by name'),
+              isDense: true,
+            ),
+            onChanged: (_) => changeFilters(() {}),
+          ),
+          TextField(
+            key: const ValueKey('map-filter-address'),
+            controller: addressFilter,
+            style: const TextStyle(fontSize: 12),
+            decoration: InputDecoration(
+              hintText: tr('Address / start-count'),
+              isDense: true,
+              suffixIconConstraints: const BoxConstraints.tightFor(
+                width: 24,
+                height: 28,
+              ),
+              suffixIcon: PopupMenuButton<String>(
+                key: const ValueKey('map-address-presets'),
+                tooltip: tr('Address range presets'),
+                padding: EdgeInsets.zero,
+                icon: const Icon(Icons.arrow_drop_down, size: 18),
+                onSelected: (value) =>
+                    changeFilters(() => addressFilter.text = value),
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: '', child: LText('All addresses')),
+                  const PopupMenuDivider(),
+                  for (final preset in model.addressPresets)
+                    PopupMenuItem(
+                      value: '${preset.start}-${preset.count}',
+                      child: Text(
+                        '${preset.pageStart}–${(preset.pageStart + 99).clamp(0, 65535)} · ${preset.start}-${preset.count}',
                       ),
-                  ],
-                ),
-                errorText:
-                    addressFilter.text.trim().isNotEmpty && addressRange == null
-                    ? tr('Invalid address range')
-                    : null,
-                errorMaxLines: 2,
+                    ),
+                ],
               ),
-              onChanged: (_) => changeFilters(() {}),
             ),
+            onChanged: (_) => changeFilters(() {}),
           ),
-          SizedBox(
-            width: 140,
-            child: DropdownButtonFormField<String>(
-              key: const ValueKey('map-filter-polling'),
-              initialValue: pollingFilter,
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-              isExpanded: true,
-              iconSize: 16,
-              decoration: const InputDecoration(),
-              items: const [
-                DropdownMenuItem(value: 'all', child: LText('All rows')),
-                DropdownMenuItem(
-                  value: 'enabled',
-                  child: LText('Enabled only'),
-                ),
-                DropdownMenuItem(
-                  value: 'disabled',
-                  child: LText('Disabled only'),
-                ),
-              ],
-              onChanged: (value) {
-                if (value != null) changeFilters(() => pollingFilter = value);
-              },
-            ),
-          ),
-          SizedBox(
-            width: 165,
-            child: DropdownButtonFormField<String>(
-              key: const ValueKey('map-filter-area'),
-              initialValue: areaFilter,
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-              isExpanded: true,
-              iconSize: 16,
-              decoration: const InputDecoration(),
-              items: [
-                const DropdownMenuItem(value: 'all', child: LText('All areas')),
-                for (final entry in areas.entries)
-                  DropdownMenuItem(
-                    value: entry.key,
-                    child: LText(entry.value, overflow: TextOverflow.ellipsis),
-                  ),
-              ],
-              onChanged: (value) {
-                if (value != null) changeFilters(() => areaFilter = value);
-              },
-            ),
-          ),
+          choice('map-filter-access', accessFilter, const {
+            'writable': 'Writable',
+            'all': 'All access',
+            'readonly': 'Read-only',
+          }, (v) => accessFilter = v),
+          choice('map-filter-polling', pollingFilter, const {
+            'all': 'All rows',
+            'enabled': 'Enabled only',
+            'disabled': 'Disabled only',
+          }, (v) => pollingFilter = v),
           IconButton(
             tooltip: tr('Clear filters'),
-            onPressed:
-                nameFilter.text.isEmpty &&
-                    addressFilter.text.isEmpty &&
-                    pollingFilter == 'all' &&
-                    areaFilter == 'all'
-                ? null
-                : () => changeFilters(() {
-                    nameFilter.clear();
-                    addressFilter.clear();
-                    pollingFilter = 'all';
-                    areaFilter = 'all';
-                  }),
-            icon: const Icon(Icons.filter_alt_off_outlined, size: 20),
+            onPressed: () => changeFilters(() {
+              nameFilter.clear();
+              addressFilter.clear();
+              pollingFilter = 'all';
+              accessFilter = 'all';
+            }),
+            icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
           ),
+        ];
+        final inline = constraints.maxWidth >= 470;
+        final widths = inline
+            ? [
+                (constraints.maxWidth - 260) * .46,
+                (constraints.maxWidth - 260) * .54,
+                86.0,
+                112.0,
+                38.0,
+              ]
+            : [
+                constraints.maxWidth * .45 - 3,
+                constraints.maxWidth * .55 - 3,
+                86.0,
+                112.0,
+                38.0,
+              ];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                for (var i = 0; i < fields.length; i++)
+                  SizedBox(width: widths[i], child: fields[i]),
+              ],
+            ),
+            if (addressFilter.text.trim().isNotEmpty && addressRange == null)
+              LText(
+                'Invalid address range',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 11,
+                ),
+              ),
+          ],
+        );
+      },
+    ),
+  );
+
+  Future<void> configureOverview() async {
+    final applied = await showDialog<bool>(
+      context: context,
+      builder: (_) => OverviewConfigDialog(session: widget.session),
+    );
+    if (applied == true && mounted) setState(() {});
+  }
+
+  Future<void> columnsMenu(BuildContext buttonContext) async {
+    final layout = desktopTableLayout(widget.session.draft, 'map_table');
+    final hidden =
+        (layout['hidden'] as List?)?.whereType<String>().toSet() ??
+        masterMapColumns
+            .where((c) => c.hiddenByDefault)
+            .map((c) => c.key)
+            .toSet();
+    final shown = masterMapColumns.length - hidden.length;
+    final box = buttonContext.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final position = box.localToGlobal(
+      Offset(0, box.size.height),
+      ancestor: overlay,
+    );
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        overlay.size.width - position.dx,
+        0,
+      ),
+      items: [
+        for (final column in masterMapColumns)
+          CheckedPopupMenuItem(
+            value: column.key,
+            checked: !hidden.contains(column.key),
+            enabled: hidden.contains(column.key) || shown > 1,
+            child: LText(column.label),
+          ),
+        const PopupMenuDivider(),
+        const PopupMenuItem(value: 'reset', child: LText('Reset columns')),
+      ],
+    );
+    if (action == null || !mounted) return;
+    setState(() {
+      if (action == 'reset') {
+        layout.clear();
+      } else {
+        if (!hidden.remove(action)) hidden.add(action);
+        layout['hidden'] = hidden.toList();
+      }
+    });
+  }
+
+  Widget registerWorkspace(Widget tablePane) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (!widget.showOverview ||
+          widget.shrinkWrap ||
+          !constraints.hasBoundedHeight) {
+        return tablePane;
+      }
+      final overview = RegisterOverview(
+        session: widget.session,
+        onConfigure: configureOverview,
+      );
+      if (constraints.maxWidth < 820) {
+        return Column(
+          children: [
+            SizedBox(
+              height: (constraints.maxHeight * .32).clamp(90, 180),
+              child: overview,
+            ),
+            const Divider(height: 8),
+            Expanded(child: tablePane),
+          ],
+        );
+      }
+      final stored = widget.session.draft['map_split_ratio'];
+      final ratio = stored is num && stored.isFinite
+          ? stored.toDouble().clamp(.28, .62)
+          : .42;
+      final width = constraints.maxWidth - 12;
+      void resize(double value) => setState(
+        () => widget.session.draft['map_split_ratio'] = value.clamp(.28, .62),
+      );
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
           SizedBox(
-            width: 116,
-            child: LText(
-              trf('Showing {shown} / {total}', {
-                'shown': shown,
-                'total': model.rows.length,
-              }),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
+            key: const ValueKey('register-overview-pane'),
+            width: width * ratio,
+            child: overview,
+          ),
+          MouseRegion(
+            cursor: SystemMouseCursors.resizeLeftRight,
+            child: Semantics(
+              label: tr('Resize overview'),
+              onIncrease: () => resize(ratio + .02),
+              onDecrease: () => resize(ratio - .02),
+              child: GestureDetector(
+                key: const ValueKey('register-split-handle'),
+                behavior: HitTestBehavior.opaque,
+                onHorizontalDragUpdate: (details) => resize(
+                  ((widget.session.draft['map_split_ratio'] as num?)
+                              ?.toDouble() ??
+                          ratio) +
+                      details.delta.dx / width,
+                ),
+                onDoubleTap: () => resize(.42),
+                child: SizedBox(
+                  width: 12,
+                  child: Center(
+                    child: Container(
+                      width: 3,
+                      height: 28,
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
+          Expanded(child: tablePane),
         ],
-      ),
-    ),
+      );
+    },
   );
 
   Widget toolbarMenuLabel(IconData icon, String label, {bool enabled = true}) {
@@ -1037,7 +1161,31 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
               if (message != null) LText(message!),
               if (widget.session.error != null)
                 LText(widget.session.error!, maxLines: 2),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const LText('Registers', style: TextStyle(fontSize: 12)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: LText(
+                      trf('Showing {shown} / {total}', {
+                        'shown': visible.length,
+                        'total': model.rows.length,
+                      }),
+                      style: const TextStyle(fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Builder(
+                    builder: (buttonContext) => TextButton(
+                      key: const ValueKey('map-columns'),
+                      onPressed: () => columnsMenu(buttonContext),
+                      child: const LText('Columns'),
+                    ),
+                  ),
+                ],
+              ),
               Align(
                 alignment: Alignment.centerLeft,
                 child: filterBar(visible.length),
@@ -1054,20 +1202,8 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
         comfortableRowHeight: 48,
         headerHeight: 30,
         bottomPadding: hasSelection ? 66 : 14,
-        columns: const [
-          TableColumnSpec('select', 'Select', 40),
-          TableColumnSpec('address', 'Address', 68),
-          TableColumnSpec('name', 'Name', 220),
-          TableColumnSpec('kind', 'Area', 160, hiddenByDefault: true),
-          TableColumnSpec('format', 'Data type', 80),
-          TableColumnSpec('value', 'Engineering value', 156),
-          TableColumnSpec('raw', 'Raw HEX', 124),
-          TableColumnSpec('count', 'Count', 80, hiddenByDefault: true),
-          TableColumnSpec('unit_id', 'Unit', 80, hiddenByDefault: true),
-          TableColumnSpec('trend', 'Trend', 88),
-          TableColumnSpec('status', 'Status', 80),
-          TableColumnSpec('actions', 'Actions', 44),
-        ],
+        showDensityControl: false,
+        columns: masterMapColumns,
         layout: desktopTableLayout(widget.session.draft, 'map_table'),
         key: ValueKey(visible.join(',')),
         rowCount: visible.length,
@@ -1420,89 +1556,111 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
               },
         child: Focus(
           autofocus: widget.autofocus,
-          child: LayoutBuilder(
-            builder: (context, constraints) => Stack(
-              children: [
-                Column(
-                  mainAxisSize: widget.shrinkWrap
-                      ? MainAxisSize.min
-                      : MainAxisSize.max,
-                  children: [
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight:
+          child: registerWorkspace(
+            LayoutBuilder(
+              builder: (context, constraints) => Stack(
+                children: [
+                  Column(
+                    mainAxisSize: widget.shrinkWrap
+                        ? MainAxisSize.min
+                        : MainAxisSize.max,
+                    children: [
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight:
+                              widget.shrinkWrap || !constraints.hasBoundedHeight
+                              ? double.infinity
+                              : constraints.maxHeight * .55,
+                        ),
+                        child: toolbar,
+                      ),
+                      Flexible(
+                        fit: widget.shrinkWrap ? FlexFit.loose : FlexFit.tight,
+                        child:
                             widget.shrinkWrap || !constraints.hasBoundedHeight
-                            ? double.infinity
-                            : constraints.maxHeight * .55,
+                            ? table
+                            : Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  table,
+                                  if (visible.isEmpty)
+                                    Center(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: LText(
+                                          model.rows.isEmpty
+                                              ? 'Add named rows at any unit/address, or import a CSV/template.'
+                                              : 'No registers match the filters.',
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
                       ),
-                      child: toolbar,
-                    ),
-                    Flexible(
-                      fit: widget.shrinkWrap ? FlexFit.loose : FlexFit.tight,
-                      child: table,
-                    ),
-                    if (model.rows.isEmpty)
-                      const LText(
-                        'Add named rows at any unit/address, or import a CSV/template.',
-                      ),
-                    if (model.rows.isNotEmpty && visible.isEmpty)
-                      const LText('No registers match the filters.'),
-                  ],
-                ),
-                if (hasSelection)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: Material(
-                      key: const ValueKey('map-selection-tools'),
-                      color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                      elevation: 2,
-                      borderRadius: BorderRadius.circular(8),
-                      child: SizedBox(
-                        height: 48,
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Row(
-                            spacing: 6,
-                            children: [
-                              PopupMenuButton<String>(
-                                tooltip: tr('Selected rows'),
-                                enabled: hasSelection,
-                                onSelected: batch,
-                                itemBuilder: (_) => rowActions(),
-                                child: toolbarMenuLabel(
-                                  Icons.playlist_add_check,
-                                  trf('Selected: {count}', {
-                                    'count': visibleSelection.length,
-                                  }),
+                    ],
+                  ),
+                  if (hasSelection)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Material(
+                        key: const ValueKey('map-selection-tools'),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHigh,
+                        elevation: 2,
+                        borderRadius: BorderRadius.circular(8),
+                        child: SizedBox(
+                          height: 48,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Row(
+                              spacing: 6,
+                              children: [
+                                PopupMenuButton<String>(
+                                  tooltip: tr('Selected rows'),
                                   enabled: hasSelection,
+                                  onSelected: batch,
+                                  itemBuilder: (_) => rowActions(),
+                                  child: toolbarMenuLabel(
+                                    Icons.playlist_add_check,
+                                    trf('Selected: {count}', {
+                                      'count': visibleSelection.length,
+                                    }),
+                                    enabled: hasSelection,
+                                  ),
                                 ),
-                              ),
-                              OutlinedButton.icon(
-                                key: const ValueKey('enable-selected-polling'),
-                                onPressed: !hasSelection
-                                    ? null
-                                    : () => batch('enable'),
-                                icon: const Icon(Icons.play_arrow, size: 18),
-                                label: const LText('Enable polling'),
-                              ),
-                              OutlinedButton.icon(
-                                key: const ValueKey('disable-selected-polling'),
-                                onPressed: !hasSelection
-                                    ? null
-                                    : () => batch('disable'),
-                                icon: const Icon(Icons.pause, size: 18),
-                                label: const LText('Disable polling'),
-                              ),
-                            ],
+                                OutlinedButton.icon(
+                                  key: const ValueKey(
+                                    'enable-selected-polling',
+                                  ),
+                                  onPressed: !hasSelection
+                                      ? null
+                                      : () => batch('enable'),
+                                  icon: const Icon(Icons.play_arrow, size: 18),
+                                  label: const LText('Enable polling'),
+                                ),
+                                OutlinedButton.icon(
+                                  key: const ValueKey(
+                                    'disable-selected-polling',
+                                  ),
+                                  onPressed: !hasSelection
+                                      ? null
+                                      : () => batch('disable'),
+                                  icon: const Icon(Icons.pause, size: 18),
+                                  label: const LText('Disable polling'),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

@@ -195,12 +195,12 @@ Json flutterState(Json s) {
       'stop': c['stopbits'] ?? 1,
       'timeout': '${c['timeout'] ?? 3}',
       'map_table': {
-        'order': [
-          for (final k in options['column_order'] as List? ?? []) column(k),
-        ],
-        'hidden': [
-          for (final k in options['hidden_columns'] as List? ?? []) column(k),
-        ],
+        // Missing legacy preferences must use the current table defaults.
+        // An explicitly saved empty hidden list still means "show all".
+        if (options['column_order'] is List)
+          'order': [for (final k in options['column_order']) column(k)],
+        if (options['hidden_columns'] is List)
+          'hidden': [for (final k in options['hidden_columns']) column(k)],
       },
       ...map(s['draft']),
       ...map(extra['draft']),

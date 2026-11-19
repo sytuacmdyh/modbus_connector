@@ -302,8 +302,13 @@ class _LoggingDialogState extends State<LoggingDialog> {
 }
 
 class AlarmRulesDialog extends StatefulWidget {
-  const AlarmRulesDialog({super.key, required this.rules});
+  const AlarmRulesDialog({
+    super.key,
+    required this.rules,
+    this.displayOnly = false,
+  });
   final List<Map<String, dynamic>> rules;
+  final bool displayOnly;
   @override
   State<AlarmRulesDialog> createState() => _AlarmRulesDialogState();
 }
@@ -348,7 +353,11 @@ class _AlarmRulesDialogState extends State<AlarmRulesDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const LText('Alarm rules · first match wins'),
+    title: LText(
+      widget.displayOnly
+          ? 'Value color rules · first match wins'
+          : 'Alarm rules · first match wins',
+    ),
     content: SizedBox(
       width: 650,
       height: 400,
@@ -372,13 +381,18 @@ class _AlarmRulesDialogState extends State<AlarmRulesDialog> {
           ),
           Row(
             children: [
-              Checkbox(value: log, onChanged: (v) => setState(() => log = v!)),
-              const LText('Log on entry'),
-              Checkbox(
-                value: sound,
-                onChanged: (v) => setState(() => sound = v!),
-              ),
-              const LText('Sound on entry'),
+              if (!widget.displayOnly) ...[
+                Checkbox(
+                  value: log,
+                  onChanged: (v) => setState(() => log = v!),
+                ),
+                const LText('Log on entry'),
+                Checkbox(
+                  value: sound,
+                  onChanged: (v) => setState(() => sound = v!),
+                ),
+                const LText('Sound on entry'),
+              ],
               TextButton(
                 onPressed: () {
                   final a = double.tryParse(value.text);

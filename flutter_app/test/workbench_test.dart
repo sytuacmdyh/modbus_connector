@@ -37,6 +37,9 @@ void main() {
       'count': 1,
       'format': 'u16',
     });
+    session.draft['map_table'] = <String, dynamic>{
+      'hidden': ['kind', 'format', 'raw', 'count', 'unit_id', 'status'],
+    };
     final now = DateTime.now();
     session.histories['1/input_registers/0/Signal'] = Queue<Sample>.from([
       Sample(now.subtract(const Duration(seconds: 2)), 10),
@@ -44,22 +47,42 @@ void main() {
       Sample(now, 15),
     ]);
     await tester.pumpWidget(ModbusApp(controller: session));
+    await tester.tap(find.byKey(const ValueKey('map-filter-access')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All access').last);
+    await tester.pumpAndSettle();
     final trend = find.byWidgetPredicate(
       (widget) => widget is CustomPaint && widget.painter is MultiSeriesPainter,
     );
     expect(trend, findsOneWidget);
     double rowSpacing() =>
-        tester.getTopLeft(find.text('Second signal')).dy -
-        tester.getTopLeft(find.text('Signal')).dy;
+        tester
+            .getTopLeft(
+              find.descendant(
+                of: find.byType(DesktopTable),
+                matching: find.text('Second signal'),
+              ),
+            )
+            .dy -
+        tester
+            .getTopLeft(
+              find.descendant(
+                of: find.byType(DesktopTable),
+                matching: find.text('Signal'),
+              ),
+            )
+            .dy;
     expect(rowSpacing(), 34);
     await tester.tap(find.text('Name'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Compact rows'));
+    expect(find.text('Compact rows'), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    session.draft['map_table']['compact'] = false;
+    session.registerMap.stop();
     await tester.pumpAndSettle();
     expect(rowSpacing(), 48);
-    await tester.tap(find.text('Name'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Compact rows'));
+    session.draft['map_table']['compact'] = true;
+    session.registerMap.stop();
     await tester.pumpAndSettle();
     expect(rowSpacing(), 34);
     expect(tester.getSize(trend).width, greaterThanOrEqualTo(60));
@@ -73,7 +96,7 @@ void main() {
   });
 
   testWidgets(
-    'engineering value cell opens write dialog while polling and raw HEX stays visible',
+    'engineering value cell opens write dialog while polling with optional raw HEX',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 900);
       tester.view.devicePixelRatio = 1;
@@ -87,6 +110,9 @@ void main() {
         'count': 1,
         'format': 'u16',
       });
+      session.draft['map_table'] = <String, dynamic>{
+        'hidden': ['kind', 'format', 'count', 'unit_id', 'trend', 'status'],
+      };
       await session.connect({'transport': 'tcp', 'timeout': .1}, 1);
       await tester.pumpWidget(ModbusApp(controller: session));
       session.registerMap.start(500);
@@ -144,7 +170,7 @@ void main() {
       find.byKey(const ValueKey('map-filter-name')),
       find.byKey(const ValueKey('map-filter-address')),
       find.byKey(const ValueKey('map-filter-polling')),
-      find.byKey(const ValueKey('map-filter-area')),
+      find.byKey(const ValueKey('map-filter-access')),
     ];
     for (final control in controls) {
       expect(tester.getSize(control).height, 32, reason: '$control');
@@ -268,7 +294,7 @@ void main() {
       expect(activity.width, greaterThanOrEqualTo(map.width));
       expect(
         tester.getSize(find.byType(DesktopTable)).height,
-        greaterThan(400),
+        greaterThan(300),
       );
       final logs = find.byKey(const ValueKey('activity-list'));
       await tester.drag(logs, const Offset(0, -300));

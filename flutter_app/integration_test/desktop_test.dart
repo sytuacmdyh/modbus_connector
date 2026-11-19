@@ -102,6 +102,10 @@ void main() {
         }
         expect(demo.busy, isFalse, reason: demo.error);
         expect(demo.registerMap.reading, isFalse);
+        await tester.tap(find.byKey(const ValueKey('map-filter-access')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('All access').last);
+        await tester.pumpAndSettle();
         demo.registers[3]['writable'] = false;
         demo.registerMap.stop();
         await tester.pump(const Duration(milliseconds: 100));

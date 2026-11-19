@@ -259,7 +259,16 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(AlertDialog), findsNothing);
       expect(find.byType(RegisterMapPanel), findsOneWidget);
-      expect(find.text('Embedded').hitTestable(), findsOneWidget);
+      expect(
+        find
+            .descendant(
+              of: find.byType(DesktopTable),
+              matching: find.text('Embedded'),
+            )
+            .hitTestable(),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('overview-value-0')), findsOneWidget);
       final shortHeight = tester.getSize(find.byType(DesktopTable)).height;
       expect(shortHeight, greaterThan(250));
       await tester.tap(find.text('Add row'));
