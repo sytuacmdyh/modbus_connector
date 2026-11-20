@@ -541,18 +541,6 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                       workspace.notifyListeners();
                     },
                   ),
-                DropdownButtonFormField<String>(
-                  initialValue: appLanguage.value,
-                  decoration: InputDecoration(labelText: tr('Language')),
-                  items: const [
-                    DropdownMenuItem(value: 'en', child: Text('English')),
-                    DropdownMenuItem(value: 'zh_CN', child: Text('简体中文')),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) appLanguage.value = v;
-                  },
-                ),
-                const SizedBox(height: 16),
                 if (kIsWeb)
                   TextButton.icon(
                     icon: const Icon(Icons.dns_outlined),
@@ -741,7 +729,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: workspace,
+    listenable: Listenable.merge([workspace, appLanguage]),
     builder: (context, _) => Scaffold(
       key: _workspaceScaffold,
       drawer: MediaQuery.sizeOf(context).width < 1100
@@ -767,11 +755,49 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
-                const Text(
-                  'Modbus Connector',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                const Expanded(
+                  child: Text(
+                    'Modbus Connector',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
-                const Spacer(),
+                PopupMenuButton<String>(
+                  key: const ValueKey('workspace-language'),
+                  tooltip: '语言 / Language',
+                  initialValue: appLanguage.value,
+                  onSelected: (language) => appLanguage.value = language,
+                  itemBuilder: (_) => [
+                    CheckedPopupMenuItem(
+                      value: 'zh_CN',
+                      checked: appLanguage.value == 'zh_CN',
+                      child: const Text('简体中文'),
+                    ),
+                    CheckedPopupMenuItem(
+                      value: 'en',
+                      checked: appLanguage.value == 'en',
+                      child: const Text('English'),
+                    ),
+                  ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.language, size: 18),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${tr('Language')}: ${appLanguage.value == 'zh_CN' ? '简体中文' : 'English'}',
+                        ),
+                        const Icon(Icons.arrow_drop_down, size: 18),
+                      ],
+                    ),
+                  ),
+                ),
                 IconButton(
                   tooltip: tr('Help'),
                   onPressed: () => showFeatureHelp(context),

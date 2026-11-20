@@ -375,7 +375,7 @@ void main() {
   });
 
   testWidgets(
-    'Settings consolidates language appearance and workspace preferences',
+    'toolbar switches language while Settings keeps appearance and workspace preferences',
     (tester) async {
       final workspace = WorkspaceController(bridgeFactory: FakeBridge.new);
       addTearDown(() {
@@ -407,15 +407,33 @@ void main() {
       await tester.tap(find.text('Automatically save workspace'));
       await tester.pump();
       expect(workspace.exportState()['autosave'], isFalse);
-      await tester.tap(find.text('English'));
+      await tester.tap(find.text('Close'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('简体中文').last);
+      expect(find.text('Language: English'), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: 'English settings');
+      await tester.tap(find.byKey(const ValueKey('workspace-language')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(CheckedPopupMenuItem<String>, '简体中文'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('语言: 简体中文'), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: 'Chinese toolbar');
+      expect(workspace.exportState()['language'], 'zh_CN');
+      await tester.tap(find.byTooltip('设置'));
       await tester.pumpAndSettle();
       expect(find.text('设置'), findsOneWidget);
       expect(find.text('自动保存工作区'), findsOneWidget);
       expect(find.text('启动时自动检查更新'), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: 'Chinese settings');
       await tester.tap(find.text('关闭'));
       await tester.pumpAndSettle();
+      final saved = workspace.exportState();
+      appLanguage.value = 'en';
+      await workspace.load(imported: saved);
+      await tester.pumpAndSettle();
+      expect(appLanguage.value, 'zh_CN');
+      expect(find.text('语言: 简体中文'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },

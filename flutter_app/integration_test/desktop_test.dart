@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:modbus_desktop/src/translations.dart';
 import 'package:modbus_desktop/src/graph_dialog.dart';
 import 'package:modbus_desktop/src/register_map.dart';
 import 'package:modbus_desktop/src/workspace.dart';
 
 void main() {
+  // Label finders in this scenario intentionally use English.
+  appLanguage.value = 'en';
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets(
     'local demo opens isolated map, animates, writes, graphs and reconnects',

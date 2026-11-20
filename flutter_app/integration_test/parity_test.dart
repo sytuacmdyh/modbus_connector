@@ -3,12 +3,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:modbus_desktop/src/translations.dart';
 import 'package:modbus_desktop/src/settings_store.dart';
 import 'package:modbus_desktop/src/backend/catalog.dart';
 import 'package:modbus_desktop/src/bridge_client.dart';
 import 'package:modbus_desktop/src/workspace.dart';
 
 void main() {
+  // Label finders in this scenario intentionally use English.
+  appLanguage.value = 'en';
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets(
     'independent native tabs: simulator rules, master map/logger/templates/state',

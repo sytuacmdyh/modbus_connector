@@ -212,9 +212,11 @@ of the desktop map's permissions.
 Map polling stops
 with the session connection. Device-mode serial forms include port discovery and
 manual entry. Sniffer views support filters, hiding/restoring and per-unit graphs;
-simulator rules offer keyboard prefix completion. Settings groups language, theme,
-autosave and workspace files. With autosave off, use Save workspace to persist
-preferences. Scanner results restore with the workspace. Graphs export PNG and CSV;
+simulator rules offer keyboard prefix completion. The default language is Simplified
+Chinese; the top toolbar displays the current language and offers a direct Chinese/
+English switch. Saved language preferences take precedence over the default.
+Settings groups theme, autosave and workspace files. With autosave off, use Save
+workspace to persist preferences. Scanner results restore with the workspace. Graphs export PNG and CSV;
 hover selects the nearest timestamp and click pins the cursor. Graph selection,
 normalization and time window persist. Open separate window creates an owned
 native graph viewer without another bus connection; closing the session closes

@@ -13,6 +13,8 @@ import 'package:modbus_desktop/src/translations.dart';
 import 'package:modbus_desktop/src/workbench.dart';
 
 void main() {
+  // Label finders in this scenario intentionally use English.
+  appLanguage.value = 'en';
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets(
     'native TCP workspace: overview, filters, polling writes and persistence',

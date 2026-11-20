@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:modbus_desktop/src/translations.dart';
 import 'package:modbus_desktop/src/desktop_table.dart';
 import 'package:modbus_desktop/src/bridge_client.dart';
 import 'package:modbus_desktop/src/workspace.dart';
@@ -25,6 +26,8 @@ class PacedBridge extends NativeBridge {
 }
 
 void main() {
+  // Label finders in this scenario intentionally use English.
+  appLanguage.value = 'en';
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   binding.framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
   testWidgets('large map remains responsive during independent reads', (

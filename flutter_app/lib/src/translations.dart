@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'common_translations.dart';
 
-final appLanguage = ValueNotifier<String>('en');
+final appLanguage = ValueNotifier<String>('zh_CN');
 final appTheme = ValueNotifier<ThemeMode>(ThemeMode.system);
 String tr(String value) =>
     appLanguage.value == 'zh_CN' ? _translate(value, 0) : value;

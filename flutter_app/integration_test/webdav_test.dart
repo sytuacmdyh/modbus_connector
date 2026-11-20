@@ -4,12 +4,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:modbus_desktop/src/translations.dart';
 import 'package:modbus_desktop/src/bridge_client.dart';
 import 'package:modbus_desktop/src/workspace.dart';
 
 import '../tool/webdav_fixture.dart';
 
 void main() {
+  // Label finders in this scenario intentionally use English.
+  appLanguage.value = 'en';
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets(
     'native read-only WebDAV sync during polling opens a disconnected cached template',
