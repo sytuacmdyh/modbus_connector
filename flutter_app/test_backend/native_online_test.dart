@@ -85,7 +85,7 @@ void main() {
           throwsA(isA<DavException>()),
         );
         expect(await readJson(file), {'old': true});
-        expect((await root.list().toList()).map((f) => f.path), [file.path]);
+        expect((await root.list().toList()).map((f) => f.uri), [file.uri]);
       } finally {
         await root.delete(recursive: true);
       }

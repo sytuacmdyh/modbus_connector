@@ -297,7 +297,7 @@ void main() {
       expect(exported.result['text'], contains('123'));
       expect(
         (await directory.list(recursive: true).toList()).whereType<File>().any(
-          (file) => file.path.endsWith('/remote.csv'),
+          (file) => file.uri.pathSegments.last == 'remote.csv',
         ),
         isTrue,
       );
