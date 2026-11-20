@@ -194,7 +194,9 @@ def test_installed_upload_cli_checks_local_data_before_network(tmp_path, dav_ser
     result = subprocess.run(
         [sys.executable, "-I", str(installed / SCRIPT.name), "upload", str(path),
          "--resource", "厂家/设备.json", "--publish"],
-        cwd=tmp_path, env={"MODBUS_TEMPLATE_UPLOAD_HOME": str(config_dir)},
+        # Keep OS runtime variables (notably USERPROFILE/SystemRoot on Windows).
+        # -I already isolates Python imports from the environment and cwd.
+        cwd=tmp_path, env={**os.environ, "MODBUS_TEMPLATE_UPLOAD_HOME": str(config_dir)},
         capture_output=True, text=True,
     )
     assert result.returncode == 1
