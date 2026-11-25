@@ -2001,42 +2001,11 @@ Future<List<dynamic>?> rawValuePrompt(
     );
     return value == null ? null : [value];
   }
-  final value = await showDialog<int>(
-    context: context,
-    builder: (context) => SimpleDialog(
-      title: LText(row['name'] as String? ?? 'Set value'),
-      children: [
-        for (final entry in names.entries)
-          if (int.tryParse(entry.key) != null &&
-              int.parse(entry.key) >= 0 &&
-              int.parse(entry.key) <=
-                  (['coils', 'discrete_inputs'].contains(row['kind'])
-                      ? 1
-                      : 65535))
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, int.parse(entry.key)),
-              child: Text('${entry.key} = ${entry.value}'),
-            ),
-        SimpleDialogOption(
-          onPressed: () => Navigator.pop(context, -1),
-          child: const LText('Custom value…'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const LText('Cancel'),
-        ),
-      ],
-    ),
-  );
-  if (value == -1) {
-    if (!context.mounted) return null;
-    final custom = await _customRawValuePrompt(context, row, raw);
-    return custom == null ? null : [custom];
-  }
+  final value = await _rawNumberPrompt(context, row, raw);
   return value == null ? null : [value];
 }
 
-Future<int?> _customRawValuePrompt(
+Future<int?> _rawNumberPrompt(
   BuildContext context,
   Map<String, dynamic> row,
   List raw,
@@ -2064,6 +2033,15 @@ class _RawNumberDialogState extends State<_RawNumberDialog> {
   int get _maximum =>
       ['coils', 'discrete_inputs'].contains(widget.row['kind']) ? 1 : 65535;
 
+  @override
+  void initState() {
+    super.initState();
+    _input.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _input.text.length,
+    );
+  }
+
   void _submit() {
     if (_form.currentState!.validate()) {
       Navigator.pop(context, int.parse(_input.text.trim()));
@@ -2079,27 +2057,45 @@ class _RawNumberDialogState extends State<_RawNumberDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: LText(widget.row['name'] as String? ?? 'Set value'),
+    scrollable: true,
     content: SizedBox(
       width: 360,
-      child: Form(
-        key: _form,
-        child: TextFormField(
-          key: const ValueKey('custom-raw-value'),
-          controller: _input,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: tr('Custom raw value'),
-            helperText: tr('Raw integer; no scale or offset applied'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Form(
+            key: _form,
+            child: TextFormField(
+              key: const ValueKey('custom-raw-value'),
+              controller: _input,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: tr('Custom raw value'),
+                helperText: tr('Raw integer; no scale or offset applied'),
+                helperMaxLines: 2,
+              ),
+              validator: (text) {
+                final value = int.tryParse(text?.trim() ?? '');
+                return value != null && value >= 0 && value <= _maximum
+                    ? null
+                    : trf('Enter an integer from 0 to {max}', {'max': _maximum});
+              },
+              onFieldSubmitted: (_) => _submit(),
+            ),
           ),
-          validator: (text) {
-            final value = int.tryParse(text?.trim() ?? '');
-            return value != null && value >= 0 && value <= _maximum
-                ? null
-                : trf('Enter an integer from 0 to {max}', {'max': _maximum});
-          },
-          onFieldSubmitted: (_) => _submit(),
-        ),
+          for (final entry in (widget.row['value_names'] as Map? ?? {}).entries)
+            if (int.tryParse(entry.key as String) != null &&
+                int.parse(entry.key as String) >= 0 &&
+                int.parse(entry.key as String) <= _maximum)
+              TextButton(
+                style: TextButton.styleFrom(alignment: Alignment.centerLeft),
+                onPressed: () =>
+                    Navigator.pop(context, int.parse(entry.key as String)),
+                child: Text('${entry.key} = ${entry.value}'),
+              ),
+        ],
       ),
     ),
     actions: [
@@ -2161,7 +2157,7 @@ Widget inlineEnumEditor(
             ? null
             : (v) async {
                 if (v == -1) {
-                  final custom = await _customRawValuePrompt(context, row, raw);
+                  final custom = await _rawNumberPrompt(context, row, raw);
                   if (custom != null && context.mounted) changed(custom);
                 } else if (v != null) {
                   changed(v);

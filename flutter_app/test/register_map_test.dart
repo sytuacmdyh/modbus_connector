@@ -739,8 +739,20 @@ void main() {
         await tester.tap(cell);
         await tester.pumpAndSettle();
         expect(find.text('1000 = PID auto'), findsOneWidget);
-        await tester.tap(find.text('Custom value…'));
-        await tester.pumpAndSettle();
+        final editable = tester.widget<EditableText>(
+          find.descendant(
+            of: find.byKey(const ValueKey('custom-raw-value')),
+            matching: find.byType(EditableText),
+          ),
+        );
+        expect(editable.focusNode.hasFocus, isTrue);
+        expect(
+          editable.controller.selection,
+          TextSelection(
+            baseOffset: 0,
+            extentOffset: editable.controller.text.length,
+          ),
+        );
       }
 
       await openCustom();
