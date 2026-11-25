@@ -20,6 +20,7 @@ import 'workbench.dart';
 import 'settings_store.dart';
 import 'templates_dialog.dart';
 import 'help_dialog.dart';
+import 'release_notes_dialog.dart';
 import 'online_dialogs.dart';
 import 'demo.dart';
 import 'backend/update.dart'
@@ -763,6 +764,7 @@ class _SessionWorkspaceState extends State<SessionWorkspace> {
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
+                const ReleaseNotesButton(),
                 PopupMenuButton<String>(
                   key: const ValueKey('workspace-language'),
                   tooltip: '语言 / Language',

@@ -71,6 +71,9 @@ String trf(String key, Map<String, Object?> values) {
 }
 
 const flutterChinese = <String, String>{
+  'Recent updates': '最近更新',
+  'Current version: {version}': '当前版本：{version}',
+  'Development build': '开发版',
   'WebDAV sync': 'WebDAV 同步',
   'Remember WebDAV password on this device': '在此设备上记住 WebDAV 密码',
   'Saved locally without encryption; excluded from workspace exports.':

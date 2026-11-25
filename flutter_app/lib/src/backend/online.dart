@@ -5,16 +5,9 @@ import 'catalog.dart';
 import 'cloud_sync.dart';
 import 'registers.dart';
 import 'update.dart';
+import '../release_info.dart';
+export '../release_info.dart' show applicationVersion, releasesUrl;
 export 'cloud_sync.dart' show cloudSettings, cloudVersion, DavException;
-
-const releasesUrl = 'https://github.com/sytuacmdyh/modbus_connector/releases';
-const applicationVersion = String.fromEnvironment(
-  'APP_VERSION',
-  defaultValue: String.fromEnvironment(
-    'FLUTTER_BUILD_NAME',
-    defaultValue: '0.16.3',
-  ),
-);
 
 class NativeOnline {
   NativeOnline(this.catalog)
