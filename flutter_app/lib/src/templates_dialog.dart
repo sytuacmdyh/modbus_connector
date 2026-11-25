@@ -2,6 +2,9 @@ import 'translations.dart';
 
 import 'package:flutter/material.dart';
 
+import 'backend/template_schema.dart';
+import 'document_file.dart';
+import 'file_paths.dart';
 import 'session_controller.dart';
 import 'tool_widgets.dart';
 
@@ -105,6 +108,35 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
     }
   }
 
+  Future<void> openLocal() async {
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      final path = await chooseFilePath(
+        context,
+        save: false,
+        title: 'Local template file path',
+        extension: 'json',
+      );
+      if (!mounted || path == null || path.isEmpty) return;
+      final file = DocumentFile(path);
+      if (await file.length() > 20 * 1024 * 1024) {
+        throw const FormatException('File is too large (20 MiB maximum)');
+      }
+      final text = await file.readAsString();
+      if (!mounted) return;
+      final state = localTemplateState(text);
+      widget.onOpen(state, null);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) setState(() => error = userError(e));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   Future<void> save(bool append) async {
     final name = append
         ? null
@@ -172,6 +204,11 @@ class _TemplatesDialogState extends State<TemplatesDialog> {
             spacing: 10,
             runSpacing: 6,
             children: [
+              OutlinedButton.icon(
+                onPressed: busy ? null : openLocal,
+                icon: const Icon(Icons.file_open_outlined),
+                label: const LText('Choose local template file'),
+              ),
               OutlinedButton(
                 onPressed: busy ? null : () => save(false),
                 child: const LText('Save as custom'),

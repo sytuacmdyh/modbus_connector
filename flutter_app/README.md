@@ -311,6 +311,17 @@ closing the page or replacing a segment. Capacity errors preserve the old data.
 UINT64/INT64 text display, engineering writes and CSV/log export preserve all
 64 bits; graph, expression and numeric alarm calculations use floating point.
 
+### Local template files (desktop and web)
+
+Choose **Workspace → Templates / history → Choose local template file** to open
+a single JSON template (`name`, `connection`, and `registers`). Both native Flutter
+and legacy template connection formats are supported. The template opens in a
+new disconnected tab; the source file is never modified. Use **Save as custom**
+to retain a copy in local template history. In the simulator, the same file
+chooser is available under **Load template rows** and appends rows using the
+existing duplicate-address checks. Files are limited to 20 MiB. Workspace exports
+with multiple tabs should still use the workspace import command.
+
 ### Read-only WebDAV sync (desktop and web)
 
 Choose **Workspace → WebDAV sync**. Both editions use the same read-only

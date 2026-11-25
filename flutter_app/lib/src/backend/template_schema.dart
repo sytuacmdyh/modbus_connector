@@ -1,6 +1,21 @@
+import 'dart:convert';
+
 import 'registers.dart';
 
 Json map(dynamic d) => Map<String, dynamic>.from(d as Map? ?? {});
+
+/// Local files use the same schema and legacy conversion as catalog templates.
+Json localTemplateState(String text) {
+  dynamic decoded;
+  try {
+    decoded = jsonDecode(text);
+  } on FormatException {
+    throw const FormatException('Invalid template JSON');
+  }
+  validateTemplate(decoded);
+  return flutterState(map(decoded));
+}
+
 void validateTemplate(dynamic v) {
   if (v is! Map ||
       v['name'] is! String ||
