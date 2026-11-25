@@ -112,6 +112,10 @@ Register map commands (additive v1):
 - `read_rows`: `{unit, rows:[row,...]}` (1..4096). Each row accepts `name`, `kind`,
   `address`, `count`, `unit_id` (null inherits unit), `format`, `order`, `scale`,
   `offset`, `unit`, `value_names` (string integer keys), `bitmask`, `alarms`.
+  `value_names` labels values; it does not restrict writes to the listed keys.
+  Single-word enum editors offer named choices and a custom raw integer
+  (0..65535 for registers, 0..1 for coils), without applying scale or offset.
+  Device-specific limits still depend on the target firmware.
   Formats: u16/hex/s16/u32/s32/f32/u64/s64/f64/ascii/ascii1 (`dec` is a legacy
   alias); byte orders
   ABCD/CDAB/BADC/DCBA. All rows validate before I/O, including format width.

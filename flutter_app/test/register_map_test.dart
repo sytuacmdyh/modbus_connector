@@ -712,6 +712,118 @@ void main() {
     },
   );
 
+  testWidgets(
+    '855 sentinel enum accepts custom raw targets and validates before write',
+    (tester) async {
+      final bridge = MapBridge();
+      final session = SessionController(bridge);
+      await session.connect({'timeout': 0.1}, 1);
+      session.registers.add({
+        'name': 'Outdoor valve',
+        'kind': 'holding_registers',
+        'address': 855,
+        'unit_id': 1,
+        'count': 1,
+        'format': 'dec',
+        'scale': 10,
+        'offset': 5,
+        'writable': true,
+        'value_names': {'1000': 'PID auto'},
+      });
+      await tester.pumpWidget(
+        MaterialApp(home: RegisterMapDialog(session: session)),
+      );
+      final cell = find.byKey(const ValueKey('map-value-0'));
+      Future<void> openCustom() async {
+        await tester.ensureVisible(cell);
+        await tester.tap(cell);
+        await tester.pumpAndSettle();
+        expect(find.text('1000 = PID auto'), findsOneWidget);
+        await tester.tap(find.text('Custom value…'));
+        await tester.pumpAndSettle();
+      }
+
+      await openCustom();
+      final input = find.byKey(const ValueKey('custom-raw-value'));
+      for (final invalid in ['', '-1', '65536', '1.5', 'abc']) {
+        await tester.enterText(input, invalid);
+        await tester.tap(find.text('Apply'));
+        await tester.pumpAndSettle();
+        expect(find.text('Enter an integer from 0 to 65535'), findsOneWidget);
+        expect(bridge.calls.where((c) => c['command'] == 'write_row'), isEmpty);
+      }
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(bridge.calls.where((c) => c['command'] == 'write_row'), isEmpty);
+      for (final target in [0, 250, 500]) {
+        await openCustom();
+        await tester.enterText(input, '$target');
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pumpAndSettle();
+        final write = bridge.calls.lastWhere(
+          (c) => c['command'] == 'write_row',
+        );
+        expect(write['row']['address'], 855);
+        expect(write['values'], [target]);
+      }
+      await tester.tap(cell);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1000 = PID auto'));
+      await tester.pumpAndSettle();
+      expect(
+        bridge.calls.lastWhere((c) => c['command'] == 'write_row')['values'],
+        [1000],
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      session.dispose();
+    },
+  );
+
+  testWidgets(
+    'inline enum custom input respects coil range and disabled state',
+    (tester) async {
+      final values = <int>[];
+      final row = <String, dynamic>{
+        'name': 'Coil',
+        'kind': 'coils',
+        'count': 1,
+        'format': 'u16',
+        'value_names': {'1': 'On'},
+      };
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: inlineEnumEditor(row, [true], values.add)),
+        ),
+      );
+      await tester.tap(find.byType(DropdownButton<int>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Custom value…').last);
+      await tester.pumpAndSettle();
+      final input = find.byKey(const ValueKey('custom-raw-value'));
+      expect(tester.widget<TextFormField>(input).controller!.text, '1');
+      await tester.enterText(input, '2');
+      await tester.tap(find.text('Apply'));
+      await tester.pumpAndSettle();
+      expect(find.text('Enter an integer from 0 to 1'), findsOneWidget);
+      expect(values, isEmpty);
+      await tester.enterText(input, '0');
+      await tester.tap(find.text('Apply'));
+      await tester.pumpAndSettle();
+      expect(values, [0]);
+      await tester.pumpWidget(
+        MaterialApp(home: Scaffold(body: inlineEnumEditor(row, [false], null))),
+      );
+      expect(
+        tester
+            .widget<DropdownButton<int>>(find.byType(DropdownButton<int>))
+            .onChanged,
+        isNull,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final platform in [TargetPlatform.linux, TargetPlatform.macOS]) {
     testWidgets(
       'map shortcuts select duplicate move and delete rows on $platform',

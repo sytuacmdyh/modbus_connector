@@ -191,9 +191,7 @@ class _RegisterMapPanelState extends State<RegisterMapPanel> {
     if (i < 0 || i >= model.rows.length) return;
     if (action == 'copy') {
       if (i < model.results.length) {
-        Clipboard.setData(
-          ClipboardData(text: displayValue(model.results[i])),
-        );
+        Clipboard.setData(ClipboardData(text: displayValue(model.results[i])));
       }
     } else {
       model.quickValue(i, action);
@@ -2019,6 +2017,10 @@ Future<List<dynamic>?> rawValuePrompt(
               onPressed: () => Navigator.pop(context, int.parse(entry.key)),
               child: Text('${entry.key} = ${entry.value}'),
             ),
+        SimpleDialogOption(
+          onPressed: () => Navigator.pop(context, -1),
+          child: const LText('Custom value…'),
+        ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const LText('Cancel'),
@@ -2026,7 +2028,88 @@ Future<List<dynamic>?> rawValuePrompt(
       ],
     ),
   );
+  if (value == -1) {
+    if (!context.mounted) return null;
+    final custom = await _customRawValuePrompt(context, row, raw);
+    return custom == null ? null : [custom];
+  }
   return value == null ? null : [value];
+}
+
+Future<int?> _customRawValuePrompt(
+  BuildContext context,
+  Map<String, dynamic> row,
+  List raw,
+) => showDialog<int>(
+  context: context,
+  builder: (_) => _RawNumberDialog(row: row, raw: raw),
+);
+
+class _RawNumberDialog extends StatefulWidget {
+  const _RawNumberDialog({required this.row, required this.raw});
+  final Map<String, dynamic> row;
+  final List raw;
+
+  @override
+  State<_RawNumberDialog> createState() => _RawNumberDialogState();
+}
+
+class _RawNumberDialogState extends State<_RawNumberDialog> {
+  final _form = GlobalKey<FormState>();
+  late final _input = TextEditingController(
+    text: widget.raw.isEmpty
+        ? ''
+        : '${widget.raw.first is bool ? (widget.raw.first == true ? 1 : 0) : widget.raw.first}',
+  );
+  int get _maximum =>
+      ['coils', 'discrete_inputs'].contains(widget.row['kind']) ? 1 : 65535;
+
+  void _submit() {
+    if (_form.currentState!.validate()) {
+      Navigator.pop(context, int.parse(_input.text.trim()));
+    }
+  }
+
+  @override
+  void dispose() {
+    _input.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: LText(widget.row['name'] as String? ?? 'Set value'),
+    content: SizedBox(
+      width: 360,
+      child: Form(
+        key: _form,
+        child: TextFormField(
+          key: const ValueKey('custom-raw-value'),
+          controller: _input,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: tr('Custom raw value'),
+            helperText: tr('Raw integer; no scale or offset applied'),
+          ),
+          validator: (text) {
+            final value = int.tryParse(text?.trim() ?? '');
+            return value != null && value >= 0 && value <= _maximum
+                ? null
+                : trf('Enter an integer from 0 to {max}', {'max': _maximum});
+          },
+          onFieldSubmitted: (_) => _submit(),
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const LText('Cancel'),
+      ),
+      FilledButton(onPressed: _submit, child: const LText('Apply')),
+    ],
+  );
 }
 
 bool hasInlineEnum(Map<String, dynamic> row) =>
@@ -2057,26 +2140,34 @@ Widget inlineEnumEditor(
       : (raw.first as num).toInt();
   return SizedBox(
     width: 135,
-    child: DropdownButton<int>(
-      isDense: true,
-      isExpanded: true,
-      value: keys.contains(current) ? current : null,
-      hint: const LText('Set value'),
-      items: [
-        for (final key in keys)
-          DropdownMenuItem(
-            value: key,
-            child: Text(
-              '$key = ${names['$key']}',
-              overflow: TextOverflow.ellipsis,
+    child: Builder(
+      builder: (context) => DropdownButton<int>(
+        isDense: true,
+        isExpanded: true,
+        value: keys.contains(current) ? current : null,
+        hint: const LText('Set value'),
+        items: [
+          for (final key in keys)
+            DropdownMenuItem(
+              value: key,
+              child: Text(
+                '$key = ${names['$key']}',
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-      ],
-      onChanged: changed == null
-          ? null
-          : (v) {
-              if (v != null) changed(v);
-            },
+          const DropdownMenuItem(value: -1, child: LText('Custom value…')),
+        ],
+        onChanged: changed == null
+            ? null
+            : (v) async {
+                if (v == -1) {
+                  final custom = await _customRawValuePrompt(context, row, raw);
+                  if (custom != null && context.mounted) changed(custom);
+                } else if (v != null) {
+                  changed(v);
+                }
+              },
+      ),
     ),
   );
 }
