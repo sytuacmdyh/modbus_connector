@@ -23,6 +23,37 @@ class ModbusClient {
   int expectedId = 0, expectedUnit = 0;
   DateTime? drainUntil;
   FrameParser? activeParser;
+  final _clock = Stopwatch()..start();
+  int? _lastActivityUs;
+  void _logRx(List<int> bytes) {
+    if (bytes.isNotEmpty) traffic?.call('rx', bytes);
+  }
+
+  Future<void> _waitForSilence(Json p, ReadCancellation? cancellation) async {
+    if (p['transport'] == 'tcp') return;
+    // Apply to every request on this bus, including unit switches and writes.
+    var gapUs = 50000;
+    if (p['transport'] == 'rtu') {
+      final bits =
+          1 +
+          (p['bytesize'] as int) +
+          (p['stopbits'] as int) +
+          (p['parity'] == 'N' ? 0 : 1);
+      final frameGap = (3.5 * bits * 1000000 / (p['baudrate'] as int)).ceil();
+      if (frameGap > gapUs) gapUs = frameGap;
+    }
+    while (_lastActivityUs != null) {
+      cancellation?.check();
+      if (!identical(params, p)) throw const WireDisconnected('Disconnected');
+      final remaining = gapUs - (_clock.elapsedMicroseconds - _lastActivityUs!);
+      if (remaining <= 0) break;
+      final wait = Future<void>.delayed(Duration(microseconds: remaining));
+      await (cancellation?.wait(wait) ?? wait);
+    }
+    cancellation?.check();
+    if (!identical(params, p)) throw const WireDisconnected('Disconnected');
+  }
+
   bool get connected => params != null;
   void Function(String, List<int>)? traffic;
   Future<void> _tail = Future.value();
@@ -36,16 +67,13 @@ class ModbusClient {
     final p = connection(raw);
     await close();
     final tcp = p['transport'] == 'tcp';
-    final parser = activeParser = FrameParser(tcp: tcp);
+    final parser = activeParser = FrameParser(tcp: tcp, onDiscard: _logRx);
     drainUntil = null;
+    _lastActivityUs = null;
     void receive(List<int> b) {
-      traffic?.call('rx', b);
-      if (drainUntil != null) {
-        if (DateTime.now().isBefore(drainUntil!)) return;
-        drainUntil = null;
-        parser.buffer.clear();
-      }
       for (final f in parser.feed(b)) {
+        _logRx(f);
+        if (drainUntil != null) continue;
         if (tcp && u16(f, 0) != expectedId) continue;
         final unit = f[tcp ? 6 : 0];
         if (unit != expectedUnit) continue;
@@ -57,6 +85,7 @@ class ModbusClient {
     }
 
     void ended([Object? error]) {
+      parser.flush();
       params = null;
       final c = pending;
       if (c != null && !c.isCompleted) {
@@ -67,7 +96,10 @@ class ModbusClient {
     try {
       _channel = await _openChannel(p);
       subscription = _channel!.stream.listen(
-        receive,
+        (bytes) {
+          if (bytes.isNotEmpty) _lastActivityUs = _clock.elapsedMicroseconds;
+          receive(bytes);
+        },
         onError: ended,
         onDone: ended,
       );
@@ -86,6 +118,7 @@ class ModbusClient {
     }
     await subscription?.cancel();
     subscription = null;
+    activeParser?.flush();
     await _channel?.close();
     _channel = null;
   }
@@ -106,9 +139,11 @@ class ModbusClient {
       }
       cancellation?.check();
       drainUntil = null;
-      activeParser?.buffer.clear();
+      activeParser?.flush();
       if (!connected) throw const WireDisconnected('Disconnected');
     }
+    await _waitForSilence(p, cancellation);
+    activeParser?.flush();
     expectedUnit = unit;
     expectedId = transaction = (transaction + 1) & 65535;
     final tcp = p['transport'] == 'tcp';
@@ -152,13 +187,13 @@ class ModbusClient {
       return response;
     } on ReadCancelled {
       if (!c.isCompleted) c.completeError(ReadCancelled());
-      activeParser?.buffer.clear();
+      activeParser?.flush();
       // RTU has no transaction ID. Keep the abandoned reply out of the next
       // exchange, but release the caller immediately (also during draining).
       if (!tcp) drainUntil = responseDeadline;
       rethrow;
     } on TimeoutException {
-      activeParser?.buffer.clear();
+      activeParser?.flush();
       // TCP IDs reject late replies. RTU has no IDs: drain a full timeout
       // before the next request, preserving polling on an open transport.
       if (!tcp) {
@@ -168,6 +203,7 @@ class ModbusClient {
       }
       rethrow;
     } finally {
+      _lastActivityUs = _clock.elapsedMicroseconds;
       if (identical(pending, c)) pending = null;
     }
   });

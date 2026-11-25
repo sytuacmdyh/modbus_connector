@@ -154,6 +154,7 @@ void main() {
     expect(await client.read(1, 'holding_registers', 0, 2), [65535, 32768]);
     await client.write(1, 'holding_registers', 0, [42]);
     expect(channel.sent.last, rtuFrame(1, [6, 0, 0, 0, 42]));
+    // Each noise prefix is retained, followed by one complete response.
     expect(frames, ['tx', 'rx', 'rx', 'tx', 'rx', 'rx']);
     await client.close();
     expect(channel.closed, true);
@@ -201,5 +202,87 @@ void main() {
     await client.close();
     await reading;
     expect(channel.closed, true);
+  });
+
+  test(
+    'fragmented RTU responses log one frame and coalesced frames split',
+    () async {
+      final channel = MemoryChannel();
+      final client = ModbusClient(openChannel: (_) async => channel);
+      final received = <List<int>>[];
+      client.traffic = (direction, bytes) {
+        if (direction == 'rx') received.add(List.of(bytes));
+      };
+      final frame = rtuFrame(2, [3, 4, 0, 1, 0, 2]);
+      channel.respond = (_) {
+        for (final byte in frame) {
+          channel.receive([byte]);
+        }
+      };
+      await client.connect(parameters);
+      expect(await client.read(2, 'holding_registers', 0, 2), [1, 2]);
+      expect(received, [frame]);
+      channel.receive([...frame, ...frame]);
+      await Future<void>.delayed(Duration.zero);
+      expect(received, [frame, frame, frame]);
+      channel.receive([2, 3, 4]);
+      await Future<void>.delayed(Duration.zero);
+      await client.close();
+      expect(received.last, [2, 3, 4]);
+    },
+  );
+
+  test(
+    'RTU unit switch and write readback wait 50 ms after latest RX',
+    () async {
+      final channel = MemoryChannel();
+      final client = ModbusClient(openChannel: (_) async => channel);
+      final clock = Stopwatch()..start();
+      int? lastRx;
+      final gaps = <int>[];
+      client.traffic = (direction, bytes) {
+        if (direction == 'rx') lastRx = clock.elapsedMicroseconds;
+      };
+      channel.respond = (bytes) {
+        if (lastRx != null) gaps.add(clock.elapsedMicroseconds - lastRx!);
+        channel.receive(
+          bytes[1] == 6 ? bytes : rtuFrame(bytes[0], [3, 2, 0, 42]),
+        );
+      };
+      await client.connect(parameters);
+      await client.read(2, 'holding_registers', 0, 1);
+      // Traffic arriving during the wait must restart the silence period.
+      final late = Timer(const Duration(milliseconds: 30), () {
+        channel.receive(rtuFrame(2, [3, 2, 0, 99]));
+      });
+      await client.write(1, 'holding_registers', 851, [1]);
+      await client.read(1, 'holding_registers', 851, 1);
+      expect(gaps, hasLength(2));
+      expect(gaps, everyElement(greaterThanOrEqualTo(50000)));
+      late.cancel();
+      await client.close();
+    },
+  );
+
+  test('cancelling during RTU silence sends no request', () async {
+    final channel = MemoryChannel();
+    final client = ModbusClient(openChannel: (_) async => channel);
+    channel.respond = (_) => channel.receive(rtuFrame(1, [3, 2, 0, 42]));
+    await client.connect(parameters);
+    await client.read(1, 'holding_registers', 0, 1);
+    final cancel = ReadCancellation();
+    final next = client.read(
+      1,
+      'holding_registers',
+      1,
+      1,
+      cancellation: cancel,
+    );
+    final check = expectLater(next, throwsA(isA<ReadCancelled>()));
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    cancel.cancel();
+    await check;
+    expect(channel.sent, hasLength(1));
+    await client.close();
   });
 }

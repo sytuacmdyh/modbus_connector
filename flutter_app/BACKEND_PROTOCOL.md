@@ -11,10 +11,15 @@ Read timeout errors also carry `read_timeout` with `transport`, `endpoint`, `uni
 The bridge preserves this context for activity log formatting and rate limiting.
 
 The desktop worker pushes independent `{event: "traffic", traffic: [...],
-statistics: {...}}` messages as master TX/RX chunks are captured, including while
+statistics: {...}}` messages as master TX/RX frames are captured, including while
 a command is waiting for a response and for late/unsolicited RX between commands.
 The bridge routes these messages separately from command replies; completing a
-command updates the final statistics without replaying the captured chunks.
+command updates the final statistics without replaying the captured frames.
+RX stream fragments are assembled using Modbus length/CRC before logging, so a
+complete response occupies one record even when Web Serial delivers single bytes.
+Noise is retained; incomplete input is flushed on timeout, cancellation, close or
+before the next request. RX timestamps denote frame completion (or fragment flush),
+not physical arrival of the first byte.
 The active traffic view repaints on Flutter frames, with no polling timer or
 command-completion delay. Hidden views and display pause do not stop capture.
 
@@ -25,7 +30,7 @@ original byte `length` and uppercase space-separated `hex` (at most 4096 bytes).
 Statistics include `tx_bytes`, `rx_bytes`, `operations`, `errors`, `average_ms`.
 An operation is a service request that exchanged master traffic, including failed
 requests; grouped reads count as one operation. Flutter retains the latest 10,000
-chunks. Display pause/filtering never pauses capture or bus I/O.
+records. Display pause/filtering never pauses capture or bus I/O.
 
 ```json
 {"id":1,"command":"hello"}
@@ -59,7 +64,12 @@ Commands:
 - `shutdown`: closes resources, acknowledges, exits. EOF also closes resources.
 
 Dart asynchronous sockets and serialized per-session transactions keep the UI
-responsive. Stop invalidates the current read generation; Disconnect gates the
+responsive. RTU (including Web Serial and RTU over TCP/UDP) waits at least 50 ms
+after the latest received bytes or completed exchange before sending the next
+request. New input restarts the silence wait; writes, readback and unit switches
+share it. Low-baud serial links also respect the longer 3.5-character gap. The
+wait is cancellable and does not consume the response timeout. Stop invalidates
+the current read generation; Disconnect gates the
 UI immediately and waits for active I/O. Recoverable transaction errors keep
 polling alive. TCP transaction IDs reject late replies; RTU drains one timeout
 before the next request after a timeout. EOF/shutdown language below describes

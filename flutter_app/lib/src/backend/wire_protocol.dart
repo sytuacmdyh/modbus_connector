@@ -106,19 +106,25 @@ class ReadCancellation {
 
 // A sliding CRC search recovers valid frames behind fragmented or noisy input.
 class FrameParser {
-  FrameParser({required this.tcp, this.request = false, this.sniff = false});
+  FrameParser({
+    required this.tcp,
+    this.request = false,
+    this.sniff = false,
+    this.onDiscard,
+  });
+  final void Function(List<int>)? onDiscard;
   final bool tcp, request, sniff;
   final buffer = <int>[];
 
   List<List<int>> feed(List<int> bytes) {
     buffer.addAll(bytes);
-    if (buffer.length > 131072) buffer.removeRange(0, buffer.length - 65536);
+    if (buffer.length > 131072) _discard(buffer.length - 65536);
     final frames = <List<int>>[];
     if (tcp) {
       while (buffer.length >= 7) {
         final n = u16(buffer, 4);
         if (u16(buffer, 2) != 0 || n < 2 || n > 254) {
-          buffer.removeAt(0);
+          _discard(1);
           continue;
         }
         if (buffer.length < n + 6) break;
@@ -140,6 +146,7 @@ class FrameParser {
             (buffer[end - 2] | buffer[end - 1] << 8)) {
           continue;
         }
+        if (offset > 0) onDiscard?.call(buffer.sublist(0, offset));
         frames.add(buffer.sublist(offset, end));
         buffer.removeRange(0, end);
         offset = -1;
@@ -148,9 +155,17 @@ class FrameParser {
       offset++;
     }
     // No RTU ADU can exceed 256 bytes. Retain incomplete candidates only.
-    if (buffer.length > 255) buffer.removeRange(0, buffer.length - 255);
+    if (buffer.length > 255) _discard(buffer.length - 255);
     return frames;
   }
+
+  void _discard(int count) {
+    onDiscard?.call(buffer.sublist(0, count));
+    buffer.removeRange(0, count);
+  }
+
+  /// Preserve incomplete/invalid input in the traffic log at exchange boundaries.
+  void flush() => _discard(buffer.length);
 
   List<int> _lengths(int start) {
     final left = buffer.length - start;
