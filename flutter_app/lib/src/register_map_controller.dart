@@ -263,7 +263,7 @@ class RegisterMapController extends ChangeNotifier {
             .map((g) => (g as List).cast<int>())
             .toList();
       }
-      for (final group in groups) {
+      for (final group in _interleaveStations(groups, indices)) {
         if (_pendingWrites > 0) break;
         final reply = await session.command(
           {
@@ -309,6 +309,43 @@ class RegisterMapController extends ChangeNotifier {
       done.complete();
       if (!_disposed) notifyListeners();
     }
+  }
+
+  List<List<int>> _interleaveStations(
+    List<List<int>> groups,
+    List<int> indices,
+  ) {
+    final stations = <int, List<List<int>>>{};
+    for (final group in groups) {
+      final unit =
+          rows[indices[group.first]]['unit_id'] as int? ?? session.unit;
+      stations.putIfAbsent(unit, () => []).add(group);
+    }
+    if (stations.length < 2) return groups;
+
+    // Spread each station's groups across the cycle, including unequal maps.
+    // Simple round-robin would exhaust smaller stations and leave a long tail
+    // for the largest station. Keep each station's existing group order and
+    // every group's original row indices; only reorder whole transactions.
+    final scheduled =
+        <({List<int> group, int position, int count, int station})>[];
+    var station = 0;
+    for (final bucket in stations.values) {
+      for (var i = 0; i < bucket.length; i++) {
+        scheduled.add((
+          group: bucket[i],
+          position: i,
+          count: bucket.length,
+          station: station,
+        ));
+      }
+      station++;
+    }
+    scheduled.sort((a, b) {
+      final progress = (a.position * b.count).compareTo(b.position * a.count);
+      return progress != 0 ? progress : a.station.compareTo(b.station);
+    });
+    return scheduled.map((entry) => entry.group).toList();
   }
 
   void start(int interval) {

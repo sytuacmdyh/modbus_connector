@@ -289,7 +289,14 @@ Grouped and scheduled map reads:
   back into the original row order and renders each row's settings independently.
   Failed merged requests retry the member rows individually.
 - Flutter submits one planned group at a time so cancellation is checked between
-  transactions. Grouped reads are always enabled for map polling and Read all;
+  transactions. After merging, map reads interleave whole groups by effective
+  station, spreading each station's groups across the cycle in proportion to
+  its group count. This avoids reading all of one station before the next,
+  including when station group counts differ. Within-station group order,
+  result row mapping, queued-write priority and the RTU minimum 50 ms gap are
+  preserved. This is not a keepalive deadline: slow responses, timeouts, merged
+  read fallbacks and long polling intervals can still exceed a device watchdog.
+  Grouped reads are always enabled for map polling and Read all;
   the legacy `map_grouped` state field is retained for compatibility but false
   values are ignored. Per-row `poll_enabled` gates manual/map polling, while
   the map interval is global for every row. Busy ticks are skipped. Legacy
