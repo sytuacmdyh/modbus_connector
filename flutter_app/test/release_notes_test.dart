@@ -43,7 +43,7 @@ void main() {
           expect(find.text(tr('Recent updates')), findsOneWidget);
           expect(find.text('v0.16.20'), findsOneWidget);
           expect(find.text('v0.16.19'), findsOneWidget);
-          expect(find.text('v0.16.18'), findsOneWidget);
+          expect(find.text('v0.16.21'), findsOneWidget);
           expect(
             find.textContaining(
               language == 'en' ? 'Enter a custom raw value' : '枚举快捷选项与自定义原始值输入',
