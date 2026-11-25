@@ -42,11 +42,13 @@ void main() {
           await tester.pumpAndSettle();
           expect(find.text(tr('Recent updates')), findsOneWidget);
           expect(find.text('v0.16.20'), findsOneWidget);
-          expect(find.text('v0.16.19'), findsOneWidget);
+          expect(find.text('v0.16.22'), findsOneWidget);
           expect(find.text('v0.16.21'), findsOneWidget);
           expect(
             find.textContaining(
-              language == 'en' ? 'Enter a custom raw value' : '枚举快捷选项与自定义原始值输入',
+              language == 'en'
+                  ? 'Choose a local JSON template'
+                  : '支持选择本地 JSON 模板文件',
             ),
             findsOneWidget,
           );
